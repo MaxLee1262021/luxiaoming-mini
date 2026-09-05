@@ -1,0 +1,63 @@
+.policy-page {
+  min-height: 100vh;
+  padding: 32rpx 32rpx 60rpx;
+  box-sizing: border-box;
+  background: var(--lxm-c-bg);
+}
+
+.policy-hero {
+  padding: 16rpx 4rpx 28rpx;
+  border-bottom: 2rpx solid var(--lxm-c-gray-350);
+  margin-bottom: 20rpx;
+}
+
+.hero-kicker {
+  color: var(--lxm-c-muted);
+  font-size: var(--lxm-fz-xs);
+  letter-spacing: 4rpx;
+  font-weight: 900;
+}
+
+.hero-title {
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-xl);
+  font-weight: 900;
+  margin-top: 8rpx;
+}
+
+.policy-section {
+  margin-bottom: 30rpx;
+}
+
+.policy-h {
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-md);
+  font-weight: 900;
+  margin-bottom: 12rpx;
+}
+
+.policy-p {
+  color: var(--lxm-c-gray-800);
+  font-size: var(--lxm-fz-base);
+  line-height: 1.75;
+}
+
+.policy-li {
+  color: var(--lxm-c-gray-800);
+  font-size: var(--lxm-fz-base);
+  line-height: 1.75;
+}
+
+.policy-update {
+  margin: 8rpx 0 20rpx;
+  color: var(--lxm-c-gray-650);
+  font-size: var(--lxm-fz-sm);
+  text-align: center;
+}
+
+.policy-foot {
+  margin-top: 20rpx;
+  color: var(--lxm-c-gray-650);
+  font-size: var(--lxm-fz-sm);
+  text-align: center;
+}

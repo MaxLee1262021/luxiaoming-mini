@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "lxm-toast": "/components/lxm-toast/lxm-toast",
+    "lxm-empty-state": "/components/lxm-empty-state/lxm-empty-state",
+    "lxm-package-card": "/components/lxm-package-card/lxm-package-card",
+    "lxm-guide-card": "/components/lxm-guide-card/lxm-guide-card",
+    "lxm-custom-booking-card": "/components/lxm-custom-booking-card/lxm-custom-booking-card"
+  }
+}

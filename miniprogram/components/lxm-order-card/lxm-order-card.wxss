@@ -1,0 +1,175 @@
+.order-card {
+  margin-bottom: 22rpx;
+  padding: 24rpx;
+  border-radius: var(--lxm-r-lg);
+  background: var(--lxm-c-surface);
+  box-shadow: var(--lxm-shadow-card);
+}
+
+.order-hd,
+.order-body,
+.btn-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.order-hd { margin-bottom: 18rpx; }
+
+.status-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 7rpx 16rpx;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.status-dot-inner {
+  width: 10rpx;
+  height: 10rpx;
+  margin-right: 8rpx;
+  border-radius: 50%;
+}
+
+.status-pending,
+.status-new,
+.status-contacted,
+.status-deposit_pending { background: var(--lxm-c-gold-soft-3); color: var(--lxm-c-gold-deep); }
+.status-pending .status-dot-inner,
+.status-new .status-dot-inner,
+.status-contacted .status-dot-inner,
+.status-deposit_pending .status-dot-inner { background: var(--lxm-c-gold-press); }
+
+.status-confirmed,
+.status-deposit_paid,
+.status-assigned { background: var(--lxm-c-gray-150); color: var(--lxm-c-red-ink); }
+.status-confirmed .status-dot-inner,
+.status-deposit_paid .status-dot-inner,
+.status-assigned .status-dot-inner { background: var(--lxm-c-red); }
+
+.status-shooting { background: var(--lxm-c-gold-soft-3); color: var(--lxm-c-gray-750); }
+.status-shooting .status-dot-inner { background: var(--lxm-c-gray-750); }
+.status-editing,
+.status-final_pending { background: var(--lxm-c-gold-soft); color: var(--lxm-c-gold-deep); }
+.status-editing .status-dot-inner,
+.status-final_pending .status-dot-inner { background: var(--lxm-c-gold-deep); }
+.status-completed { background: var(--lxm-c-ink); color: var(--lxm-c-cream); }
+.status-completed .status-dot-inner { background: var(--lxm-c-gold); }
+
+.status-locked { background: var(--lxm-c-error-soft); color: var(--lxm-c-red-ink); }
+.status-locked .status-dot-inner { background: var(--lxm-c-red); }
+.status-canceled,
+.status-cancelled { background: var(--lxm-c-error-soft); color: var(--lxm-c-red-ink); }
+.status-canceled .status-dot-inner,
+.status-cancelled .status-dot-inner { background: var(--lxm-c-red); }
+
+.order-no {
+  max-width: 330rpx;
+  color: var(--lxm-c-muted);
+  font-size: var(--lxm-fz-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.package-name {
+  flex: 1;
+  min-width: 0;
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.package-price {
+  margin-left: 20rpx;
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-md);
+  font-weight: 900;
+}
+
+.order-spot,
+.order-time,
+.order-type {
+  margin-top: 10rpx;
+  color: var(--lxm-c-gray-700);
+  font-size: var(--lxm-fz-sm);
+  line-height: 1.4;
+}
+
+.order-type {
+  display: inline-block;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-bg);
+  color: var(--lxm-c-red-ink);
+  font-weight: 900;
+}
+
+.btn-row {
+  margin-top: 22rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid var(--lxm-c-gray-350);
+  gap: 14rpx;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+}
+
+.cancel-btn,
+.after-sale-btn,
+.detail-btn,
+.lock-btn,
+.delete-btn {
+  position: relative;
+  height: 58rpx;
+  line-height: 58rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+/* 无障碍：视觉不变，透明热区高度扩至 88rpx（WCAG 2.5.5） */
+.cancel-btn::after,
+.after-sale-btn::after,
+.detail-btn::after,
+.lock-btn::after,
+.delete-btn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 88rpx;
+  border: 0;
+}
+
+.lock-btn {
+  margin-right: auto;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-surface);
+}
+
+.cancel-btn {
+  background: var(--lxm-c-bg);
+  color: var(--lxm-c-gray-700);
+}
+
+.after-sale-btn {
+  background: var(--lxm-c-gray-150);
+  color: var(--lxm-c-red-ink);
+}
+
+.delete-btn {
+  background: var(--lxm-c-bg);
+  color: var(--lxm-c-muted);
+}
+
+.detail-btn {
+  background: var(--lxm-c-gold);
+  color: var(--lxm-c-red-ink);
+}

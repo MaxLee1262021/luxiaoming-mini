@@ -1,0 +1,70 @@
+<view class="peripherals-page">
+  <lxm-nav-bar showBack="{{false}}" theme="light" placeholder="{{true}}" />
+  <lxm-privacy-modal />
+
+  <view class="lxm-skeleton-wrap" wx:if="{{loading}}">
+    <view class="lxm-skeleton-card" wx:for="{{[1,2,3,4]}}" wx:key="*this">
+      <view class="lxm-skeleton lxm-skeleton-cover"></view>
+      <view class="lxm-skeleton-body">
+        <view class="lxm-skeleton lxm-skeleton-line sk-title"></view>
+        <view class="lxm-skeleton lxm-skeleton-line sk-block"></view>
+      </view>
+    </view>
+  </view>
+
+  <block wx:else>
+    <!-- 加载失败降级提示：已回退预览数据，可重试拉真实数据 -->
+    <view wx:if="{{degraded}}" class="lxm-degrade-bar">
+      <text class="lxm-degrade-bar__txt">内容加载失败，周边暂时展示预览内容</text>
+      <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载周边">重新加载</view>
+    </view>
+
+    <!-- ===== 工艺定制引言 ===== -->
+    <view class="custom-hero">
+      <text class="custom-kicker">专属定制</text>
+      <text class="custom-title">定制你的专属周边</text>
+      <text class="custom-sub">把旅拍记忆做成可触摸的礼物</text>
+    </view>
+
+    <!-- ===== 卡片堆叠展示柜（主推位，层层叠放）===== -->
+    <view class="stack-stage" bindtouchstart="onStackTouchStart" bindtouchmove="onStackTouchMove" bindtouchend="onStackTouchEnd">
+      <view class="stack-hint">滑动点选 · 层层看全部周边</view>
+      <view class="stack-center">
+        <view
+          wx:for="{{stackLayers}}"
+          wx:key="_id"
+          class="stack-card {{item.isFront ? 'front' : ''}}"
+          style="{{item.stackStyle}}"
+          catchtap="onStackTap"
+          data-index="{{item._index}}"
+        >
+          <view class="stack-cover">
+            <image class="stack-img" src="{{item.image || item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+            <view class="stack-badge hot" wx:if="{{item.isHot}}">热卖</view>
+            <view class="stack-badge sale" wx:elif="{{item.isHotSale}}">爆款</view>
+            <view class="stack-badge new" wx:elif="{{item.isNew}}">新品</view>
+          </view>
+          <view class="stack-info">
+            <text class="stack-name">{{item.name}}</text>
+            <view class="stack-specs">
+              <text class="stack-spec" wx:for="{{item.specs}}" wx:for-item="s" wx:key="*this">{{s}}</text>
+            </view>
+            <view class="stack-foot">
+              <text class="stack-price">¥{{item.price || 0}}</text>
+              <view class="stack-btn" catchtap="goStackDetail" data-id="{{item._id}}">咨询</view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="stack-nav prev" bindtap="rotateRing" data-dir="-1">‹</view>
+      <view class="stack-nav next" bindtap="rotateRing" data-dir="1">›</view>
+      <view class="stack-dots">
+        <view
+          wx:for="{{allPeripherals}}"
+          wx:key="_id"
+          class="stack-dot {{index === stackFront ? 'active' : ''}}"
+        ></view>
+      </view>
+    </view>
+  </block>
+</view>

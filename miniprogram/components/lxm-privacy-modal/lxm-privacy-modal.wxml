@@ -1,0 +1,18 @@
+<view class="privacy-mask" wx:if="{{visible}}" catchtouchmove="noop">
+  <view class="privacy-card">
+    <view class="privacy-kicker">隐私说明</view>
+    <view class="privacy-title">隐私授权</view>
+    <scroll-view scroll-y class="privacy-body">
+      <text class="privacy-text">感谢使用「鹿小鸣长沙旅拍」。
+
+为向你提供打卡点预览、照片查看、旅拍预约和客服一对一沟通等服务，我们需要收集你的微信昵称、头像及手机号等必要信息。
+
+请阅读并同意下方《隐私保护指引》后继续使用。我们依法严格保护你的个人信息，绝不用于约定服务之外的用途，也不会擅自提供给第三方。</text>
+      <view class="privacy-link" bindtap="onViewPolicy">查看完整《隐私保护指引》</view>
+    </scroll-view>
+    <view class="privacy-actions">
+      <button class="privacy-btn decline" bindtap="onDecline">暂不使用</button>
+      <button class="privacy-btn agree" bindtap="onAgree">同意并继续</button>
+    </view>
+  </view>
+</view>

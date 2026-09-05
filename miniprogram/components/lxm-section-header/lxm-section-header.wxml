@@ -1,0 +1,10 @@
+<view class="section-header {{compact ? 'compact' : ''}}">
+  <view class="section-copy">
+    <view class="title-row">
+      <text class="section-title">{{title}}</text>
+      <text class="section-badge" wx:if="{{badge}}">{{badge}}</text>
+    </view>
+    <text class="section-subtitle" wx:if="{{subtitle}}">{{subtitle}}</text>
+  </view>
+  <view class="section-more" wx:if="{{moreText}}" bindtap="onMoreTap"><text>{{moreClean}}</text><lxm-icon type="arrow-right" size="20" color="red"></lxm-icon></view>
+</view>

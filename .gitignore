@@ -1,0 +1,35 @@
+# WeChat Developer Tools local configuration
+project.private.config.json
+project.*.private.config.json
+
+# Local environment and generated dependencies
+.env
+.env.*
+!.env.example
+node_modules/
+miniprogram_npm/
+cloudfunctions/**/node_modules/
+
+# Editor and operating-system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
+*.tmp
+*.swp
+*.swo
+.cache/
+.tmp/
+coverage/
+
+# Development artifacts excluded from the source delivery
+_dev_drafts/
+**/_screenshots/
+.uploads/
+
+# This legacy handoff guide describes removed cloud functions.
+部署与灌库操作手册.md
+
+# This legacy check requires the removed cloudfunctions directory.
+tools/check-cloudfunctions.js

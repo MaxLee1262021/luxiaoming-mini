@@ -1,0 +1,203 @@
+<view class="explore-page">
+  <lxm-privacy-modal />
+
+  <map
+    id="exploreMap"
+    class="explore-map"
+    latitude="{{mapLatitude}}"
+    longitude="{{mapLongitude}}"
+    scale="{{mapScale}}"
+    markers="{{markers}}"
+    include-points="{{includePoints}}"
+    include-points-padding="{{[40, 40, 40, 40]}}"
+    show-location="{{true}}"
+    enable-zoom="{{true}}"
+    enable-scroll="{{true}}"
+    enable-rotate="{{false}}"
+    enable-satellite="{{false}}"
+    bindmarkertap="onMarkerTap"
+    bindtap="onMapTap"
+  />
+
+  <view class="explore-header" style="padding-top: {{statusBarHeight}}px;">
+
+    <!-- 顶部品牌轮播（后台可配，与首页轮播「单独一套」；支持图片/视频 + 标题浮层）-->
+    <swiper
+      class="top-banner"
+      autoplay="{{bannerAutoplay}}"
+      interval="3500"
+      duration="400"
+      circular="{{true}}"
+      current="{{bannerIndex}}"
+      bindchange="onBannerChange"
+      indicator-dots="{{true}}"
+      indicator-color="rgba(255,255,255,0.5)"
+      indicator-active-color="#FFFFFF"
+    >
+      <swiper-item wx:for="{{exploreBanners}}" wx:key="_id">
+        <view class="banner-click-area" bindtap="goBanner" data-index="{{index}}">
+          <video wx:if="{{item.type === 'video'}}" class="banner-media" src="{{item.url}}" poster="{{item.cover || '/images/placeholder.png'}}" object-fit="cover" muted loop autoplay="{{index === bannerIndex}}" controls="{{false}}" show-center-play-btn="{{false}}" />
+          <image wx:else class="banner-media" src="{{item.url || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+          <view wx:if="{{item.title}}" class="banner-copy"><text class="banner-title">{{item.title}}</text></view>
+        </view>
+      </swiper-item>
+    </swiper>
+
+    <lxm-search-bar
+      class="explore-searchbar"
+      value="{{searchKeyword}}"
+      placeholder="搜索打卡点、旅拍套餐、照片留影、视频摄像"
+      mode="global"
+      bind:input="onSearchInput"
+      bind:confirm="onSearchConfirm"
+      bind:clear="clearSearch"
+      bind:focus="onSearchFocus"
+      bind:blur="onSearchBlur"
+      bind:action="onSearchAction"
+    />
+
+    <view class="explore-filters">
+      <view id="filter-city" class="explore-filter {{openPanel === 'city' ? 'open' : ''}}" bindtap="togglePanel" data-type="city">
+        <text class="explore-filter-text">{{selectedCity}}</text>
+        <lxm-icon class="explore-filter-icon" type="arrow-right" size="14" color="ink"></lxm-icon>
+      </view>
+      <view id="filter-district" class="explore-filter {{openPanel === 'district' ? 'open' : ''}} {{selectedDistrict ? 'selected' : ''}}" bindtap="togglePanel" data-type="district">
+        <text class="explore-filter-text">{{selectedDistrict || '区域'}}</text>
+        <text class="filter-badge">{{selectedDistrict ? districtCount : resultCount}}</text>
+        <lxm-icon class="explore-filter-icon" type="arrow-right" size="14" color="ink"></lxm-icon>
+      </view>
+      <view id="filter-spot" class="explore-filter {{openPanel === 'spot' ? 'open' : ''}} {{selectedSpotId ? 'selected' : ''}}" bindtap="togglePanel" data-type="spot">
+        <text class="explore-filter-text">{{selectedSpotName || '打卡点'}}</text>
+        <text wx:if="{{!selectedSpotId}}" class="filter-badge">{{resultCount}}</text>
+        <lxm-icon class="explore-filter-icon" type="arrow-right" size="14" color="ink"></lxm-icon>
+      </view>
+      <view id="filter-sort" class="explore-filter {{openPanel === 'sort' ? 'open' : ''}} {{sortType !== 'composite' ? 'selected' : ''}}" bindtap="togglePanel" data-type="sort">
+        <text class="explore-filter-text">{{sortType === 'hot' ? '热度优先' : sortType === 'distance' ? '离我最近' : '综合推荐'}}</text>
+        <lxm-icon class="explore-filter-icon" type="arrow-right" size="14" color="ink"></lxm-icon>
+      </view>
+    </view>
+  </view>
+
+  <view class="filter-dropdown {{openPanel ? 'show' : ''}}" wx:if="{{openPanel}}">
+    <view class="filter-dropdown-backdrop" bindtap="closePanel"></view>
+    <view class="filter-dropdown-panel" style="top: {{filterPanelTop}}px; --arrow-left: {{filterArrowLeft}}px;" catchtap="noop">
+      <view wx:if="{{openPanel === 'city'}}" class="filter-options">
+        <view
+          wx:for="{{cityOptions}}"
+          wx:key="value"
+          class="filter-option {{item.disabled ? 'disabled' : ''}} {{selectedCity === item.value ? 'active' : ''}}"
+          bindtap="selectCity"
+          data-value="{{item.value}}"
+          data-disabled="{{item.disabled}}"
+        >
+          <view class="fo-main">
+            <text wx:if="{{selectedCity === item.value}}" class="fo-check">✓</text>
+            <text>{{item.name}}</text>
+          </view>
+          <text wx:if="{{item.count !== undefined}}" class="filter-count">{{item.count}}</text>
+        </view>
+      </view>
+      <view wx:if="{{openPanel === 'district'}}" class="filter-options">
+        <view
+          wx:for="{{districtOptions}}"
+          wx:key="value"
+          class="filter-option {{selectedDistrict === item.value ? 'active' : ''}}"
+          bindtap="selectDistrict"
+          data-value="{{item.value}}"
+        >
+          <view class="fo-main">
+            <text wx:if="{{selectedDistrict === item.value}}" class="fo-check">✓</text>
+            <text>{{item.name}}</text>
+          </view>
+          <text wx:if="{{item.count !== undefined}}" class="filter-count">{{item.count}}</text>
+        </view>
+      </view>
+      <view wx:if="{{openPanel === 'spot'}}" class="filter-options">
+        <view
+          wx:for="{{spotOptions}}"
+          wx:key="value"
+          class="filter-option {{selectedSpotId === item.value ? 'active' : ''}}"
+          bindtap="selectSpot"
+          data-value="{{item.value}}"
+        >
+          <view class="fo-main">
+            <text wx:if="{{selectedSpotId === item.value}}" class="fo-check">✓</text>
+            <text>{{item.name}}</text>
+          </view>
+        </view>
+      </view>
+      <view wx:if="{{openPanel === 'sort'}}" class="filter-options">
+        <view
+          wx:for="{{sortOptions}}"
+          wx:key="value"
+          class="filter-option {{sortType === item.value ? 'active' : ''}} {{index === sortOptions.length - 1 ? 'last' : ''}}"
+          bindtap="selectSort"
+          data-value="{{item.value}}"
+        >
+          <view class="fo-main">
+            <text wx:if="{{sortType === item.value}}" class="fo-check">✓</text>
+            <text>{{item.name}}</text>
+          </view>
+        </view>
+        <view class="filter-divider"></view>
+        <view class="filter-only-toggle" bindtap="toggleOnlySample">
+          <text class="fot-label">只看有样片的点</text>
+          <view class="fot-switch {{onlyWithSample ? 'on' : ''}}"><view class="fot-knob"></view></view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载失败降级提示：已回退预览打卡点，可重试拉真实数据 -->
+    <view wx:if="{{degraded && !loading}}" class="lxm-degrade-bar explore-degrade">
+      <text class="lxm-degrade-bar__txt">内容加载失败，正在展示预览打卡点</text>
+      <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载打卡点">重新加载</view>
+    </view>
+  </view>
+  <!-- 搜索建议下拉：统一复用 lxm-search-panel（与首页同一套，不写两套） -->
+  <lxm-search-panel
+    wx:if="{{searchFocused}}"
+    keyword="{{searchKeyword}}"
+    hasInput="{{searchHasInput}}"
+    suggestions="{{searchSuggestions}}"
+    hotKeywords="{{hotSearchKeywords}}"
+    top="{{searchDropdownTop}}"
+    bind:itemtap="onSuggestionTap"
+    bind:hottap="onHotSearchTap"
+    bind:close="closeSearch"
+    bind:booking="goCustomBookingByKeyword"
+  />
+
+  <view class="explore-fabs">
+    <view class="fab" bindtap="zoomIn">
+      <lxm-icon type="plus" size="20" color="ink"></lxm-icon>
+    </view>
+    <view class="fab fab-minus" bindtap="zoomOut">
+      <view class="minus-line"></view>
+    </view>
+    <view class="fab fab-primary" bindtap="locateMe">
+      <lxm-icon type="location" size="22" color="white"></lxm-icon>
+    </view>
+  </view>
+
+  <view wx:if="{{loading}}" class="explore-loading">
+    <view class="lxm-skeleton lxm-skeleton-circle" style="width: 80rpx; height: 80rpx;"></view>
+  </view>
+
+  <view wx:if="{{!loading && !filteredSpots.length}}" class="explore-empty">
+    <lxm-empty-state
+      type="spot"
+      title="暂无打卡点"
+      desc="当前筛选条件下没有找到打卡点"
+      button-text="重置筛选"
+      bind:action="resetFilters"
+    />
+  </view>
+
+  <!-- B5 · 首次进入探索页引导浮层 -->
+  <view class="guide-overlay {{showGuideExplore ? 'show' : ''}}" wx:if="{{showGuideExplore}}" bindtap="hideGuideExplore">
+    <view class="guide-card" catchtap="onGuideCardTap">
+      <view class="guide-finger">👆</view>
+      <view class="guide-text">点地图图钉，发现长沙绝美机位 🦌</view>
+    </view>
+  </view>
+</view>

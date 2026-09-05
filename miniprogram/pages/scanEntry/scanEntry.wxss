@@ -1,0 +1,43 @@
+.scan-entry {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(160deg, var(--lxm-c-ink) 0%, var(--lxm-c-gray-850) 100%);
+  color: var(--lxm-c-gray-50);
+  padding: 0 48rpx;
+}
+.scan-brand {
+  font-size: 44rpx;
+  font-weight: 700;
+  letter-spacing: 4rpx;
+  color: var(--lxm-c-orange);
+}
+.scan-shop {
+  margin-top: 24rpx;
+  font-size: 38rpx;
+  font-weight: var(--lxm-fw-semibold);
+}
+.scan-placement {
+  margin-top: 12rpx;
+  font-size: 28rpx;
+  opacity: 0.85;
+}
+.scan-loading {
+  margin-top: 16rpx;
+  font-size: 28rpx;
+  opacity: 0.8;
+}
+.scan-spinner {
+  margin-top: 56rpx;
+  width: 56rpx;
+  height: 56rpx;
+  border: 4rpx solid rgba(255, 255, 255, 0.25);
+  border-top-color: var(--lxm-c-orange);
+  border-radius: 50%;
+  animation: scan-spin 0.9s linear infinite;
+}
+@keyframes scan-spin {
+  to { transform: rotate(360deg); }
+}

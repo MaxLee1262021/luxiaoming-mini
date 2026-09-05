@@ -1,0 +1,51 @@
+<view
+  class="package-card {{layout === 'horizontal' ? 'is-horizontal' : ''}} {{selectable ? 'is-selectable' : ''}} {{selected ? 'is-selected' : ''}}"
+  style="--pkg-cover-size: {{coverSize || (layout === 'horizontal' ? 180 : 224)}}rpx;"
+  bindtap="onTap"
+  hover-class="lxm-card-lift"
+  hover-stay-time="150"
+>
+  <view class="card-img-wrap">
+    <view class="card-type-badge badge-photo">旅拍套餐</view>
+    <image
+      src="{{item.cover || '/images/placeholder.png'}}"
+      mode="aspectFill"
+      class="card-cover"
+      lazy-load
+    />
+    <view class="card-cover-badge" wx:if="{{item.price !== undefined && item.price !== ''}}">¥{{item.minPrice || item.price}}起</view>
+  </view>
+
+  <view class="card-body">
+    <view class="card-title-row">
+      <view class="card-title">{{item.name}}</view>
+      <view class="card-badge {{badge ? '' : marketingBadgeClass}}" wx:if="{{badge || marketingBadge}}">{{badge || marketingBadge}}</view>
+    </view>
+
+    <!-- 套餐组合内容标签：自动读 includedItems 的 type，显示 照片 / 视频 / 周边（替换原规格行） -->
+    <view class="card-compose" wx:if="{{compositionTags.length}}">
+      <text class="compose-tag" wx:for="{{compositionTags}}" wx:for-item="ct" wx:key="*this">{{ct}}</text>
+    </view>
+
+    <!-- 套餐卡（含组合标签）隐藏 serviceTags 行，避免显示“X分钟拍摄/精修X张”；单品卡仍显示自身标签 -->
+    <view class="card-tags" wx:if="{{tags.length && compositionTags.length === 0}}">
+      <text class="tag" wx:for="{{tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+    </view>
+
+    <view class="card-desc" wx:if="{{item.description && layout !== 'vertical'}}">{{item.description}}</view>
+
+    <view class="card-selected-tag" wx:if="{{selectable && selected}}">已选</view>
+
+    <view class="card-price-row">
+      <view class="price-main">
+        <text class="price-symbol">¥</text>
+        <text class="price-value">{{item.price}}</text>
+      </view>
+      <view class="detail-link" wx:if="{{!selectable}}">查看详情</view>
+    </view>
+
+    <view class="price-original" wx:if="{{item.originalPrice}}">
+      原价 ¥{{item.originalPrice}}
+    </view>
+  </view>
+</view>

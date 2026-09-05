@@ -1,0 +1,217 @@
+/* 短视频卡片统一组件：与详情页「相关推荐」大图卡片同款
+   单品 = 奶油底红字标签；套餐 = 品牌橙填充标签 */
+.video-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: 26rpx;
+  background: var(--lxm-c-red);
+  box-shadow: var(--lxm-shadow-red-strong);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.video-card:active {
+  transform: scale(0.985);
+}
+
+/* product 模式：横向滚动大卡片（首页/搜索/短视频页/相关推荐） */
+.video-card.product {
+  display: inline-block;
+  width: 560rpx;
+  height: 310rpx;
+  margin-right: 18rpx;
+  vertical-align: top;
+}
+
+.video-cover-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--lxm-c-ink);
+}
+
+.video-cover {
+  width: 100%;
+  height: 100%;
+}
+
+.video-shade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 220rpx;
+  background: linear-gradient(to top, rgba(42, 33, 27, 0.78), rgba(42, 33, 27, 0.06));
+  pointer-events: none;
+}
+
+.play-btn {
+  position: absolute;
+  right: 24rpx;
+  top: 22rpx;
+  z-index: 3;
+  width: 58rpx;
+  height: 58rpx;
+  line-height: 58rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--lxm-c-red-ink);
+  text-align: center;
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+/* 无障碍：视觉不变，透明热区扩至 88rpx（WCAG 2.5.5） */
+.play-btn::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 88rpx;
+  height: 88rpx;
+  border: 0;
+  border-radius: inherit;
+}
+
+/* B3 · 封面起价角标（右上，避开播放按钮） */
+.video-cover-badge {
+  position: absolute;
+  right: 24rpx;
+  top: 92rpx;
+  z-index: 4;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.video-copy {
+  position: absolute;
+  left: 24rpx;
+  right: 24rpx;
+  bottom: 22rpx;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+}
+
+.video-tag {
+  width: fit-content;
+  padding: 5rpx 12rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 241, 231, 0.92);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+}
+
+.video-title {
+  display: block;
+  margin-top: 12rpx;
+  color: var(--lxm-c-surface);
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: normal;
+}
+
+.video-meta {
+  display: block;
+  margin-top: 9rpx;
+  color: rgba(255, 255, 255, 0.76);
+  font-size: var(--lxm-fz-sm);
+  white-space: normal;
+}
+
+.video-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18rpx;
+}
+
+.video-price {
+  color: var(--lxm-c-red);
+  font-size: var(--lxm-fz-xl);
+  font-weight: 900;
+}
+
+.video-link {
+  padding: 10rpx 18rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(145deg, var(--lxm-c-orange) 0%, var(--lxm-c-red) 100%);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.video-book {
+  position: relative;
+  height: 58rpx;
+  line-height: 58rpx;
+  margin: 14rpx 0 0;
+  padding: 0;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.92);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+/* 无障碍：视觉不变，透明热区高度扩至 88rpx（WCAG 2.5.5） */
+.video-book::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 88rpx;
+  border: 0;
+}
+
+/* 套餐卡变体：角标用品牌橙填充，与单品卡明显区分 */
+.video-card.is-package .video-tag {
+  background: var(--lxm-c-orange);
+  color: var(--lxm-c-cream);
+}
+
+/* grid 模式：整宽块级（保留给未来网格场景） */
+.video-card.grid {
+  display: block;
+  width: 100%;
+  height: 310rpx;
+  margin-right: 0;
+}
+
+/* 营销角标：爆款（红）> 主推（金）> 热门（橙），覆盖在封面左上角 */
+.video-marketing-badge {
+  position: absolute;
+  top: 22rpx;
+  left: 24rpx;
+  z-index: 4;
+  padding: 5rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+  background: var(--lxm-c-gold);
+  color: var(--lxm-c-ink);
+  pointer-events: none;
+}
+.video-marketing-badge.is-hot-sale {
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+}
+.video-marketing-badge.is-main-push {
+  background: var(--lxm-c-gold);
+  color: var(--lxm-c-ink);
+}
+.video-marketing-badge.is-hot {
+  background: var(--lxm-c-orange);
+  color: var(--lxm-c-ink);
+}

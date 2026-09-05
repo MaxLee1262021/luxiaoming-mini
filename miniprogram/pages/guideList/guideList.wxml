@@ -1,0 +1,89 @@
+<view class="guide-list-page">
+  <lxm-nav-bar showBack="{{true}}" title="{{title}}" placeholder="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton gl-skeleton-hero"></view>
+    <view class="lxm-skeleton-card" wx:for="{{[1,2,3,4]}}" wx:key="*this">
+      <view class="lxm-skeleton lxm-skeleton-cover"></view>
+      <view class="lxm-skeleton-body">
+        <view class="lxm-skeleton lxm-skeleton-line sk-title"></view>
+        <view class="lxm-skeleton lxm-skeleton-line sk-block"></view>
+        <view class="lxm-skeleton lxm-skeleton-line sk-short"></view>
+      </view>
+    </view>
+  </view>
+
+  <block wx:elif="{{guides.length}}">
+    <!-- 本期推荐 · 国风杂志流 hero（与双列瀑布流结合） -->
+    <view wx:if="{{featuredGuide && activeChip === '全部'}}" class="gl-feature" bindtap="goGuideDetail" data-id="{{featuredGuide._id}}" role="button" aria-label="查看本期推荐：{{featuredGuide.title}}">
+      <view class="glf-cover">
+        <image class="glf-img" src="{{featuredGuide.image || featuredGuide.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+        <view class="glf-mask"></view>
+        <view class="glf-seal" aria-hidden="true">鹿</view>
+        <view class="glf-cap">
+          <view class="glf-eyebrow">本期推荐</view>
+          <view class="glf-title">{{featuredGuide.title}}</view>
+          <view wx:if="{{featuredGuide.description}}" class="glf-desc">{{featuredGuide.description}}</view>
+          <view class="glf-meta">
+            <text wx:if="{{featuredGuide.spotName}}" class="glf-spot">{{featuredGuide.spotName}}</text>
+            <text class="glf-dot" wx:if="{{featuredGuide.spotName}}">·</text>
+            <text>{{featuredGuide.readCount || 0}} 人已看</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <scroll-view wx:if="{{chips.length > 1}}" class="gl-chips" scroll-x enable-flex show-scrollbar="{{false}}">
+      <view
+        class="gl-chip {{activeChip === item ? 'on' : ''}}"
+        wx:for="{{chips}}"
+        wx:key="*this"
+        role="button"
+        aria-label="筛选分类：{{item}}"
+        data-cat="{{item}}"
+        bindtap="onChipTap"
+      >{{item}}</view>
+    </scroll-view>
+
+    <view wx:if="{{filteredGuides.length}}" class="gl-waterfall">
+      <view class="gl-col">
+        <lxm-guide-card
+          wx:for="{{leftGuides}}"
+          wx:key="_id"
+          item="{{item}}"
+          variant="waterfall"
+          bind:tap="goGuideDetail"
+        />
+      </view>
+      <view class="gl-col">
+        <lxm-guide-card
+          wx:for="{{rightGuides}}"
+          wx:key="_id"
+          item="{{item}}"
+          variant="waterfall"
+          bind:tap="goGuideDetail"
+        />
+      </view>
+    </view>
+
+    <lxm-empty-state
+      wx:elif="{{guides.length > 1}}"
+      type="album"
+      title="该分类暂无旅拍灵感"
+      desc="换个分类，或看看其他拍摄服务。"
+      button-text="看打卡点"
+      bind:action="goAllPackages"
+    />
+  </block>
+
+  <lxm-empty-state
+    wx:else
+    type="album"
+    title="旅拍灵感整理中"
+    desc="换个打卡点，或看看其他拍摄服务。"
+    button-text="看打卡点"
+    bind:action="goAllPackages"
+  />
+</view>

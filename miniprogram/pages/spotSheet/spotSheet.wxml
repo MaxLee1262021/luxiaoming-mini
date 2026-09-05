@@ -1,0 +1,160 @@
+<view class="sheet-page">
+  <lxm-nav-bar showBack="{{true}}" theme="light" title="{{selectedSpot.name}}" />
+
+  <!-- 顶部留白：让内容避开 fixed 浮层导航 -->
+  <view class="sheet-nav-spacer"></view>
+
+  <lxm-privacy-modal />
+
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-hero"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
+  </view>
+
+  <view wx:elif="{{error}}" class="state">
+    <view>{{error}}</view>
+    <button class="state-btn" bindtap="retry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="sheet-header">
+      <view class="sheet-spot-info">
+        <view class="sheet-name-row">
+          <text class="sheet-name">{{selectedSpot.name}}</text>
+          <view class="sheet-tags" wx:if="{{selectedSpot.tags && selectedSpot.tags.length}}">
+            <text wx:for="{{selectedSpot.tags}}" wx:key="*this" class="sheet-tag">{{item}}</text>
+          </view>
+        </view>
+        <view class="sheet-address" wx:if="{{selectedSpot.address}}">{{selectedSpot.address}}</view>
+      </view>
+      <view
+        class="sheet-guide-btn"
+        bindtap="goGuideList"
+        hover-class="sheet-guide-btn--hover"
+        role="button"
+        aria-label="{{selectedSpotGuides.length ? '查看本打卡点的旅拍灵感' : '本打卡点暂无旅拍灵感'}}"
+      >
+        <view class="sg-dot"></view>
+        <text class="sg-text">旅拍灵感</text>
+        <view class="sg-arrow"></view>
+      </view>
+    </view>
+
+    <!-- B1 · 点位价值前置：hero 大图 + 热度标签 + 信任条 -->
+    <view class="sheet-hero" wx:if="{{selectedSpot.cover}}">
+      <image class="sheet-hero-img" src="{{selectedSpot.cover}}" mode="aspectFill" lazy-load />
+      <view class="sheet-hero-hot" wx:if="{{selectedSpot.hotScore}}">
+        <text class="hero-hot-ico">🔥</text>
+        <text>热度 {{selectedSpot.hotScore}}</text>
+      </view>
+      <view class="sheet-seal" aria-hidden="true">鹿</view>
+    </view>
+
+    <view class="sheet-desc" wx:if="{{selectedSpot.description}}">
+      <text>{{selectedSpot.description}}</text>
+    </view>
+
+    <!-- 约拍定制入口：全站统一 banner 母版（有商品时作为行动召唤常驻展示） -->
+    <lxm-custom-booking-card
+      wx:if="{{!spotNoMedia}}"
+      spotId="{{selectedSpot._id}}"
+      spotName="{{selectedSpot.name}}"
+      bind:booking="goCustomBooking"
+    />
+
+    <view class="sheet-sections">
+      <!-- 无商品空态：同一张约拍定制卡，仅补充上下文说明 -->
+      <lxm-custom-booking-card
+        wx:if="{{spotNoMedia}}"
+        spotId="{{selectedSpot._id}}"
+        spotName="{{selectedSpot.name}}"
+        context="该打卡点暂未上架照片留影 / 视频摄像产品，想来这里拍？可直接发起约拍预约"
+        bind:booking="goCustomBooking"
+      />
+
+      <view class="sheet-rec" wx:if="{{spotNoMedia && relatedRecs.length}}">
+        <view class="sheet-rec-ttl">相关推荐</view>
+        <scroll-view scroll-x class="sheet-rec-scroll" show-scrollbar="{{false}}">
+          <view wx:for="{{relatedRecs}}" wx:key="_id" class="rec-card" bindtap="onRecTap" data-id="{{item._id}}">
+            <view class="rec-name">{{item.name}}</view>
+            <view class="rec-region">{{item.district}}</view>
+            <view class="rec-go">去看看 ›</view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="sheet-section" wx:if="{{selectedSpotProducts.photoSingles.length}}">
+        <view class="sheet-section-head">
+          <text class="sheet-section-title">照片留影</text>
+        </view>
+        <view class="sheet-scroll-wrap">
+          <scroll-view class="sheet-scroll album-scroll" scroll-x show-scrollbar="{{false}}" bindscroll="onPhotoScroll">
+            <block wx:for="{{selectedSpotProducts.photoSingles}}" wx:key="_id">
+              <lxm-album-card mode="compact" item="{{item}}" bind:tap="onPhotoTap" />
+            </block>
+          </scroll-view>
+          <view class="sheet-dots" wx:if="{{photoDots.length > 1}}">
+            <view wx:for="{{photoDots}}" wx:key="*this" class="sheet-dot {{index === photoDotActive ? 'on' : ''}}"></view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 旅拍套餐：与照片留影/视频摄像/影像周边并列的独立区块（不再塞进照片留影按按钮切换） -->
+      <view class="sheet-section" wx:if="{{selectedSpotProducts.photoPackages.length}}">
+        <view class="sheet-section-head">
+          <text class="sheet-section-title">旅拍套餐</text>
+        </view>
+        <view class="sheet-scroll-wrap">
+          <scroll-view class="sheet-scroll package-scroll" scroll-x show-scrollbar="{{false}}" bindscroll="onPackageScroll">
+            <block wx:for="{{selectedSpotProducts.photoPackages}}" wx:key="_id">
+              <lxm-package-card item="{{item}}" bind:tap="onPackageTap" />
+            </block>
+          </scroll-view>
+          <view class="sheet-dots" wx:if="{{packageDots.length > 1}}">
+            <view wx:for="{{packageDots}}" wx:key="*this" class="sheet-dot {{index === packageDotActive ? 'on' : ''}}"></view>
+          </view>
+        </view>
+      </view>
+
+      <view class="sheet-section" wx:if="{{selectedSpotProducts.videos.length}}">
+        <view class="sheet-section-head">
+          <text class="sheet-section-title">视频摄像</text>
+        </view>
+        <view class="sheet-scroll-wrap" wx:if="{{selectedSpotProducts.videos.length}}">
+          <scroll-view class="sheet-scroll video-scroll" scroll-x show-scrollbar="{{false}}" bindscroll="onVideoScroll">
+            <block wx:for="{{selectedSpotProducts.videos}}" wx:key="_id">
+              <lxm-video-card item="{{item}}" mode="product" variant="single" bind:tap="onVideoTap" />
+            </block>
+          </scroll-view>
+          <view class="sheet-dots" wx:if="{{videoDots.length > 1}}">
+            <view wx:for="{{videoDots}}" wx:key="*this" class="sheet-dot {{index === videoDotActive ? 'on' : ''}}"></view>
+          </view>
+        </view>
+        <view wx:else class="sheet-empty">
+          <text>该打卡点暂无视频单品</text>
+        </view>
+      </view>
+
+      <view class="sheet-section" wx:if="{{!spotNoMedia && selectedSpotProducts.peripherals.length}}">
+        <view class="sheet-section-head">
+          <text class="sheet-section-title">影像周边</text>
+        </view>
+        <view class="sheet-scroll-wrap">
+          <scroll-view class="sheet-scroll peripheral-scroll" scroll-x show-scrollbar="{{false}}" bindscroll="onPeripheralScroll">
+            <block wx:for="{{selectedSpotProducts.peripherals}}" wx:key="_id">
+              <view class="peripheral-card" bindtap="onPeripheralTap" data-id="{{item._id}}">
+                <image class="peripheral-cover" src="{{item.cover || item.image || '/images/placeholder.png'}}" mode="aspectFill" />
+                <text class="peripheral-name">{{item.name}}</text>
+                <text class="peripheral-price">¥{{item.price}}</text>
+              </view>
+            </block>
+          </scroll-view>
+          <view class="sheet-dots" wx:if="{{peripheralDots.length > 1}}">
+            <view wx:for="{{peripheralDots}}" wx:key="*this" class="sheet-dot {{index === peripheralDotActive ? 'on' : ''}}"></view>
+          </view>
+        </view>
+      </view>
+    </view>
+  </block>
+</view>

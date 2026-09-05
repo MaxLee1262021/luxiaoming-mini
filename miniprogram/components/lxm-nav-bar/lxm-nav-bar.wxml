@@ -1,0 +1,27 @@
+<view
+  class="lxm-nav-bar lxm-nav-bar--float lxm-nav-bar--{{theme}}"
+  style="--nav-top: {{navTopPx}}px; --capsule-safe-right: {{capsuleSafeRightPx}}px;"
+>
+  <view class="lnb__statusbar"></view>
+  <view class="lnb__body">
+    <view wx:if="{{showBack}}" class="lnb__back" bindtap="onBack">
+      <text class="lnb__back-icon">‹</text>
+    </view>
+    <text wx:if="{{title}}" class="lnb__title">{{title}}</text>
+  </view>
+</view>
+
+<view
+  wx:if="{{placeholder}}"
+  class="lxm-nav-bar lxm-nav-bar--placeholder lxm-nav-bar--{{theme}}"
+  style="--nav-top: {{navTopPx}}px; --capsule-safe-right: {{capsuleSafeRightPx}}px;"
+  aria-hidden="true"
+>
+  <view class="lnb__statusbar"></view>
+  <view class="lnb__body">
+    <view wx:if="{{showBack}}" class="lnb__back" style="visibility:hidden">
+      <text class="lnb__back-icon">‹</text>
+    </view>
+    <text wx:if="{{title}}" class="lnb__title">{{title}}</text>
+  </view>
+</view>

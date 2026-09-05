@@ -1,0 +1,108 @@
+<view class="search-page">
+  <lxm-nav-bar showBack="{{true}}" placeholder="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view class="search-hero">
+    <lxm-search-bar
+      class="search-entry"
+      value="{{keyword}}"
+      placeholder="搜索打卡点、旅拍套餐、照片留影、视频摄像"
+      mode="global"
+      bind:input="onInput"
+      bind:confirm="submitSearch"
+      bind:clear="clearKeyword"
+      bind:focus="onSearchFocus"
+      bind:blur="onSearchBlur"
+    />
+    <view class="hot-wrap">
+      <text class="hot-title">热门搜索</text>
+      <view class="hot-list">
+        <text wx:for="{{hotKeywords}}" wx:key="*this" class="hot-chip" bindtap="tapKeyword" data-keyword="{{item}}">{{item}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{searching}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton-card" wx:for="{{[1,2,3]}}" wx:key="*this">
+      <view class="lxm-skeleton lxm-skeleton-cover"></view>
+      <view class="lxm-skeleton-body">
+        <view class="lxm-skeleton lxm-skeleton-line sk-title"></view>
+        <view class="lxm-skeleton lxm-skeleton-line sk-block"></view>
+        <view class="lxm-skeleton lxm-skeleton-line sk-short"></view>
+      </view>
+    </view>
+  </view>
+  <block wx:else>
+
+  <!-- 约拍定制：按用户要求排在相关结果最上方一排 -->
+  <view class="booking-top" wx:if="{{hasSearched}}">
+    <lxm-custom-booking-card keyword="{{keyword}}" bind:booking="goCustomBooking" />
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <text class="section-title">{{hasSearched ? '相关打卡点' : '热门打卡点'}}</text>
+      </view>
+    </view>
+    <view class="spot-list" wx:if="{{spots.length}}">
+      <view class="spot-card" wx:for="{{spots}}" wx:key="_id" bindtap="goSpot" data-id="{{item._id}}">
+        <image class="spot-img" src="{{item.cover || item.image || '/images/placeholder.png'}}" mode="aspectFill" />
+        <view class="spot-info">
+          <text class="spot-name">{{item.name}}</text>
+          <text class="spot-desc">{{item.description}}</text>
+          <view class="tag-row">
+            <text wx:for="{{item.tags}}" wx:key="*this" class="mini-tag">{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+    <block wx:else>
+      <lxm-empty-state type="location" title="暂无相关打卡点" desc="换个关键词试试" />
+    </block>
+  </view>
+
+  <view class="section">
+    <view class="section-head">
+      <view>
+        <text class="section-title">{{hasSearched ? '相关旅拍套餐' : '旅拍套餐推荐'}}</text>
+      </view>
+    </view>
+    <scroll-view scroll-x class="package-scroll" show-scrollbar="{{false}}" wx:if="{{packages.length}}">
+      <view class="pkg-scroll-item" wx:for="{{packages}}" wx:key="_id">
+        <lxm-package-card item="{{item}}" bind:tap="goPackage" />
+      </view>
+    </scroll-view>
+    <lxm-empty-state wx:else type="package" title="暂无相关旅拍套餐" desc="可以换个关键词，或先浏览热门推荐。" />
+  </view>
+
+  <view class="section video-section" wx:if="{{videos.length}}">
+    <view class="section-head">
+      <view>
+        <text class="section-title">视频摄像</text>
+      </view>
+    </view>
+    <scroll-view scroll-x class="video-product-scroll" show-scrollbar="{{false}}">
+      <lxm-video-card wx:for="{{videos}}" wx:key="_id" item="{{item}}" mode="product" variant="{{item.videoCardVariant}}" bind:tap="goVideo" />
+    </scroll-view>
+  </view>
+
+  <view class="section" wx:if="{{guides.length}}">
+    <view class="section-head">
+      <view>
+        <text class="section-title">{{hasSearched ? '相关旅拍灵感' : '旅拍灵感'}}</text>
+      </view>
+    </view>
+    <view class="guide-result-list">
+        <lxm-guide-card
+          wx:for="{{guides}}"
+          wx:key="_id"
+          item="{{item}}"
+          variant="list"
+          bind:tap="goGuide"
+        />
+      </view>
+
+    </view>
+  </block>
+</view>

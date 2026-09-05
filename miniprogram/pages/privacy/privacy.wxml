@@ -1,0 +1,14 @@
+<view class="policy-page">
+  <lxm-nav-bar showBack="{{true}}" placeholder="{{true}}" />
+
+  <view class="policy-section" wx:for="{{sections}}" wx:key="title">
+    <view class="policy-h">{{item.title}}</view>
+    <block wx:for="{{item.blocks}}" wx:for-item="block" wx:key="text">
+      <view class="policy-p" wx:if="{{block.type === 'p'}}">{{block.text}}</view>
+      <view class="policy-li" wx:if="{{block.type === 'li'}}">{{block.text}}</view>
+    </block>
+  </view>
+
+  <view class="policy-update" wx:if="{{updateTime}}">更新日期：{{updateTime}}</view>
+  <view class="policy-foot">继续使用本小程序即表示你理解并同意本指引的内容。</view>
+</view>

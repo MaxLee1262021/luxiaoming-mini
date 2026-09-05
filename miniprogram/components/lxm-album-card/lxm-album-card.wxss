@@ -1,0 +1,346 @@
+/* 照片单品卡片：与首页「照片单品」的 strip-card 保持同一视觉语言 */
+.album-card {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-height: 360rpx;
+  overflow: hidden;
+  border-radius: 20rpx;
+  background: var(--lxm-c-gray-500);
+  box-shadow: 0 14rpx 30rpx rgba(42, 33, 27, 0.12);
+}
+
+.album-card:active {
+  transform: scale(0.98);
+}
+
+.album-cover {
+  width: 100%;
+  height: 100%;
+  min-height: 360rpx;
+  display: block;
+}
+
+/* compact：横向滚动里用的固定尺寸卡（与首页照片单品一致） */
+.album-card.compact {
+  display: inline-block;
+  width: 236rpx;
+  height: 286rpx;
+  min-height: 0;
+  margin-right: 18rpx;
+  vertical-align: top;
+}
+
+.album-card.compact .album-cover {
+  height: 286rpx;
+  min-height: 286rpx;
+}
+
+.album-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 170rpx;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.6), transparent);
+  pointer-events: none;
+}
+
+.album-card.compact .album-mask {
+  height: 96rpx;
+}
+
+.album-type {
+  position: absolute;
+  left: 10rpx;
+  top: 10rpx;
+  z-index: 3;
+  padding: 4rpx 9rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 247, 239, 0.94);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+}
+
+.album-info {
+  position: absolute;
+  left: 14rpx;
+  right: 14rpx;
+  bottom: 14rpx;
+  z-index: 2;
+}
+
+.album-name {
+  display: -webkit-box;
+  color: var(--lxm-c-surface);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+  line-height: 1.24;
+  overflow: hidden;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  white-space: normal;
+}
+
+.album-meta {
+  display: block;
+  margin-top: 8rpx;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: var(--lxm-fz-2xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.album-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10rpx;
+}
+
+.album-count {
+  color: rgba(255, 255, 255, 0.86);
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 700;
+}
+
+.album-price {
+  color: var(--lxm-c-red);
+  font-size: var(--lxm-fz-md);
+  font-weight: 900;
+}
+
+.album-actions {
+  display: flex;
+  gap: 10rpx;
+  margin-top: 14rpx;
+}
+
+.album-btn {
+  position: relative;
+  flex: 1;
+  height: 56rpx;
+  line-height: 56rpx;
+  margin: 0;
+  padding: 0;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.album-btn.ghost {
+  background: rgba(255, 255, 255, 0.20);
+  color: var(--lxm-c-cream);
+}
+
+.album-btn.primary {
+  background: linear-gradient(135deg, var(--lxm-c-orange) 0%, var(--lxm-c-red) 100%);
+  color: var(--lxm-c-cream);
+}
+
+/* 无障碍：视觉不变，透明热区高度扩至 88rpx（WCAG 2.5.5） */
+.album-btn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 88rpx;
+  border: 0;
+}
+
+/* ===== row：横排列表行（吸收 spot mini-collection-card） ===== */
+.album-card.row {
+  display: flex;
+  align-items: center;
+  gap: 14rpx;
+  padding: 12rpx;
+  background: var(--lxm-c-surface);
+  border-radius: var(--lxm-r-md);
+  box-shadow: var(--lxm-shadow-sm);
+  overflow: visible;
+}
+
+.album-card.row .row-cover {
+  width: 96rpx;
+  height: 96rpx;
+  flex-shrink: 0;
+  border-radius: var(--lxm-r-sm);
+  background: var(--lxm-c-gray-400);
+}
+
+.album-row-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.album-row-title {
+  display: block;
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-base);
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.album-row-meta {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--lxm-c-gray-700);
+  font-size: var(--lxm-fz-xs);
+}
+
+.album-row-tail {
+  flex-shrink: 0;
+}
+
+.album-cta {
+  display: inline-block;
+  padding: 8rpx 14rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, var(--lxm-c-red) 0%, var(--lxm-c-orange) 100%);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.album-card.row.is-selected {
+  box-shadow: inset 0 0 0 2rpx var(--lxm-c-red), 0 6rpx 16rpx rgba(64, 39, 26, 0.06);
+  background: var(--lxm-c-gray-100);
+}
+
+/* ===== stack：竖版产品卡（吸收 photoCollection collection-card） ===== */
+.album-card.stack {
+  display: block;
+  background: var(--lxm-c-gray-50);
+  border-radius: var(--lxm-r-md);
+  overflow: hidden;
+  box-shadow: 0 16rpx 36rpx rgba(64, 39, 26, 0.10);
+}
+
+.album-card.stack .stack-cover {
+  width: 100%;
+  height: 330rpx;
+  display: block;
+  background: var(--lxm-c-gray-300);
+}
+
+.album-stack-info {
+  padding: 22rpx 24rpx 24rpx;
+}
+
+.album-focus-badge {
+  display: inline-flex;
+  margin-bottom: 10rpx;
+  padding: 7rpx 14rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.album-stack-title {
+  display: block;
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+  color: var(--lxm-c-gray-900);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.album-stack-desc {
+  margin: 10rpx 0 0;
+  font-size: var(--lxm-fz-sm);
+  color: var(--lxm-c-gray-800);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.album-stack-meta {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 16rpx;
+}
+
+.album-tag {
+  padding: 7rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+  background: var(--lxm-c-gray-250);
+  color: var(--lxm-c-red-ink);
+}
+
+.album-tag.ghost {
+  background: var(--lxm-c-gray-150);
+}
+
+.album-stack-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18rpx;
+}
+
+.album-stack-price {
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+  color: var(--lxm-c-red-ink);
+}
+
+.album-card.stack .album-btn.primary {
+  flex: 0 0 auto;
+  height: 60rpx;
+  line-height: 60rpx;
+  padding: 0 26rpx;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-base);
+  font-weight: 900;
+  background: var(--lxm-gradient-primary);
+  color: var(--lxm-c-cream);
+}
+
+.album-card.stack .album-btn.primary::after {
+  border: 0;
+}
+
+.album-card.stack.is-selected {
+  box-shadow: inset 0 0 0 3rpx rgba(238, 44, 44, 0.36),
+              0 18rpx 40rpx rgba(238, 44, 44, 0.18);
+}
+
+/* 营销角标：爆款（红）> 主推（金）> 热门（橙），覆盖在封面右上角 */
+.album-marketing-badge {
+  position: absolute;
+  top: 12rpx;
+  right: 12rpx;
+  z-index: 4;
+  padding: 4rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+  background: var(--lxm-c-gold);
+  color: var(--lxm-c-ink);
+  pointer-events: none;
+}
+.album-marketing-badge.is-hot-sale {
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+}
+.album-marketing-badge.is-main-push {
+  background: var(--lxm-c-gold);
+  color: var(--lxm-c-ink);
+}
+.album-marketing-badge.is-hot {
+  background: var(--lxm-c-orange);
+  color: var(--lxm-c-ink);
+}

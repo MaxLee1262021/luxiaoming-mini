@@ -1,0 +1,128 @@
+<view class="my-page" style="--nav-top: {{navTopPx}}px; --capsule-safe-right: {{capsuleSafeRightPx}}px;">
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view class="user-section">
+    <view class="user-avatar-wrap">
+      <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/placeholder.png'}}" mode="aspectFill" />
+    </view>
+    <view class="user-detail">
+      <view class="user-name-row">
+        <text class="user-nickname">{{userInfo.nickName || '鹿小鸣游客'}}</text>
+        <view class="user-role-tag role-{{roleType}}">{{roleLabel}}</view>
+      </view>
+      <text class="user-signature">{{authReady ? ('已绑定 ' + phone) : '授权后查看订单、预约和客服服务'}}</text>
+    </view>
+  </view>
+
+  <view class="auth-panel" wx:if="{{!authReady}}">
+    <view>
+      <text class="auth-title">微信手机号一键授权</text>
+    </view>
+    <view class="auth-actions">
+      <button class="auth-btn" open-type="getPhoneNumber" bindgetphonenumber="onGetPhoneNumber" loading="{{authLoading}}">去授权</button>
+    </view>
+  </view>
+
+  <!-- 我的旅拍足迹 · 国风集章册（章册与进度由后台配置 + 订单推导） -->
+  <view class="card footprint-card" wx:if="{{footprint.total}}">
+    <view class="fp-head">
+      <view class="fp-head-text">
+        <text class="card-title">{{footprint.title}}</text>
+        <text class="fp-sub">{{footprint.subText}}</text>
+      </view>
+      <view class="fp-progress {{footprint.completed ? 'done' : ''}}">{{footprint.progressText}}</view>
+    </view>
+    <view class="stamp-row">
+      <view class="stamp-cell" wx:for="{{footprint.stamps}}" wx:key="key">
+        <view class="stamp {{item.got ? 'got' : 'no'}}">{{item.char}}</view>
+        <text class="stamp-name" wx:if="{{item.name}}">{{item.name}}</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="card order-card">
+    <view class="card-header">
+      <text class="card-title">订单状态</text>
+    </view>
+    <view class="order-status-row">
+      <view class="order-status-item" bindtap="goToOrders" data-status="pending">
+        <view class="status-icon-wrap pending-bg"><view class="status-mark"></view></view>
+        <text class="status-name">待确认</text>
+        <text class="status-num">{{orderCounts.pending || 0}}单</text>
+      </view>
+      <view class="order-status-item" bindtap="goToOrders" data-status="confirmed">
+        <view class="status-icon-wrap confirmed-bg"><view class="status-mark"></view></view>
+        <text class="status-name">已确认</text>
+        <text class="status-num">{{orderCounts.confirmed || 0}}单</text>
+      </view>
+      <view class="order-status-item" bindtap="goToOrders" data-status="shooting">
+        <view class="status-icon-wrap shooting-bg"><view class="status-mark"></view></view>
+        <text class="status-name">拍摄中</text>
+        <text class="status-num">{{orderCounts.shooting || 0}}单</text>
+      </view>
+      <view class="order-status-item" bindtap="goToOrders" data-status="editing">
+        <view class="status-icon-wrap editing-bg"><view class="status-mark"></view></view>
+        <text class="status-name">修片中</text>
+        <text class="status-num">{{orderCounts.editing || 0}}单</text>
+      </view>
+      <view class="order-status-item" bindtap="goToOrders" data-status="completed">
+        <view class="status-icon-wrap completed-bg"><view class="status-mark"></view></view>
+        <text class="status-name">已完成</text>
+        <text class="status-num">{{orderCounts.completed || 0}}单</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="section-title-text">常用服务</view>
+  <view class="service-card">
+    <view class="service-item" hover-class="lxm-card-lift" bindtap="goToMyBookings">
+      <view class="service-main">
+        <text class="service-text">我的预约</text>
+      </view>
+      <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
+    </view>
+    <view class="service-item" hover-class="lxm-card-lift" bindtap="goToFavorites">
+      <view class="service-main">
+        <text class="service-text">我的收藏</text>
+      </view>
+      <view class="service-right" wx:if="{{favoriteCount > 0}}">
+        <text class="fav-count-badge">{{favoriteCount}}</text>
+      </view>
+      <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
+    </view>
+    <view class="service-item" hover-class="lxm-card-lift" bindtap="goToPeripherals">
+      <view class="service-main">
+        <text class="service-text">影像周边</text>
+      </view>
+      <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
+    </view>
+  </view>
+
+  <view class="section-title-text">服务帮助</view>
+  <view class="service-card">
+    <view class="service-item contact-service-item">
+      <view class="service-main">
+        <text class="service-text">联系客服</text>
+      </view>
+      <view class="service-right">
+        <text class="online-tag">在线</text>
+        <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
+      </view>
+      <button class="contact-hit" bindtap="openCustomerService"></button>
+    </view>
+    <view class="service-item" hover-class="lxm-card-lift" bindtap="goToNotice">
+      <view class="service-main">
+        <text class="service-text">预约须知</text>
+      </view>
+      <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
+    </view>
+  </view>
+
+  <view class="legal-row">
+    <text class="legal-link" bindtap="goToPrivacy">隐私政策</text>
+  </view>
+
+  <view class="brand-footer">
+    <text class="brand-footer-title">鹿小鸣城市旅拍</text>
+  </view>
+</view>

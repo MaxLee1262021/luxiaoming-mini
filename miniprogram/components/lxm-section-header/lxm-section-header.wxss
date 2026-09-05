@@ -1,0 +1,75 @@
+:host {
+  display: block;
+  box-sizing: border-box;
+  padding: 0 30rpx;
+  margin-bottom: 16rpx;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18rpx;
+}
+
+.section-header.compact {
+  align-items: center;
+}
+
+.section-copy {
+  flex: 1;
+  min-width: 0;
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+}
+
+.section-title {
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.section-subtitle {
+  display: block;
+  margin-top: 6rpx;
+  color: var(--lxm-c-gray-650);
+  font-size: var(--lxm-fz-sm);
+  line-height: 1.35;
+}
+
+.section-badge {
+  padding: 5rpx 12rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+}
+
+.section-more {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 4rpx;
+  flex-shrink: 0;
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+/* 无障碍：透明热区扩至 88rpx（WCAG 2.5.5），视觉尺寸不变 */
+.section-more::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 100%;
+  height: 88rpx;
+}

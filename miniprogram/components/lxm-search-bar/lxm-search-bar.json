@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "lxm-icon": "/components/lxm-icon/lxm-icon"
+  }
+}

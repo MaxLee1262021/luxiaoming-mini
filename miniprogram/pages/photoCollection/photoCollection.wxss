@@ -1,0 +1,415 @@
+.photo-collection-page {
+  background: var(--lxm-c-bg);
+  min-height: 100vh;
+  padding-bottom: 140rpx;
+}
+
+.cover-swiper { height: 460rpx; }
+.cover-img, .cover-video { width: 100%; height: 100%; }
+.single-cover { height: 460rpx; width: 100%; }
+
+.series-info-card {
+  background: var(--lxm-c-surface); margin: 20rpx 24rpx; padding: 24rpx;
+  border-radius: 20rpx; box-shadow: 0 10rpx 28rpx rgba(64,39,26,0.10);
+}
+.series-name { font-size: var(--lxm-fz-xl); font-weight: 700; color: var(--lxm-c-gray-900); margin-bottom: 12rpx; }
+.spot-tags { display: flex; flex-wrap: wrap; gap: 12rpx; margin-bottom: 12rpx; }
+.spot-tag { font-size: var(--lxm-fz-sm); color: var(--lxm-c-gray-750); background: var(--lxm-c-gray-200); padding: 4rpx 16rpx; border-radius: 20rpx; }
+.series-desc { font-size: var(--lxm-fz-base); color: var(--lxm-c-gray-750); line-height: 1.5; }
+
+.section-title {
+  font-size: var(--lxm-fz-lg); font-weight: var(--lxm-fw-bold); color: var(--lxm-c-ink);
+  margin: 20rpx 24rpx 16rpx;
+}
+
+.featured-pkg-wrap {
+  margin: 0 24rpx 20rpx;
+}
+
+/* Horizontal package cards */
+.pkg-scroll {
+  padding-left: 24rpx;
+  padding-right: 60rpx;
+  white-space: nowrap;
+}
+.pkg-scroll-item {
+  display: inline-block;
+  width: 280rpx;
+  margin-right: 16rpx;
+  vertical-align: top;
+}
+
+/* Collection list and sample preview */
+.collection-grid {
+  padding: 0 24rpx;
+}
+
+.video-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin: 26rpx 24rpx 16rpx;
+}
+
+.video-title-main {
+  margin: 0;
+}
+
+
+.video-section-count {
+  flex-shrink: 0;
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-ink);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.video-scroll,
+.peripheral-scroll {
+  padding-left: 24rpx;
+  padding-right: 48rpx;
+  white-space: nowrap;
+}
+.peripheral-card {
+  display: inline-flex;
+  flex-direction: column;
+  width: 190rpx;
+  margin-right: 16rpx;
+  background: var(--lxm-c-surface);
+  border-radius: 20rpx;
+  padding: 14rpx;
+  box-shadow: 0 8rpx 22rpx rgba(64,39,26,0.08);
+  vertical-align: top;
+}
+.peripheral-img {
+  width: 190rpx;
+  height: 160rpx;
+  border-radius: 20rpx;
+  background: var(--lxm-c-gray-300);
+}
+.peripheral-name {
+  margin-top: 12rpx;
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: normal;
+}
+.peripheral-price {
+  margin-top: 8rpx;
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-md);
+  font-weight: 900;
+}
+
+/* Album product detail */
+.album-detail {
+  margin: 0 0 24rpx;
+}
+
+.album-hero-stage {
+  position: relative;
+  height: 620rpx;
+  overflow: hidden;
+  background: var(--lxm-c-gray-400);
+}
+
+.album-sample-swiper {
+  width: 100%;
+  height: 100%;
+  background: var(--lxm-c-gray-400);
+}
+
+.album-sample-hero {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--lxm-c-gray-400);
+}
+
+.album-sample-hero.single {
+  height: 100%;
+}
+
+.album-detail-cover {
+  width: 100%;
+  height: 560rpx;
+  background: var(--lxm-c-gray-400);
+  display: block;
+}
+
+.album-hero-gradient {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 2;
+  background:
+    linear-gradient(to bottom, rgba(246,241,236,0.16), rgba(246,241,236,0) 34%),
+    linear-gradient(to top, rgba(42,33,27,0.62), rgba(42,33,27,0.06) 58%, rgba(42,33,27,0));
+  pointer-events: none;
+}
+
+.album-hero-copy {
+  position: absolute;
+  left: 28rpx;
+  right: 28rpx;
+  bottom: 96rpx;
+  z-index: 3;
+  color: var(--lxm-c-surface);
+  text-shadow: 0 6rpx 18rpx rgba(0,0,0,0.28);
+}
+
+.album-hero-badge {
+  display: inline-flex;
+  padding: 7rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(255,255,255,0.86);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+  text-shadow: none;
+}
+
+.album-hero-title {
+  margin-top: 16rpx;
+  font-size: var(--lxm-fz-2xl);
+  font-weight: 900;
+  line-height: 1.15;
+}
+
+.album-hero-tip {
+  margin-top: 10rpx;
+  color: rgba(255,255,255,0.82);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 700;
+}
+
+.album-hero-count {
+  position: absolute;
+  right: 28rpx;
+  bottom: 30rpx;
+  z-index: 3;
+  padding: 9rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(42,33,27,0.72);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+/* ===== 品牌信息卡（与 photoPackageDetail 旅拍套餐详情统一风格） ===== */
+.album-package-card {
+  position: relative;
+  z-index: 4;
+  margin: -58rpx 22rpx 20rpx;
+  padding: 30rpx;
+  border-radius: 26rpx;
+  background:
+    linear-gradient(135deg, rgba(249,242,106,0.18) 0%, rgba(249,242,106,0) 42%),
+    var(--lxm-c-gray-50);
+  box-shadow: 0 22rpx 46rpx rgba(64,39,26,0.18);
+}
+
+.package-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16rpx;
+}
+
+.kicker {
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.sold-pill {
+  flex-shrink: 0;
+  padding: 7rpx 15rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-ink);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+/* 爆款预约：红底奶白字，与组件角标配色一致 */
+.sold-pill.is-hot-sale {
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+}
+
+.package-title {
+  margin-top: 10rpx;
+  font-size: var(--lxm-fz-2xl);
+  font-weight: 900;
+  line-height: 1.2;
+  color: var(--lxm-c-ink);
+}
+
+.quick-facts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12rpx;
+  margin-top: 22rpx;
+}
+
+.quick-fact {
+  padding: 17rpx 12rpx;
+  border-radius: 20rpx;
+  background: var(--lxm-c-gray-150);
+  text-align: center;
+}
+
+.fact-value {
+  display: block;
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+  line-height: 1.1;
+}
+
+.fact-label {
+  display: block;
+  margin-top: 7rpx;
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 18rpx;
+}
+
+.tag {
+  padding: 7rpx 14rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-gray-250);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.tag.primary {
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-surface);
+}
+
+.price-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 24rpx;
+}
+
+.origin-price {
+  margin-right: 10rpx;
+  color: var(--lxm-c-muted);
+  font-size: var(--lxm-fz-sm);
+  text-decoration: line-through;
+}
+
+.sale-price {
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-2xl);
+  font-weight: 900;
+}
+
+/* .collection-card 已单源化为组件 lxm-album-card（mode=stack）；相关子样式已迁移至组件 */
+
+
+/* ===== 拍摄说明（白卡，与其他详情页一致） ===== */
+.section {
+  margin: 26rpx 24rpx 0;
+  padding: 30rpx;
+  border-radius: 30rpx;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16rpx 42rpx rgba(104, 67, 41, 0.09);
+}
+.section .section-title {
+  margin: 0 0 18rpx;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 22rpx;
+}
+
+/* 适用打卡点：纯文字 pill（与旅拍套餐/视频详情统一） */
+.section-badge {
+  flex-shrink: 0;
+  padding: 7rpx 15rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-gray-250);
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.spot-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  margin-top: 16rpx;
+}
+
+.spot-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  min-height: 64rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-gray-150);
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.spot-pill:active {
+  background: var(--lxm-c-gray-200);
+}
+
+.spot-pill__arrow {
+  margin-left: 2rpx;
+  color: var(--lxm-c-gray-650);
+  font-size: var(--lxm-fz-lg);
+  line-height: 1;
+}
+.info-list {
+  margin-top: 0;
+}
+.info-item {
+  margin-bottom: 14rpx;
+  color: var(--lxm-c-gray-800);
+  font-size: var(--lxm-fz-base);
+  line-height: 1.55;
+}
+
+/* ===== 样片详情：相关推荐 ===== */
+.related-section {
+  margin-top: 8rpx;
+}
+
+.related-scroll {
+  padding-left: 24rpx;
+  padding-right: 60rpx;
+  white-space: nowrap;
+}
+
+.related-album-item {
+  display: inline-block;
+  width: 236rpx;
+  margin-right: 16rpx;
+  vertical-align: top;
+}

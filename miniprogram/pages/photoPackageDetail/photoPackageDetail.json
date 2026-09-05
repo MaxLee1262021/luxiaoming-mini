@@ -1,0 +1,9 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "lxm-toast": "/components/lxm-toast/lxm-toast",
+    "lxm-album-card": "/components/lxm-album-card/lxm-album-card",
+    "lxm-shooting-notes": "/components/lxm-shooting-notes/lxm-shooting-notes"
+  },
+  "enablePullDownRefresh": true
+}

@@ -1,0 +1,253 @@
+const { normalizePackage, sortByHotScore } = require('../utils/product')
+const { isVideoSingle } = require('./videoProductDetail')
+const { buildModuleConfigMap, normalizeModuleConfig } = require('./pageConfig')
+const { filterPhotoSeries } = require('../utils/catalog')
+const { buildTarget } = require('../utils/router')
+
+function mergePreviewList(list = [], fallback = []) {
+  const seen = {}
+  return [...(list || []), ...(fallback || [])].filter(item => {
+    if (!item) return false
+    const key = item._id || item.id || item.name || JSON.stringify(item)
+    if (seen[key]) return false
+    seen[key] = true
+    return true
+  })
+}
+
+function isVideoBanner(item = {}) {
+  const type = String(item.type || item.mediaType || item.fileType || '').toLowerCase()
+  const url = String(item.videoUrl || item.url || item.fileID || item.fileId || item.src || '')
+  return type === 'video' || /\.(mp4|mov|m4v|webm|m3u8)(\?|$)/i.test(url)
+}
+
+function normalizeBanner(item = {}) {
+  const isVideo = isVideoBanner(item)
+  const url = isVideo
+    ? (item.videoUrl || item.url || item.fileID || item.fileId || item.src || '')
+    : (item.imageUrl || item.url || item.fileID || item.fileId || item.src || item.cover || '')
+  return {
+    ...item,
+    _id: item._id || item.id || url,
+    type: isVideo ? 'video' : 'image',
+    mediaType: isVideo ? 'video' : 'image',
+    url,
+    cover: item.cover || item.poster || item.imageUrl || item.thumbnail || '/images/placeholder.png',
+    linkUrl: item.linkUrl || item.jumpUrl || item.targetUrl || item.path || item.pagePath || '',
+    targetType: item.targetType || item.linkType || item.jumpType || '',
+    targetId: item.targetId || item.linkId || item.jumpId || item.packageId || item.seriesId || item.spotId || item.guideId || ''
+  }
+}
+
+function normalizeBanners(list = []) {
+  return (list || []).map(item => normalizeBanner(item)).filter(item => item.url)
+}
+
+function buildBookingAlbums(albums = [], series = [], spots = []) {
+  const seriesIds = new Set((series || []).map(item => item._id))
+  return (albums || []).filter(album => seriesIds.has(album.seriesId)).map(album => {
+    const albumId = album._id || album.albumId || ''
+    const currentSeries = series.find(item => item._id === album.seriesId) || {}
+    const spotId = album.spotId || (Array.isArray(currentSeries.spotIds) && currentSeries.spotIds[0]) || ''
+    const currentSpot = spots.find(item => item._id === spotId) || {}
+    const sampleUrls = album.sampleUrls || album.samples || []
+    return {
+      ...album,
+      _id: albumId,
+      albumId,
+      seriesId: album.seriesId || currentSeries._id || '',
+      spotId,
+      spotName: album.spotName || currentSpot.name || '',
+      seriesName: album.seriesName || currentSeries.name || '',
+      cover: album.cover || album.coverImage || sampleUrls[0] || '/images/placeholder.png',
+      sampleCount: album.photoCount || sampleUrls.length || 0
+    }
+  }).filter(item => item.albumId && item.seriesId)
+}
+
+function buildSpotCardGradient(spot = {}, index = 0) {
+  const configuredGradient = spot.cardGradient || spot.themeGradient || spot.gradient
+  if (configuredGradient) return configuredGradient
+
+  const colors = spot.accentColors || spot.dominantColors || spot.coverColors
+  if (Array.isArray(colors) && colors.length >= 2) {
+    return `linear-gradient(135deg, ${colors[0]} 0%, ${colors[1]} 100%)`
+  }
+
+  const text = `${spot.name || ''} ${(spot.tags || []).join('')} ${(spot.styles || []).join('')}`
+  if (/夜|江|湘江|IFS|霓虹|城市/.test(text)) {
+    return 'linear-gradient(135deg, #5657D9 0%, #213C94 100%)'
+  }
+  if (/岳麓|书院|古风|杜甫|江阁|阁/.test(text)) {
+    return 'linear-gradient(135deg, #F2A13A 0%, #C94F32 100%)'
+  }
+  if (/橘子洲|亲子|草坪|自然|蓝天/.test(text)) {
+    return 'linear-gradient(135deg, #2EBF83 0%, #0B8F68 100%)'
+  }
+  if (/太平|老街|复古|烟火|街/.test(text)) {
+    return 'linear-gradient(135deg, #D95448 0%, #9D3C33 100%)'
+  }
+
+  const fallbackGradients = [
+    'linear-gradient(135deg, #F59B3D 0%, #D95836 100%)',
+    'linear-gradient(135deg, #5657D9 0%, #213C94 100%)',
+    'linear-gradient(135deg, #D95448 0%, #9D3C33 100%)',
+    'linear-gradient(135deg, #2EBF83 0%, #0B8F68 100%)',
+    'linear-gradient(135deg, #F0B64C 0%, #E46A35 100%)'
+  ]
+  return fallbackGradients[index % fallbackGradients.length]
+}
+
+function buildHomeSpots(spots = []) {
+  return sortByHotScore(spots).slice(0, 8).map((spot, index) => ({
+    ...spot,
+    cardGradient: buildSpotCardGradient(spot, index)
+  }))
+}
+
+function buildHomeSeries(series = [], spots = [], albums = [], packages = []) {
+  return (series || []).filter(item => {
+    const spotIds = Array.isArray(item.spotIds) ? item.spotIds : (item.spotId ? [item.spotId] : [])
+    return spotIds.length
+  }).slice(0, 8).map(item => {
+    const spotIds = Array.isArray(item.spotIds) ? item.spotIds : (item.spotId ? [item.spotId] : [])
+    const relatedSpot = spots.find(spot => spotIds.includes(spot._id)) || {}
+    const relatedAlbums = albums.filter(album => album.seriesId === item._id)
+    const relatedPackages = packages.filter(pkg => pkg.seriesId === item._id || (Array.isArray(item.packageIds) && item.packageIds.includes(pkg._id)))
+    return {
+      ...item,
+      spotId: item.spotId || relatedSpot._id || spotIds[0] || '',
+      spotIds,
+      cover: item.cover || item.coverImage || relatedSpot.image || relatedSpot.cover || '/images/placeholder.png',
+      spotName: item.spotName || relatedSpot.name || '',
+      albumCount: item.albumCount || relatedAlbums.length,
+      packageCount: item.packageCount || relatedPackages.length,
+      intro: item.intro || item.description || '进入系列查看主推旅拍套餐、旅拍套餐推荐和照片留影。'
+    }
+  })
+}
+
+function normalizeHomeVideoItem(item = {}) {
+  const normalized = normalizePackage(item)
+  return {
+    ...normalized,
+    displayType: 'video',
+    isVideo: true,
+    videoKindLabel: '视频摄像单品',
+    videoCtaText: '查看单品',
+    videoCardVariant: 'single'
+  }
+}
+
+function pickHomeVideoItems(list = [], limit = 4) {
+  const sorted = sortByHotScore(list).filter(item => item.displayType === 'video')
+  const picked = sorted.slice(0, limit)
+  const hasSingle = picked.some(item => isVideoSingle(item))
+  const hasPackage = picked.some(item => !isVideoSingle(item))
+  if (sorted.length > 1 && (!hasSingle || !hasPackage)) {
+    const supplement = sorted.find(item => hasSingle ? !isVideoSingle(item) : isVideoSingle(item))
+    if (supplement && !picked.some(item => item._id === supplement._id)) {
+      if (picked.length >= limit) picked[picked.length - 1] = supplement
+      else picked.push(supplement)
+    }
+  }
+  return picked
+}
+
+function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
+  const mergedSpots = mergePreviewList(data.spots, previewData.spots)
+  const mergedSeries = mergePreviewList(data.series, previewData.series)
+  const photoSeries = filterPhotoSeries(mergedSeries)
+  const mergedAlbums = mergePreviewList(data.albums, previewData.albums || demoData.albums)
+  const mergedGuides = mergePreviewList(data.guides, previewData.guides)
+  const mergedPeripherals = mergePreviewList(data.peripherals, previewData.peripherals)
+  const allPackages = mergePreviewList(data.packages, previewData.packages).map(item => {
+    const normalized = normalizePackage(item)
+    // 后端 getHomeData 若未返回 includedItems，先用 demoData 同 id 套餐兜底，避免首页组合标签为空
+    if (!normalized.includedItems || !normalized.includedItems.length) {
+      const demoPkg = (demoData.packages || []).find(p => p._id === normalized._id)
+      if (demoPkg && demoPkg.includedItems) {
+        normalized.includedItems = demoPkg.includedItems
+      }
+    }
+    return normalized
+  })
+  // 短视频单品：兼容后端 getHomeData 的 videoSingles 推荐字段（与 videoProducts 同源，去重合并）
+  const explicitVideoProducts = mergePreviewList(
+    mergePreviewList(data.videoProducts, data.videoSingles),
+    mergePreviewList(previewData.videoProducts, previewData.videoSingles)
+  ).map(item => normalizeHomeVideoItem(item))
+  // 远程与预览都无短视频单品时，回退演示数据，避免首页短视频区空白
+  const fallbackVideoItems = (demoData.videoProducts || []).map(item => normalizeHomeVideoItem(item))
+  // 「热门套餐」只展示旅拍套餐，严格过滤视频相关商品
+  const hotPackages = allPackages
+    .filter(item => item.isHot && item.displayType === 'photo' && !isVideoSingle(item))
+    .sort((a, b) => (b.hotScore || 0) - (a.hotScore || 0))
+    .slice(0, 6)
+  const videoPackages = mergePreviewList(
+    explicitVideoProducts.length ? explicitVideoProducts : fallbackVideoItems,
+    allPackages.filter(item => item.displayType === 'video').map(item => normalizeHomeVideoItem(item))
+  )
+  const homeVideoProducts = pickHomeVideoItems(videoPackages, 4)
+  const homeModules = normalizeModuleConfig(data.modules || previewData.modules)
+  const homeSpots = buildHomeSpots(mergedSpots)
+  const homeSeries = buildHomeSeries(photoSeries, mergedSpots, mergedAlbums, allPackages)
+
+  return {
+    shopInfo: data.shopInfo || previewData.shopInfo || {},
+    activityText: data.activityText || previewData.activityText || '',
+    banners: normalizeBanners(mergePreviewList(data.banners, previewData.banners)).slice(0, 6),
+    // 探索页轮播：与首页轮播「单独一套」，后台在 homeConfig.exploreBanners 独立配置
+    exploreBanners: normalizeBanners(mergePreviewList(data.exploreBanners, previewData.exploreBanners)).slice(0, 6),
+    // 首页快捷入口：后台可配置的"导航"（tabBar 不可运行时改，故用首页快捷入口承载）
+    quickNav: data.quickNav || previewData.quickNav || [],
+    spots: homeSpots,
+    series: homeSeries,
+    bookingAlbums: buildBookingAlbums(mergedAlbums, photoSeries, mergedSpots).slice(0, 10),
+    hotSpots: homeSpots,
+    guides: mergedGuides,
+    packages: allPackages,
+    hotPackages,
+    videoPackages: homeVideoProducts,
+    peripherals: mergedPeripherals,
+    homeModules,
+    moduleConfig: buildModuleConfigMap(homeModules),
+    loading: false
+  }
+}
+
+function isHomeDataEmpty(data = {}) {
+  return !(data.banners || []).length && !(data.spots || []).length && !(data.packages || []).length && !(data.series || []).length
+}
+
+function findHomePackage(packageGroups = [], packageId = '') {
+  return packageGroups.flat().find(item => item && item._id === packageId) || {}
+}
+
+function getHomePackageDetailPath(pkg = {}) {
+  return '/pages/photoPackageDetail/photoPackageDetail'
+}
+
+function getBannerTarget(banner = {}) {
+  const directUrl = banner.linkUrl || ''
+  if (directUrl) {
+    return {
+      method: (directUrl.includes('/pages/explore/explore') || directUrl.includes('/pages/my/my')) ? 'switchTab' : 'navigateTo',
+      url: directUrl
+    }
+  }
+  // 统一从路由表取目标（首页 Banner 与快捷入口共用 utils/router）
+  return buildTarget(String(banner.targetType || '').toLowerCase(), banner.targetId || '')
+}
+
+module.exports = {
+  buildBookingAlbums,
+  buildHomeViewData,
+  findHomePackage,
+  getBannerTarget,
+  getHomePackageDetailPath,
+  isHomeDataEmpty,
+  mergePreviewList,
+  normalizeBanner,
+  normalizeBanners
+}

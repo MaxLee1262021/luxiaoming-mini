@@ -1,0 +1,155 @@
+<view class="page">
+  <lxm-nav-bar showBack="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-hero"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
+  </view>
+  <block wx:else>
+  <!-- 加载失败降级提示：已回退预览数据，可重试拉真实数据 -->
+  <view wx:if="{{degraded}}" class="lxm-degrade-bar">
+    <text class="lxm-degrade-bar__txt">内容加载失败，拍摄项目暂时展示预览内容</text>
+    <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载拍摄项目">重新加载</view>
+  </view>
+  <view class="booking-hero">
+    <view class="hero-title">确认旅拍预约</view>
+  </view>
+
+  <view class="auth-card" wx:if="{{!authReady}}">
+    <block>
+      <view class="auth-badge">微信已登录</view>
+      <view class="auth-title">填写手机号即可预约</view>
+      <view class="auth-phone-row">
+        <input class="input phone-input" type="number" maxlength="11" placeholder="请输入手机号" value="{{phone}}" bindinput="onPhoneInput" />
+      </view>
+      <view class="auth-hint">个人版暂不支持微信一键手机号，手动填写即可；提交后由企业微信客服与你对接拍摄安排</view>
+    </block>
+  </view>
+
+  <block wx:if="{{authReady}}">
+    <view class="empty-selection" wx:if="{{moduleVisible.selectedItems && items.length === 0}}">
+      <view class="empty-icon"><lxm-icon type="plus" size="40" color="ink"></lxm-icon></view>
+      <view class="empty-title">还没有选择拍摄项目</view>
+    </view>
+
+    <view class="prefill-note" wx:if="{{items.length && items[0].custom}}">
+      <text>已根据你的打卡点自动预填：{{items[0].packageName}}</text>
+    </view>
+
+    <block wx:if="{{moduleVisible.selectedItems}}" wx:for="{{items}}" wx:key="index">
+      <view class="card selected-card">
+        <view class="card-head">
+          <view class="card-title">拍摄项目 {{index + 1}}{{item.custom ? ' · 定制' : ''}}</view>
+          <view class="delete-btn" bindtap="removeItem" data-index="{{index}}">删除</view>
+        </view>
+        <view class="selected-title">{{item.peripheralName || item.packageName || item.albumName || item.seriesName || '旅拍项目'}}</view>
+        <view class="selected-info">{{item.spotName || '待确认打卡点'}} · {{item.seriesName || '旅拍风格'}}</view>
+        <view class="selected-info" wx:if="{{item.albumName}}">照片留影：{{item.albumName}}</view>
+        <view class="selected-custom-tag" wx:if="{{item.custom}}">定制服务</view>
+        <view class="selected-participant" wx:if="{{item.custom}}">
+          <view class="sp-label">参与人数</view>
+          <view class="stepper">
+            <view class="stepper-btn {{participantCount <= 1 ? 'disabled' : ''}}" bindtap="changeParticipant" data-delta="-1">-</view>
+            <view class="stepper-value">{{participantCount}}</view>
+            <view class="stepper-btn {{participantCount >= 10 ? 'disabled' : ''}}" bindtap="changeParticipant" data-delta="1">+</view>
+            <text class="stepper-unit">人</text>
+          </view>
+          <view class="stepper-hint">含拍摄本人，最多可选 10 人；约拍定制将按人数阶梯计价</view>
+        </view>
+        <view class="selected-price" wx:if="{{item.custom}}">¥{{item.price || 0}}（{{participantCount}} 人）</view>
+        <view class="selected-rule" wx:if="{{item.custom}}">{{item.pricingRule || '价格面议'}}</view>
+        <view class="selected-price" wx:else>¥{{item.price || 0}}</view>
+      </view>
+    </block>
+
+    <button wx:if="{{moduleVisible.basket}}" class="add-item-btn" bindtap="openSheet">+ 继续添加拍摄项目</button>
+
+    <view class="card" wx:if="{{moduleVisible.contact}}">
+      <view class="card-title">联系人信息</view>
+      <input class="input" placeholder="请输入姓名" value="{{name}}" bindinput="onNameInput" />
+      <view class="phone-tools" wx:if="{{boundPhone}}">
+        <view class="phone-tool {{phoneMode === 'wechat' ? 'active' : ''}}" bindtap="useBoundPhone">使用微信手机号</view>
+        <view class="phone-tool {{phoneMode === 'custom' ? 'active' : ''}}" bindtap="addNewPhone">添加新手机号</view>
+      </view>
+      <view class="phone-input-row">
+        <input class="input phone-input" type="number" maxlength="11" placeholder="请输入手机号" value="{{phone}}" bindinput="onPhoneInput" />
+        <view class="phone-add-btn" bindtap="addContactPhone">添加</view>
+      </view>
+      <view class="phone-list" wx:if="{{contactPhones.length}}">
+        <view
+          class="phone-chip {{item === phone ? 'active' : ''}}"
+          wx:for="{{contactPhones}}"
+          wx:key="*this"
+          bindtap="useContactPhone"
+          data-phone="{{item}}"
+        >
+          <text>{{item}}</text>
+          <text class="phone-chip-tag" wx:if="{{item === boundPhone}}">微信</text>
+          <text class="phone-chip-close" catchtap="removeContactPhone" data-phone="{{item}}">×</text>
+        </view>
+      </view>
+      <view class="phone-hint" wx:if="{{boundPhone}}">
+        {{phoneMode === 'wechat' ? '当前主联系电话为微信绑定手机号' : '当前主联系电话为手动填写手机号，可用于他人代约'}}
+      </view>
+    </view>
+
+    <view class="card">
+      <view class="card-title">拍摄时间</view>
+      <picker mode="date" value="{{date}}" start="{{today}}" bindchange="onDateChange">
+        <view class="picker-value">{{date || '请选择日期'}}</view>
+      </picker>
+      <picker mode="time" value="{{time}}" bindchange="onTimeChange">
+        <view class="picker-value">{{time || '请选择具体时间'}}</view>
+      </picker>
+    </view>
+
+    <view class="card">
+      <view class="card-title">特殊需求（选填）</view>
+      <textarea class="textarea" placeholder="如有妆造、同行人数、拍摄风格、短视频脚本等需求，可以在这里说明" value="{{message}}" bindinput="onMessageInput" />
+    </view>
+
+    <view class="card" wx:if="{{moduleVisible.selectedItems && items.length > 0}}">
+      <view class="card-title">费用明细</view>
+        <view class="fee-item" wx:for="{{items}}" wx:key="index">
+          <text>{{item.peripheralName || item.packageName || item.albumName || item.seriesName || '拍摄项目'}}{{item.custom ? '（' + participantCount + '人）' : ''}}</text>
+          <text class="fee-price">¥{{item.price || 0}}</text>
+        </view>
+      <view class="fee-total">
+        <text>合计</text>
+        <text class="total-price">¥{{totalPrice}}</text>
+      </view>
+    </view>
+
+    <view class="card booking-mode-card" wx:if="{{moduleVisible.selectedItems && items.length > 0}}">
+      <view class="card-title">预约方式</view>
+      <view class="mode-option active">
+        <view class="mode-head">
+          <text class="mode-name">咨询预约</text>
+          <view class="mode-check"><lxm-icon type="check" size="22" color="white"></lxm-icon></view>
+        </view>
+        <view class="mode-desc">免费提交预约，先和客服沟通拍摄想法，档期商量好后再付定金。适合还在挑选、没定具体拍摄日期的情况。</view>
+      </view>
+    </view>
+
+    <view class="notice-row" wx:if="{{moduleVisible.notice}}" bindtap="toggleAgree">
+      <view class="checkbox"><lxm-icon wx:if="{{agreed}}" type="check" size="20" color="red"></lxm-icon></view>
+      <text>我已阅读并同意</text>
+      <text class="notice-link" catchtap="showNotice">《预约须知》</text>
+    </view>
+
+    <button class="submit-btn" bindtap="submitBooking" disabled="{{submitting || items.length === 0}}">
+      {{submitting ? '提交中...' : (items.length === 0 ? '先选择拍摄项目' : '确认预约')}}
+    </button>
+
+    <lxm-add-item-sheet
+      visible="{{showSheet}}"
+      spots="{{spotOptions}}"
+      products="{{sheetProducts}}"
+      bind:confirm="onSheetConfirm"
+      bind:close="onSheetClose"
+    />
+  </block>
+</block>
+</view>

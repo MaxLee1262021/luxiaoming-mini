@@ -1,0 +1,29 @@
+<view class="launch-container">
+  <lxm-privacy-modal />
+
+  <!-- 跳过：不想看开场动画的客人可直接进首页（左上避让右上角胶囊按钮） -->
+  <view class="launch-skip" style="top:{{skipTop}}px" hover-class="launch-skip-hover" hover-stay-time="80" bindtap="skip">
+    <text class="skip-text">跳过</text>
+    <text class="skip-arrow">›</text>
+  </view>
+
+  <view class="brand-emblem">
+    <text class="emblem-char">鹿</text>
+  </view>
+
+  <text class="slogan">记录城市与你的故事</text>
+
+  <view class="brand-name">鹿小鸣旅拍</view>
+
+  <view class="launch-guide">
+    <text class="guide-item">城市打卡点</text>
+    <text class="guide-dot">·</text>
+    <text class="guide-item">旅拍照片</text>
+    <text class="guide-dot">·</text>
+    <text class="guide-item">在线预约</text>
+  </view>
+
+  <view class="progress-track">
+    <view class="progress-fill"></view>
+  </view>
+</view>

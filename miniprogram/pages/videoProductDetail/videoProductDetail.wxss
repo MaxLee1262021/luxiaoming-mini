@@ -1,0 +1,295 @@
+.page {
+  min-height: 100vh;
+  padding: 0 0 150rpx;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255,211,106,0.30), transparent 34%),
+    linear-gradient(180deg, var(--lxm-c-gray-100) 0%, var(--lxm-c-gray-150) 42%, var(--lxm-c-gray-200) 100%);
+  color: var(--lxm-c-gray-900);
+}
+
+.state-box {
+  margin: 220rpx 32rpx 0;
+  padding: 56rpx 36rpx;
+  border-radius: 30rpx;
+  background: var(--lxm-c-surface);
+  text-align: center;
+  box-shadow: 0 20rpx 50rpx rgba(118, 72, 42, 0.1);
+}
+
+.state-icon {
+  width: 72rpx;
+  height: 72rpx;
+  margin: 0 auto 18rpx;
+  border-radius: 50%;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-surface);
+  line-height: 72rpx;
+  font-size: var(--lxm-fz-xl);
+  font-weight: 700;
+}
+
+.state-title {
+  font-size: var(--lxm-fz-lg);
+  font-weight: 700;
+}
+
+.state-desc {
+  margin-top: 14rpx;
+  color: var(--lxm-c-gray-700);
+  font-size: var(--lxm-fz-base);
+  line-height: 1.6;
+}
+
+.state-btn {
+  margin-top: 30rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-surface);
+}
+
+.hero {
+  padding-top: 0;
+}
+
+.hero-swiper {
+  height: 660rpx;
+  border-radius: 0 0 30rpx 30rpx;
+  overflow: hidden;
+  box-shadow: 0 24rpx 56rpx rgba(83, 48, 28, 0.18);
+}
+
+.hero-media,
+.hero-cover {
+  width: 100%;
+  height: 100%;
+}
+
+.hero-media {
+  position: relative;
+}
+
+.hero-mask {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  background: linear-gradient(180deg, rgba(35, 26, 22, 0.04) 0%, rgba(35, 26, 22, 0.28) 48%, rgba(35, 26, 22, 0.72) 100%);
+}
+
+.play-chip {
+  position: absolute;
+  top: 28rpx;
+  right: 28rpx;
+  padding: 12rpx 22rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 700;
+}
+
+.hero-meta {
+  position: absolute;
+  left: 28rpx;
+  right: 28rpx;
+  bottom: 28rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24rpx;
+  color: var(--lxm-c-surface);
+  font-size: var(--lxm-fz-md);
+  font-weight: 700;
+}
+
+.hero-meta text:first-child {
+  flex: 1;
+  line-height: 1.35;
+}
+
+/* ===== 品牌信息卡（与 seriesDetail 视频套餐详情统一风格）===== */
+.current-package-card {
+  margin: 20rpx 24rpx;
+  padding: 26rpx;
+  border-radius: 26rpx;
+  background:
+    linear-gradient(135deg, rgba(249,242,106,0.18) 0%, rgba(249,242,106,0) 42%),
+    linear-gradient(145deg, var(--lxm-c-red) 0%, var(--lxm-c-red) 58%, var(--lxm-c-ink) 100%);
+  color: var(--lxm-c-cream);
+  box-shadow: 0 18rpx 38rpx rgba(64,39,26,0.16);
+}
+
+.section {
+  margin: 26rpx 24rpx 0;
+  padding: 30rpx;
+  border-radius: 30rpx;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16rpx 42rpx rgba(104, 67, 41, 0.09);
+}
+
+.current-package-kicker {
+  color: rgba(255,247,239,0.62);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.current-package-title {
+  margin-top: 10rpx;
+  font-size: var(--lxm-fz-xl);
+  font-weight: 900;
+  line-height: 1.22;
+}
+
+.current-package-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10rpx;
+  margin-top: 18rpx;
+}
+
+.current-tag {
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: rgba(255,255,255,0.14);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.current-tag.video {
+  background: var(--lxm-c-red);
+}
+
+/* 爆款：金底墨字，在红渐变卡上更跳 */
+.current-tag.hot-sale {
+  background: var(--lxm-c-gold);
+  color: var(--lxm-c-ink);
+}
+
+.current-package-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 22rpx;
+}
+
+/* 卡内嵌：视频规格（时长/成片/周期） */
+.card-video-fields {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid rgba(255,255,255,0.18);
+}
+
+.card-video-field {
+  flex: 1;
+  min-width: 140rpx;
+}
+
+.card-video-label {
+  display: block;
+  font-size: var(--lxm-fz-xs);
+  color: rgba(255,247,239,0.6);
+  line-height: 1.4;
+  margin-bottom: 2rpx;
+}
+
+.card-video-value {
+  display: block;
+  font-size: var(--lxm-fz-sm);
+  color: var(--lxm-c-surface);
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.current-origin {
+  margin-right: 10rpx;
+  color: rgba(255,247,239,0.46);
+  font-size: var(--lxm-fz-sm);
+  text-decoration: line-through;
+}
+
+.current-price {
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-xl);
+  font-weight: 900;
+}
+
+.section-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20rpx;
+  margin-bottom: 22rpx;
+}
+
+.section-title {
+  font-size: var(--lxm-fz-lg);
+  font-weight: var(--lxm-fw-bold);
+}
+
+
+.section-badge {
+  padding: 8rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-gray-350);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.benefit-item {
+  color: var(--lxm-c-gray-700);
+  font-size: var(--lxm-fz-sm);
+}
+
+.benefit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+  padding: 14rpx 0;
+  line-height: 1.5;
+}
+
+/* ===== 适用打卡点：纯文字 pill（与旅拍套餐/照片留影详情统一） ===== */
+.spot-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14rpx;
+  margin-top: 16rpx;
+}
+
+.spot-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6rpx;
+  min-height: 64rpx;
+  padding: 0 24rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-gray-150);
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.spot-pill:active {
+  background: var(--lxm-c-gray-200);
+}
+
+.spot-pill__arrow {
+  margin-left: 2rpx;
+  color: var(--lxm-c-gray-650);
+  font-size: var(--lxm-fz-lg);
+  line-height: 1;
+}
+
+.info-item {
+  margin-bottom: 14rpx;
+  color: var(--lxm-c-gray-800);
+  font-size: var(--lxm-fz-base);
+  line-height: 1.55;
+}
+

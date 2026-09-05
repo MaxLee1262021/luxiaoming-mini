@@ -1,0 +1,6 @@
+{
+  "component": true,
+  "usingComponents": {
+    "lxm-custom-booking-card": "/components/lxm-custom-booking-card/lxm-custom-booking-card"
+  }
+}

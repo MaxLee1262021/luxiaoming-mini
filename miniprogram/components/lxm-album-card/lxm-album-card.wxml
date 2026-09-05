@@ -1,0 +1,53 @@
+<view class="album-card {{mode}} {{selected ? 'is-selected' : ''}}" bindtap="onTap" hover-class="lxm-card-lift" hover-stay-time="150">
+  <view class="album-marketing-badge {{marketingBadgeClass}}" wx:if="{{marketingBadge && mode !== 'row'}}">{{marketingBadge}}</view>
+
+  <!-- 覆盖式：网格 / 横向滚动小卡 -->
+  <block wx:if="{{mode === 'grid' || mode === 'compact'}}">
+    <image class="album-cover" src="{{item.cover || item.coverImage || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+    <view class="album-mask"></view>
+    <text class="album-type">照片留影</text>
+    <view class="album-info">
+      <text class="album-name">{{item.name || item.albumName}}</text>
+      <text class="album-meta" wx:if="{{item.seriesName || item.spotName}}">{{item.seriesName || item.spotName}}</text>
+      <view class="album-bottom">
+        <text class="album-count">{{item.sampleCount || item.photoCount || 0}} 张照片</text>
+        <text class="album-price" wx:if="{{item.price !== undefined && item.price !== ''}}">¥{{item.price}}</text>
+      </view>
+      <view class="album-actions" wx:if="{{showPreview || showBook || item.showBook}}">
+        <button class="album-btn ghost" wx:if="{{showPreview}}" catchtap="onPreview">快速预览</button>
+        <button class="album-btn primary" wx:if="{{showBook || item.showBook}}" catchtap="onBook">预约同款</button>
+      </view>
+    </view>
+  </block>
+
+  <!-- 横排列表行：封面在左 + 信息 + 右侧胶囊（吸收 spot mini-collection-card） -->
+  <block wx:elif="{{mode === 'row'}}">
+    <image class="album-cover row-cover" style="width:{{coverSize || 96}}rpx;height:{{coverSize || 96}}rpx" src="{{item.cover || item.coverImage || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+    <view class="album-row-info">
+      <text class="album-row-title">{{item.name || item.albumName || item.title}}</text>
+      <text class="album-row-meta" wx:if="{{item.meta || item.photoCount !== undefined || item.price !== undefined}}">{{item.meta || ((item.photoCount || 0) + ' 张照片' + (item.price !== undefined && item.price !== '' ? ' · ¥' + item.price : ''))}}</text>
+    </view>
+    <view class="album-row-tail" wx:if="{{ctaText}}">
+      <text class="album-cta">{{ctaText}}</text>
+    </view>
+  </block>
+
+  <!-- 竖版产品卡：封面在上 + 信息在下 + 预约按钮（吸收 photoCollection collection-card） -->
+  <block wx:elif="{{mode === 'stack'}}">
+    <image class="album-cover stack-cover" style="height:{{coverSize || 330}}rpx" src="{{item.cover || item.coverImage || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+    <view class="album-stack-info">
+      <view wx:if="{{selected}}" class="album-focus-badge">刚刚查看</view>
+      <text class="album-stack-title">{{item.name || item.albumName || item.seriesName}}</text>
+      <text class="album-stack-desc" wx:if="{{item.intro || item.desc || item.description}}">{{item.intro || item.desc || item.description}}</text>
+      <view class="album-stack-meta">
+        <text class="album-tag">{{(item.photoCount || item.sampleCount || 0) + ' 张照片'}}</text>
+        <text class="album-tag ghost">看九宫格</text>
+      </view>
+      <view class="album-stack-foot">
+        <text class="album-stack-price">¥{{item.price || 0}}</text>
+        <button wx:if="{{showBook || item.showBook}}" class="album-btn primary" catchtap="onBook">预约同款</button>
+      </view>
+    </view>
+  </block>
+
+</view>

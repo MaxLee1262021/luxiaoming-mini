@@ -1,0 +1,10 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "lxm-nav-bar": "/components/lxm-nav-bar/lxm-nav-bar",
+    "lxm-guide-card": "/components/lxm-guide-card/lxm-guide-card",
+    "lxm-empty-state": "/components/lxm-empty-state/lxm-empty-state",
+    "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal",
+    "lxm-toast": "/components/lxm-toast/lxm-toast"
+  }
+}

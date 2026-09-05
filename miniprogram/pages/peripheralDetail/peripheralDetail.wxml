@@ -1,0 +1,56 @@
+<view class="page">
+  <lxm-nav-bar showBack="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-hero"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
+  </view>
+  <view wx:elif="{{error}}" class="state">
+    <view>{{error}}</view>
+    <button class="state-btn" bindtap="retry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="hero">
+      <image class="cover" src="{{item.cover}}" mode="aspectFill" bindtap="previewImage" data-url="{{item.cover}}" />
+      <view class="hero-mask"></view>
+      <view class="hero-copy">
+        <text class="hero-kicker">鹿小鸣周边</text>
+        <text class="hero-title">{{item.name}}</text>
+      </view>
+    </view>
+    <view class="detail-card">
+      <view class="title-row">
+        <view class="title">{{item.name}}</view>
+        <view class="cate" wx:if="{{item.category}}">{{item.category}}</view>
+      </view>
+      <view class="price">¥{{item.price || 0}}</view>
+      <view class="desc">{{item.description || item.intro || '定制影像周边，可联系客服了解更多细节。'}}</view>
+    </view>
+
+    <view class="section" wx:if="{{item.images && item.images.length > 1}}">
+      <view class="section-title">商品图片</view>
+      <view class="image-grid">
+        <image wx:for="{{item.images}}" wx:key="*this" class="grid-img" src="{{item}}" mode="aspectFill" bindtap="previewImage" data-url="{{item}}" />
+      </view>
+    </view>
+
+    <view class="section">
+      <view class="section-title">服务说明</view>
+      <view class="info-item">下单前建议联系客服确认规格、数量和制作周期。</view>
+      <view class="info-item">周边商品可与旅拍成片服务搭配咨询。</view>
+    </view>
+
+    <view class="lxm-foot-bar">
+      <view class="lxm-foot-bar__side">
+        <button class="lxm-foot-btn {{collected ? 'is-active' : ''}}" bindtap="toggleCollect">
+          <lxm-icon type="star" size="40" color="{{collected ? 'red' : 'ink'}}"></lxm-icon>
+          <text class="lxm-foot-btn__txt">收藏</text>
+        </button>
+      </view>
+      <button class="lxm-foot-btn__main" bindtap="contactService">加入预约</button>
+    </view>
+  </block>
+</view>

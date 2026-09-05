@@ -1,0 +1,210 @@
+<view class="photo-collection-page">
+  <lxm-nav-bar showBack="{{true}}" title="照片留影详情" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-hero"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
+  </view>
+  <block wx:else>
+  <!-- 加载失败降级提示：已回退预览数据，可重试拉真实数据 -->
+  <view wx:if="{{degraded}}" class="lxm-degrade-bar">
+    <text class="lxm-degrade-bar__txt">内容加载失败，照片暂时展示预览内容</text>
+    <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载照片内容">重新加载</view>
+  </view>
+  <swiper class="cover-swiper" indicator-dots autoplay interval="3000" circular wx:if="{{!isAlbumDetail && series.samples && series.samples.length}}">
+    <block wx:for="{{series.samples}}" wx:key="_id">
+      <swiper-item>
+        <video wx:if="{{item.type === 'video'}}" src="{{item.url}}" object-fit="cover" muted loop controls="{{false}}" show-center-play-btn="{{false}}" class="cover-video"></video>
+        <image wx:else src="{{item.url || '/images/placeholder.png'}}" mode="aspectFill" class="cover-img" lazy-load></image>
+      </swiper-item>
+    </block>
+  </swiper>
+  <image wx:if="{{!isAlbumDetail && !(series.samples && series.samples.length)}}" src="{{series.cover || '/images/placeholder.png'}}" mode="aspectFill" class="cover-img single-cover"></image>
+
+  <view class="series-info-card" wx:if="{{!isAlbumDetail}}">
+    <text class="series-name">{{series.name}}</text>
+    <view class="spot-tags" wx:if="{{series.spots && series.spots.length}}">
+      <text class="spot-tag" wx:for="{{series.spots}}" wx:key="_id" wx:for-item="spot">定位 {{spot.name}}</text>
+    </view>
+  </view>
+
+  <view class="album-detail" wx:if="{{isAlbumDetail && currentCollection}}">
+    <view class="album-hero-stage">
+      <swiper class="album-sample-swiper" indicator-dots autoplay interval="3200" circular wx:if="{{currentCollection.sampleUrls && currentCollection.sampleUrls.length}}">
+        <block wx:for="{{currentCollection.sampleUrls}}" wx:for-item="sampleUrl" wx:key="*this">
+          <swiper-item>
+            <image
+              class="album-sample-hero"
+              src="{{sampleUrl || currentCollection.coverImage || currentCollection.cover || '/images/placeholder.png'}}"
+              mode="aspectFill"
+              lazy-load
+              bindtap="previewCollection"
+              data-id="{{currentCollection.collectionKey || currentCollection._id || currentCollection.albumId}}"
+              data-url="{{sampleUrl}}"
+            />
+          </swiper-item>
+        </block>
+      </swiper>
+      <image wx:else class="album-sample-hero single" src="{{currentCollection.coverImage || currentCollection.cover || '/images/placeholder.png'}}" mode="aspectFill" />
+      <view class="album-hero-gradient"></view>
+      <view class="album-hero-copy">
+        <view class="album-hero-badge">鹿小鸣旅拍</view>
+        <view class="album-hero-title">{{currentCollection.name || currentCollection.seriesName}}</view>
+      </view>
+      <view class="album-hero-count">{{currentCollection.photoCount || (currentCollection.sampleUrls && currentCollection.sampleUrls.length) || 0}} 张照片</view>
+    </view>
+    <view class="album-package-card">
+      <view class="package-top">
+        <view class="kicker">照片留影商品</view>
+        <view class="sold-pill {{currentCollection.isHotSale ? 'is-hot-sale' : ''}}" wx:if="{{currentCollection.isHot || currentCollection.isMainPush || currentCollection.isHotSale}}">{{currentCollection.isHotSale ? '爆款预约' : '热门预约'}}</view>
+      </view>
+      <view class="package-title">{{currentCollection.name || currentCollection.seriesName}}</view>
+      <view class="quick-facts">
+        <view class="quick-fact">
+          <text class="fact-value">{{currentCollection.photoCount || (currentCollection.sampleUrls && currentCollection.sampleUrls.length) || 0}}</text>
+          <text class="fact-label">张照片</text>
+        </view>
+        <view class="quick-fact">
+          <text class="fact-value">{{currentCollection.spotName || '长沙'}}</text>
+          <text class="fact-label">打卡点</text>
+        </view>
+        <view class="quick-fact">
+          <text class="fact-value">{{currentCollection.seriesName || '精选'}}</text>
+          <text class="fact-label">风格系列</text>
+        </view>
+      </view>
+      <view class="tag-row">
+        <text class="tag primary">照片留影</text>
+        <text class="tag" wx:if="{{currentCollection.spotName}}">{{currentCollection.spotName}}</text>
+        <text class="tag" wx:if="{{currentCollection.seriesName}}">{{currentCollection.seriesName}}</text>
+      </view>
+      <view class="price-row">
+        <view>
+          <text class="origin-price" wx:if="{{currentCollection.originalPrice}}">¥{{currentCollection.originalPrice}}</text>
+          <text class="sale-price">¥{{currentCollection.price || 0}}</text>
+        </view>
+      </view>
+    </view>
+
+    <lxm-sample-gallery
+      wx:if="{{isAlbumDetail && currentCollection.sampleUrls && currentCollection.sampleUrls.length}}"
+      samples="{{currentCollection.sampleUrls}}"
+      title="照片留影预览"
+    />
+    <lxm-empty-state wx:else type="album" title="暂无更多照片" desc="可以先看封面图。" />
+  </view>
+
+    <!-- 照片单品详情：适用打卡点（与旅拍套餐/视频详情统一） -->
+    <view class="section" wx:if="{{isAlbumDetail && spots.length}}">
+      <view class="section-head">
+        <view class="section-title">适用打卡点</view>
+      </view>
+      <view class="spot-pills">
+        <view class="spot-pill" wx:for="{{spots}}" wx:key="_id" bindtap="goSpot" data-id="{{item._id}}">
+          <text class="spot-pill__name">{{item.name}}</text>
+          <text class="spot-pill__arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 照片单品详情：拍摄说明（统一组件白卡，位于相关推荐上方） -->
+    <lxm-shooting-notes notes="{{instructions}}" wx:if="{{isAlbumDetail && instructions.length}}" />
+
+    <!-- 照片单品详情：相关推荐 -->
+    <view class="related-section" wx:if="{{isAlbumDetail && relatedCollections.length}}">
+      <view class="section-title">相关推荐</view>
+      <scroll-view scroll-x class="related-scroll" show-scrollbar="{{false}}">
+        <block wx:for="{{relatedCollections}}" wx:key="collectionKey">
+          <view class="related-album-item">
+            <lxm-album-card mode="compact" item="{{item}}" bind:tap="goCollectionDetail" />
+          </view>
+        </block>
+      </scroll-view>
+    </view>
+
+    <!-- 照片单品详情：底部操作 -->
+    <view class="lxm-foot-bar" wx:if="{{isAlbumDetail && currentCollection}}">
+      <view class="lxm-foot-bar__side">
+        <button class="lxm-foot-btn {{collected ? 'is-active' : ''}}" bindtap="toggleCollect">
+          <lxm-icon type="star" size="40" color="{{collected ? 'red' : 'ink'}}"></lxm-icon>
+          <text class="lxm-foot-btn__txt">收藏</text>
+        </button>
+      </view>
+      <button class="lxm-foot-btn__main" bindtap="goBookingFromCollectionBottom">预约同款</button>
+    </view>
+
+    <block wx:if="{{!isAlbumDetail}}">
+    <view class="section-title">主推旅拍套餐</view>
+    <view wx:if="{{featuredPackage}}" class="featured-pkg-wrap">
+      <lxm-package-card layout="horizontal" cover-size="140" item="{{featuredPackage}}" bind:tap="goPackageDetail" />
+    </view>
+    <lxm-empty-state wx:else type="package" title="更多主推旅拍套餐整理中" />
+
+    <view class="section-title">旅拍套餐推荐</view>
+    <scroll-view scroll-x class="pkg-scroll" show-scrollbar="{{false}}" wx:if="{{spotPackages.length}}">
+      <block wx:for="{{spotPackages}}" wx:key="_id">
+        <view class="pkg-scroll-item">
+          <lxm-package-card layout="horizontal" cover-size="140" item="{{item}}" bind:tap="goPackageDetail" />
+        </view>
+      </block>
+    </scroll-view>
+    <lxm-empty-state wx:else type="package" title="更多旅拍套餐整理中" />
+
+    <view class="section-title">照片留影（{{collections.length}} 个）</view>
+        <view class="collection-grid" wx:if="{{collections.length}}">
+          <block wx:for="{{collections}}" wx:key="_id">
+            <lxm-album-card
+              id="collection-{{item.collectionKey}}"
+              mode="stack"
+              cover-size="330"
+              selected="{{focusAlbumId && activeCollectionId === item.collectionKey}}"
+              item="{{item}}"
+              bind:tap="goCollectionDetail"
+            />
+          </block>
+        </view>
+    <lxm-empty-state wx:else type="collection" title="暂无照片留影" desc="新的照片留影正在整理中。" />
+  </block>
+
+  <view class="video-section-head" wx:if="{{!isAlbumDetail && videos.length}}">
+    <view>
+      <view class="section-title video-title-main">视频摄像</view>
+    </view>
+    <view class="video-section-count">{{videos.length}} 条</view>
+  </view>
+  <scroll-view scroll-x class="video-scroll" show-scrollbar="{{false}}" wx:if="{{!isAlbumDetail && videos.length}}">
+    <block wx:for="{{videos}}" wx:key="_id">
+      <view class="video-promo-card" hover-class="lxm-card-lift" bindtap="previewMedia" data-url="{{item.url}}" data-type="{{item.type || 'video'}}">
+        <image src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" class="video-promo-cover" lazy-load />
+        <view class="video-promo-gradient"></view>
+        <view class="video-promo-topline">
+          <text class="video-promo-kicker">视频摄像</text>
+          <text class="video-promo-duration">{{item.durationText || '60s'}}</text>
+        </view>
+        <view class="video-promo-play">
+          <lxm-icon class="video-promo-play-icon" type="play" size="28" color="white"></lxm-icon>
+        </view>
+        <view class="video-promo-info">
+          <text class="video-promo-title">{{item.title}}</text>
+          <text class="video-promo-meta">{{item.spotName || series.name}} · 点击预览</text>
+          <text class="video-promo-view-btn" catchtap="goVideoSampleDetail" data-id="{{item._id}}" data-package-id="{{item.packageId}}" data-product-id="{{item.productId}}">查看</text>
+        </view>
+      </view>
+    </block>
+  </scroll-view>
+
+  <view class="section-title" wx:if="{{!isAlbumDetail && peripherals.length}}">影像周边</view>
+  <scroll-view scroll-x class="peripheral-scroll" show-scrollbar="{{false}}" wx:if="{{!isAlbumDetail && peripherals.length}}">
+    <block wx:for="{{peripherals}}" wx:key="_id">
+      <view class="peripheral-card" bindtap="goPeripheralDetail" data-id="{{item._id}}">
+        <image src="{{item.image || item.cover || '/images/placeholder.png'}}" mode="aspectFill" class="peripheral-img" lazy-load />
+        <text class="peripheral-name">{{item.name}}</text>
+        <text class="peripheral-price">¥{{item.price}}</text>
+      </view>
+    </block>
+  </scroll-view>
+
+</block>
+</view>

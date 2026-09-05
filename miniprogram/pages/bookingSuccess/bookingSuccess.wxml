@@ -1,0 +1,68 @@
+<view class="container">
+  <lxm-nav-bar showBack="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view class="success-header">
+    <view class="success-icon"><lxm-icon type="check" size="56" color="red"></lxm-icon></view>
+    <view class="success-title">预约提交成功</view>
+    <view class="success-brand">记录城市与你的故事</view>
+  </view>
+
+  <view class="info-card">
+    <view class="card-title">预约信息</view>
+    <view class="info-row">
+      <text class="info-label">预约编号</text>
+      <view class="info-value-row">
+        <text class="order-no">{{orderNo || '待生成'}}</text>
+        <view class="copy-btn" bindtap="copyOrderNo" wx:if="{{orderNo}}">复制</view>
+      </view>
+    </view>
+    <view class="divider"></view>
+    <view class="info-row" wx:if="{{packageName}}">
+      <text class="info-label">已选项目</text>
+      <text class="info-value price">{{packageName}} ¥{{packagePrice}}</text>
+    </view>
+    <view class="info-row" wx:if="{{spotName}}">
+      <text class="info-label">拍摄地点</text>
+      <text class="info-value">{{spotName}}</text>
+    </view>
+    <view class="info-row" wx:if="{{seriesName}}">
+      <text class="info-label">拍摄风格</text>
+      <text class="info-value">{{seriesName}}</text>
+    </view>
+    <view class="info-row" wx:if="{{date || timePeriod}}">
+      <text class="info-label">拍摄时间</text>
+      <text class="info-value">{{date}} {{timePeriod}}</text>
+    </view>
+    <view class="info-row" wx:if="{{contactName}}">
+      <text class="info-label">联系人</text>
+      <text class="info-value">{{contactName}}</text>
+    </view>
+    <view class="info-row" wx:if="{{contactPhone}}">
+      <text class="info-label">手机号</text>
+      <text class="info-value">{{contactPhone}}</text>
+    </view>
+    <view class="info-row" wx:if="{{contactWechat}}">
+      <text class="info-label">微信号</text>
+      <text class="info-value">{{contactWechat}}</text>
+    </view>
+    <view class="info-row" wx:if="{{message}}">
+      <text class="info-label">特殊需求</text>
+      <text class="info-value message">{{message}}</text>
+    </view>
+  </view>
+
+  <view class="btn-group">
+    <button class="btn-secondary" bindtap="goMyOrders">查看我的订单</button>
+    <button class="btn-secondary light" bindtap="contactService">去企业微信联系客服</button>
+    <button class="btn-secondary light" bindtap="goBookingAgain">再约一单</button>
+    <button class="btn-tertiary" bindtap="goHome">返回首页</button>
+  </view>
+
+  <view class="tips-card">
+    <view class="tips-title">温馨提示</view>
+    <view class="tips-content">
+      预约提交后请保持手机畅通。鹿小鸣客服会通过企业微信主动联系你确认档期；改期、补充需求、成片交付，均在企业微信沟通。你也可在订单详情中点「去企业微信联系客服」。
+    </view>
+  </view>
+</view>

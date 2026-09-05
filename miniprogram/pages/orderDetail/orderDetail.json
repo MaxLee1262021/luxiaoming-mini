@@ -1,0 +1,6 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "lxm-toast": "/components/lxm-toast/lxm-toast"
+  }
+}

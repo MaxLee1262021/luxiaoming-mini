@@ -1,0 +1,91 @@
+<view class="page">
+  <lxm-nav-bar showBack="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-hero"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
+  </view>
+
+  <view wx:elif="{{error}}" class="state-box">
+    <view class="state-icon">!</view>
+    <view class="state-title">加载失败</view>
+    <view class="state-desc">{{error}}</view>
+    <button class="state-btn" bindtap="retry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="hero" wx:if="{{moduleVisible.video}}">
+      <swiper class="hero-swiper" indicator-dots circular autoplay interval="4200">
+        <block wx:for="{{samples}}" wx:key="_id">
+          <swiper-item>
+            <view class="hero-media" bindtap="previewVideo" data-index="{{index}}">
+              <image class="hero-cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+              <view class="hero-mask"></view>
+              <view class="play-chip">播放预览</view>
+              <view class="hero-meta">
+                <text>{{item.title || product.name}}</text>
+                <text>{{item.durationText || product.videoDuration || '60s'}}</text>
+              </view>
+            </view>
+          </swiper-item>
+        </block>
+      </swiper>
+    </view>
+
+    <view class="current-package-card">
+      <view class="current-package-kicker">当前视频摄像商品</view>
+      <view class="current-package-title">{{product.name}}</view>
+      <view class="current-package-tags">
+        <text class="current-tag video">视频摄像</text>
+        <text class="current-tag hot-sale" wx:if="{{product.isHotSale}}">爆款</text>
+        <text class="current-tag" wx:if="{{product.isMainPush}}">主推</text>
+        <text class="current-tag" wx:if="{{product.spotName}}">{{product.spotName}}</text>
+      </view>
+      <!-- 视频规格：时长/成片/周期 内嵌到品牌卡中 -->
+      <view class="card-video-fields" wx:if="{{videoFields.length}}">
+        <view class="card-video-field" wx:for="{{videoFields}}" wx:key="label">
+          <text class="card-video-label">{{item.label}}</text>
+          <text class="card-video-value">{{item.value}}</text>
+        </view>
+      </view>
+      <view class="current-package-bottom">
+        <view>
+          <text class="current-origin" wx:if="{{product.originalPrice}}">¥{{product.originalPrice}}</text>
+          <text class="current-price">¥{{product.price || 0}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{spots.length}}">
+      <view class="section-head">
+        <view class="section-title">适用打卡点</view>
+      </view>
+      <view class="spot-pills">
+        <view class="spot-pill" wx:for="{{spots}}" wx:key="_id" bindtap="goSpot" data-id="{{item._id}}">
+          <text class="spot-pill__name">{{item.name}}</text>
+          <text class="spot-pill__arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <lxm-shooting-notes notes="{{instructions}}" wx:if="{{instructions.length}}" />
+
+    <lxm-related-videos
+      wx:if="{{moduleVisible.recommendVideos && recommendations.length}}"
+      videos="{{recommendations}}"
+      bind:tap="goRecommend"
+    />
+
+    <view class="lxm-foot-bar">
+      <view class="lxm-foot-bar__side">
+        <button class="lxm-foot-btn {{collected ? 'is-active' : ''}}" bindtap="toggleCollect">
+          <lxm-icon type="star" size="40" color="{{collected ? 'red' : 'ink'}}"></lxm-icon>
+          <text class="lxm-foot-btn__txt">收藏</text>
+        </button>
+      </view>
+      <button class="lxm-foot-btn__main" bindtap="goBookingInfo">预约同款</button>
+    </view>
+  </block>
+</view>

@@ -1,0 +1,118 @@
+<view class="page">
+  <lxm-nav-bar showBack="{{true}}" placeholder="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-hero"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
+  </view>
+
+  <view class="state-page" wx:elif="{{error}}">
+    <view class="state-title">{{error}}</view>
+    <view class="state-desc">可返回"我的订单"重新进入，或联系客服协助查询。</view>
+    <button class="state-btn" bindtap="retry">重新加载</button>
+  </view>
+
+  <view class="order-detail-page" wx:else>
+    <view class="order-header">
+      <view class="header-copy">
+        <text class="header-kicker">订单详情</text>
+        <text class="header-title">{{order.packageName}}</text>
+        <text class="header-desc">{{statusDesc}}</text>
+      </view>
+      <view class="order-no-wrap" bindtap="copyOrderNo">
+        <text class="order-no-label">订单编号</text>
+        <text class="order-no">{{order.orderNo || order._id}}</text>
+        <text class="copy-text">复制</text>
+      </view>
+      <view class="status-tag status-{{order.status}}">{{order.statusText}}</view>
+    </view>
+
+    <view class="progress-section" wx:if="{{order.status !== 'canceled' && !order.isAfterSale}}">
+      <view class="progress-bar">
+        <view class="progress-step {{order.statusIndex >= 0 ? 'active' : ''}}">
+          <view class="step-dot">1</view>
+          <text class="step-label">待确认</text>
+        </view>
+        <view class="progress-line {{order.statusIndex >= 1 ? 'active' : ''}}"></view>
+        <view class="progress-step {{order.statusIndex >= 1 ? 'active' : ''}}">
+          <view class="step-dot">2</view>
+          <text class="step-label">已确认</text>
+        </view>
+        <view class="progress-line {{order.statusIndex >= 2 ? 'active' : ''}}"></view>
+        <view class="progress-step {{order.statusIndex >= 2 ? 'active' : ''}}">
+          <view class="step-dot">3</view>
+          <text class="step-label">拍摄中</text>
+        </view>
+        <view class="progress-line {{order.statusIndex >= 3 ? 'active' : ''}}"></view>
+        <view class="progress-step {{order.statusIndex >= 3 ? 'active' : ''}}">
+          <view class="step-dot">4</view>
+          <text class="step-label">修片中</text>
+        </view>
+        <view class="progress-line {{order.statusIndex >= 4 ? 'active' : ''}}"></view>
+        <view class="progress-step {{order.statusIndex >= 4 ? 'active done' : ''}}">
+          <view class="step-dot"><lxm-icon type="check" size="28" color="gold"></lxm-icon></view>
+          <text class="step-label">已完成</text>
+        </view>
+      </view>
+      <view class="progress-desc">{{statusDesc}}</view>
+    </view>
+
+    <view class="progress-section terminated" wx:else>
+      <view class="terminated-tag {{order.isAfterSale ? 'aftersale' : 'canceled'}}">{{order.isAfterSale ? '售后处理中' : '订单已取消'}}</view>
+      <view class="progress-desc">{{statusDesc}}</view>
+    </view>
+
+    <view class="info-card">
+      <view class="card-title">拍摄信息</view>
+      <view class="info-row"><text>旅拍套餐</text><text class="highlight">{{order.packageName}} ¥{{order.packagePrice}}</text></view>
+      <view class="info-row" wx:if="{{order.spotName}}"><text>打卡点</text><text>{{order.spotName}}</text></view>
+      <view class="info-row" wx:if="{{order.seriesName}}"><text>拍摄风格</text><text>{{order.seriesName}}</text></view>
+      <view class="info-row"><text>时间</text><text>{{order.date}} {{order.timePeriod}}</text></view>
+      <view class="info-row"><text>类型</text><text>{{order.type === 'video' ? '视频摄像' : '照片留影'}}</text></view>
+    </view>
+
+    <view class="info-card">
+      <view class="card-title">联系信息</view>
+      <view class="info-row"><text>姓名</text><text>{{order.contactName || '待补充'}}</text></view>
+      <view class="info-row"><text>手机</text><text>{{order.contactPhone || '待补充'}}</text></view>
+      <view class="info-row" wx:if="{{order.contactWechat}}"><text>微信</text><text>{{order.contactWechat}}</text></view>
+    </view>
+
+    <view class="info-card" wx:if="{{order.message}}">
+      <view class="card-title">特殊需求</view>
+      <view class="info-content">{{order.message}}</view>
+    </view>
+
+    <view class="deliver-card" wx:if="{{order.status === 'completed'}}">
+      <view class="card-title">成片交付</view>
+      <view class="deliver-desc">成片与精修由鹿小鸣摄影团队完成后，会通过企业微信直接发给你，不在小程序内下载。</view>
+      <button class="deliver-btn" bindtap="contactService">去企业微信联系客服</button>
+    </view>
+
+    <view class="footer-action">
+      <button wx:if="{{order.canCancel}}" class="act-btn cancel-act" bindtap="cancelOrder">取消订单</button>
+      <button wx:if="{{order.canAfterSale}}" class="act-btn aftersale-act" bindtap="openAfterSale">申请售后</button>
+      <button class="contact-btn" bindtap="contactService">去企业微信联系客服</button>
+      <button class="booking-btn" bindtap="goBookingAgain">再约一单</button>
+    </view>
+
+    <view class="after-sale-mask" wx:if="{{afterSaleVisible}}" catchtap="closeAfterSale">
+      <view class="after-sale-panel" catchtap="noop">
+        <view class="after-sale-hd">
+          <view>
+            <text class="after-sale-title">申请售后</text>
+            <text class="after-sale-subtitle">{{afterSaleOrder.packageName || '预约项目'}}</text>
+          </view>
+          <text class="after-sale-close" bindtap="closeAfterSale">×</text>
+        </view>
+        <textarea class="after-sale-textarea" value="{{afterSaleReason}}" maxlength="200" placeholder="请填写售后原因，例如改期、退款、拍摄安排调整等" bindinput="onAfterSaleReasonInput" />
+        <view class="after-sale-actions">
+          <button class="after-sale-cancel" bindtap="closeAfterSale">取消</button>
+          <button class="after-sale-submit" loading="{{afterSaleSubmitting}}" bindtap="submitAfterSale">提交申请</button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

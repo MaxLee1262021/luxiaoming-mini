@@ -1,0 +1,56 @@
+<view class="guide-detail-page">
+  <lxm-nav-bar showBack="{{true}}" title="旅拍灵感" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-hero"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
+  </view>
+
+  <view wx:elif="{{error}}" class="state">
+    <view>{{error}}</view>
+    <button class="state-btn" bindtap="retry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="hero">
+      <image class="hero-cover" src="{{guide.image || '/images/placeholder.png'}}" mode="aspectFill" />
+      <view class="hero-mask"></view>
+      <view class="hero-copy">
+        <view class="hero-kicker">{{guide.spotName || '长沙旅拍'}}</view>
+        <view class="hero-title">{{guide.title}}</view>
+        <view class="hero-meta">
+          <text wx:if="{{guide.readCount}}">{{guide.readCount}} 人已看</text>
+          <text wx:if="{{guide.score}}">{{guide.score}} 分</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 关联打卡点：点击跳转到打卡点详情 -->
+    <view class="spot-link" wx:if="{{relatedSpot.id}}" bindtap="goSpot" hover-class="lxm-card-lift" hover-stay-time="150">
+      <image class="spot-link-cover" src="{{relatedSpot.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+      <view class="spot-link-body">
+        <text class="spot-link-label">关联打卡点</text>
+        <text class="spot-link-name">{{relatedSpot.name}}</text>
+      </view>
+      <lxm-icon class="spot-link-arrow" type="arrow-right" size="22" color="red"></lxm-icon>
+    </view>
+
+    <!-- 图文正文 -->
+    <view class="content-card">
+      <view class="content-title">拍摄攻略</view>
+      <view class="content-para" wx:for="{{guide.content}}" wx:key="index" wx:for-item="para">{{para}}</view>
+    </view>
+  </block>
+
+  <!-- 吸底：预约同款（跳后台配置的产品页） -->
+  <view class="bottom-bar" wx:if="{{target}}">
+    <view class="bottom-info">
+      <text class="bottom-label">同款旅拍</text>
+      <text class="bottom-name">{{target.name}}</text>
+    </view>
+    <button class="bottom-btn" bindtap="goTarget">预约同款</button>
+  </view>
+</view>

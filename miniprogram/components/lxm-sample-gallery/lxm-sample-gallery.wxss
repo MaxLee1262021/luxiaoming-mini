@@ -1,0 +1,102 @@
+.lxm-sample-gallery {
+  margin: 20rpx 24rpx 22rpx;
+  padding: 24rpx;
+  border-radius: var(--lxm-r-lg);
+  background: var(--lxm-c-gray-50);
+  box-shadow: var(--lxm-shadow-card);
+}
+
+.lxm-sample-gallery__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 18rpx;
+  margin-bottom: 18rpx;
+}
+
+.lxm-sample-gallery__title {
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+}
+
+.lxm-sample-gallery__subtitle {
+  margin-top: 6rpx;
+  color: var(--lxm-c-gray-650);
+  font-size: var(--lxm-fz-sm);
+}
+
+.lxm-sample-gallery__count {
+  flex-shrink: 0;
+  padding: 7rpx 15rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-ink);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+.lxm-sample-gallery__stage {
+  position: relative;
+  height: 440rpx;
+  border-radius: 20rpx;
+  overflow: hidden;
+  background: var(--lxm-c-gray-400);
+  box-shadow: 0 14rpx 32rpx rgba(64,39,26,0.12);
+}
+
+.lxm-sample-gallery__stage-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.lxm-sample-gallery__stage-mask {
+  position: absolute;
+  right: 16rpx;
+  bottom: 16rpx;
+  left: 16rpx;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 20rpx;
+  border-radius: var(--lxm-r-sm);
+  background: linear-gradient(180deg, rgba(42,33,27,0), rgba(42,33,27,0.72));
+}
+
+.lxm-sample-gallery__stage-tip {
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+  opacity: 0.92;
+}
+
+.lxm-sample-gallery__strip {
+  margin-top: 16rpx;
+  white-space: nowrap;
+}
+
+.lxm-sample-gallery__thumb {
+  display: inline-block;
+  width: 128rpx;
+  height: 128rpx;
+  margin-right: 14rpx;
+  border: 4rpx solid var(--lxm-c-cream);
+  border-radius: var(--lxm-r-sm);
+  overflow: hidden;
+  background: var(--lxm-c-gray-400);
+  box-shadow: 0 8rpx 18rpx rgba(64,39,26,0.10);
+  vertical-align: top;
+  box-sizing: border-box;
+  transition: border-color 150ms ease;
+}
+
+.lxm-sample-gallery__thumb.is-active {
+  border-color: var(--lxm-c-red);
+}
+
+.lxm-sample-gallery__thumb-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}

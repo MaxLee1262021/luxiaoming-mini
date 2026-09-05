@@ -1,0 +1,11 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "lxm-toast": "/components/lxm-toast/lxm-toast",
+    "lxm-empty-state": "/components/lxm-empty-state/lxm-empty-state",
+    "lxm-package-card": "/components/lxm-package-card/lxm-package-card",
+    "lxm-album-card": "/components/lxm-album-card/lxm-album-card",
+    "lxm-sample-gallery": "/components/lxm-sample-gallery/lxm-sample-gallery",
+    "lxm-shooting-notes": "/components/lxm-shooting-notes/lxm-shooting-notes"
+  }
+}

@@ -1,0 +1,109 @@
+/* ============================================================
+   lxm-nav-bar · 固定浮层返回导航
+   只保留返回按钮，标题文字由页面自行决定是否展示。
+   ============================================================ */
+
+.lxm-nav-bar {
+  overflow: hidden;
+}
+
+/* ---------- 浮层：固定在最上方，透明背景 ---------- */
+.lxm-nav-bar--float {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: transparent;
+  pointer-events: none;
+}
+.lxm-nav-bar--float .lnb__body {
+  pointer-events: auto;
+}
+
+/* ---------- 占位层：与浮层等高，撑起页面内容 ---------- */
+.lxm-nav-bar--placeholder {
+  position: relative;
+  visibility: hidden;
+  background: transparent;
+}
+
+/* ---------- 状态栏占位 ---------- */
+.lnb__statusbar {
+  height: calc(var(--nav-top, 26px) * 1px);
+  min-height: 20px;
+}
+
+/* ---------- 主体区：返回按钮 ---------- */
+.lnb__body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  padding: 6rpx 24rpx 22rpx;
+  padding-right: calc(var(--capsule-safe-right, 104px) * 1px);
+}
+
+/* ---------- 标题（仅当 title 属性传入时渲染，其他页面无影响） ---------- */
+.lnb__title {
+  position: absolute;
+  left: 96rpx;
+  right: 0;
+  text-align: center;
+  font-size: 32rpx;
+  font-weight: var(--lxm-fw-semibold);
+  color: var(--lxm-c-cream);
+  line-height: 56rpx;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lxm-nav-bar--light .lnb__title {
+  color: var(--lxm-c-ink);
+}
+
+/* ---------- 返回键 ---------- */
+.lnb__back {
+  position: relative;
+  width: 56rpx;
+  height: 56rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.14);
+}
+
+/* 无障碍：视觉不变，透明热区扩至 88rpx（WCAG 2.5.5） */
+.lnb__back::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 88rpx;
+  height: 88rpx;
+  border: 0;
+  border-radius: inherit;
+}
+
+.lnb__back:active { opacity: .75; transform: scale(.92); }
+.lnb__back-icon {
+  font-size: var(--lxm-fz-xl); line-height: 1;
+  margin-top: -3rpx;
+}
+
+/* dark 主题：深色底 + 白字，保证在各类 hero/浅底上都可见 */
+.lxm-nav-bar--dark .lnb__back {
+  background: rgba(0, 0, 0, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  color: var(--lxm-c-cream);
+}
+
+/* light 主题：白底 + 黑字，用于浅色导航栏页面 */
+.lxm-nav-bar--light .lnb__back {
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  color: var(--lxm-c-ink);
+  box-shadow: 0 4rpx 14rpx rgba(0, 0, 0, 0.08);
+}

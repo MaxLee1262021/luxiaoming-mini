@@ -1,0 +1,8 @@
+<view class="scan-entry">
+  <lxm-privacy-modal />
+  <view class="scan-brand">鹿小鸣旅拍</view>
+  <view wx:if="{{shopName}}" class="scan-shop">{{shopName}}</view>
+  <view wx:if="{{placementLabel}}" class="scan-placement">{{placementLabel}}专属码 · 正在进入</view>
+  <view wx:else class="scan-loading">正在识别扫码来源…</view>
+  <view class="scan-spinner"></view>
+</view>

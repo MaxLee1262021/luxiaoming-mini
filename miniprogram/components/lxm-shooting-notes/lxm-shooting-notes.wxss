@@ -1,0 +1,29 @@
+.shooting-notes {
+  margin: 26rpx 24rpx 0;
+  padding: 30rpx;
+  border-radius: var(--lxm-r-xl);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 16rpx 42rpx rgba(104, 67, 41, 0.09);
+}
+
+.shooting-notes__title {
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+  border-left: 6rpx solid var(--lxm-c-orange);
+  padding-left: 16rpx;
+  margin-bottom: 4rpx;
+}
+
+.shooting-notes__item {
+  margin-top: 14rpx;
+  color: var(--lxm-c-gray-800);
+  font-size: var(--lxm-fz-base);
+  line-height: 1.55;
+}
+
+.shooting-notes__body {
+  margin-top: 14rpx;
+  color: var(--lxm-c-gray-800);
+  font-size: var(--lxm-fz-base);
+  line-height: 1.55;
+}

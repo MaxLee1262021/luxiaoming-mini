@@ -1,0 +1,150 @@
+<!-- 鹿小鸣 · 添加拍摄项目 半截弹窗组件 -->
+<!-- 交互：搜索框输入 → 下拉显示相关打卡点 → 点打卡点切到该打卡点面板 → 类目横排 row → 点「查看全部 ›」弹窗内展开完整列表 → 约拍定制兜底 → 底部选中栏 -->
+<view wx:if="{{visible}}" class="lxm-mask" bindtap="onMaskTap">
+  <view class="lxm-sheet" catchtap="noop">
+    <view class="handle"></view>
+    <view class="sheet-head">
+      <view class="ttl">添加拍摄项目</view>
+      <view class="close" bindtap="onClose">×</view>
+    </view>
+
+    <!-- 搜索框（首页同款搜索联想） -->
+    <view class="search-wrap">
+      <view class="search {{kw ? 'has' : ''}}">
+        <view class="s-ico">🔍</view>
+        <input
+          class="kw-input"
+          value="{{kw}}"
+          placeholder="搜索打卡点，如 橘子洲 / 开福寺"
+          placeholder-class="kw-ph"
+          bindinput="onInput"
+          confirm-type="search"
+          bindconfirm="onSearchConfirm"
+        />
+        <view wx:if="{{kw}}" class="clr" catchtap="onClear">×</view>
+      </view>
+    </view>
+
+    <!-- 搜索联想下拉：跟首页搜索同款（输入即出，关键词高亮，点建议直达打卡点面板） -->
+    <scroll-view wx:if="{{!activeSpotId && kw}}" class="suggest" scroll-y>
+      <block wx:if="{{suggestList.length}}">
+        <view class="res-label">相关打卡点 · 点一下看可拍项目</view>
+        <view wx:for="{{suggestList}}" wx:key="_id" class="prow" bindtap="openSpot" data-id="{{item._id}}">
+          <image class="cv" src="{{item.cover || item.image}}" mode="aspectFill" />
+          <view class="info">
+            <view class="pn"><text>{{item.nameBefore}}</text><text class="hl">{{item.nameMatch}}</text><text>{{item.nameAfter}}</text></view>
+            <view class="pm">{{item.address || ''}}</view>
+          </view>
+          <view class="tag">打卡点</view>
+          <view class="ar">›</view>
+        </view>
+      </block>
+      <view wx:else class="empty">
+        <view class="ico">🦌</view>
+        <view class="et">「{{kw}}」还没有上架项目</view>
+        <view class="es">换个打卡点，或发起约拍定制</view>
+        <view class="cust-btn" catchtap="addCustomFromSearch" data-kw="{{kw}}">发起约拍定制</view>
+      </view>
+    </scroll-view>
+
+    <!-- 列表页：热门打卡点 -->
+    <scroll-view wx:if="{{!activeSpotId && !kw}}" class="results" scroll-y>
+      <view class="res-label">热门打卡点 · 点一下看可拍项目</view>
+      <view wx:for="{{spotsView}}" wx:key="_id" class="spot-card" bindtap="openSpot" data-id="{{item._id}}">
+        <image class="cv" src="{{item.cover || item.image}}" mode="aspectFill" />
+        <view class="info">
+          <view class="pn">{{item.name}}</view>
+          <view class="pm">{{item.address || ''}} · {{item.count ? item.count + ' 个可拍项目' : '暂无专属项目'}}</view>
+        </view>
+        <view class="ar">›</view>
+      </view>
+    </scroll-view>
+
+    <!-- 打卡点面板 -->
+    <scroll-view wx:if="{{activeSpotId && panel}}" class="results" scroll-y>
+      <view class="spot-head">
+        <view class="back" bindtap="backToList">‹ 返回</view>
+        <view class="sh-top">
+          <image class="cv" src="{{panel.spot.cover || panel.spot.image}}" mode="aspectFill" />
+          <view class="sh-info">
+            <view class="nm">{{panel.spot.name}}</view>
+            <view class="area">{{panel.spot.address || ''}}</view>
+          </view>
+        </view>
+        <view class="desc">{{panel.spot.description || ''}}</view>
+      </view>
+
+      <block wx:for="{{panel.sections}}" wx:key="cat">
+        <view class="sec">
+          <view class="sec-title">
+            <text>{{item.title}}</text>
+            <view class="more" catchtap="toggleExpand" data-cat="{{item.cat}}">{{item.expanded ? '收起 ‹' : '查看全部 ›'}}</view>
+          </view>
+          <view wx:if="{{item.expanded}}" class="list">
+            <template is="hcard" wx:for="{{item.items}}" wx:for-item="p" wx:key="uid" data="{{...p, added: cartMap[p.uid]}}" />
+          </view>
+          <view wx:else class="hscroll-wrap">
+            <scroll-view scroll-x class="hscroll" show-scrollbar="{{false}}">
+              <template is="hcard" wx:for="{{item.items}}" wx:for-item="p" wx:key="uid" data="{{...p, added: cartMap[p.uid]}}" />
+            </scroll-view>
+            <view class="hscroll-fade" aria-hidden="true"></view>
+          </view>
+        </view>
+      </block>
+
+      <!-- 约拍定制兜底（该打卡点无专属拍摄项目时） -->
+      <view wx:if="{{panel.showCustom}}" class="sec">
+        <view class="sec-title"><text>约拍定制</text></view>
+        <view class="hscroll-wrap">
+          <scroll-view scroll-x class="hscroll" show-scrollbar="{{false}}">
+            <view class="hcard custom" catchtap="addCustom">
+              <view class="deer">📷</view>
+              <view class="ct">想拍「{{panel.spotName}}」？</view>
+              <view class="cs">这个打卡点暂无上架拍摄项目，发起约拍定制，摄影顾问帮你规划专属拍摄。</view>
+              <view class="cbtn">发起约拍定制</view>
+            </view>
+          </scroll-view>
+          <view class="hscroll-fade" aria-hidden="true"></view>
+        </view>
+      </view>
+
+      <view wx:if="{{panel && !panel.sections.length && !panel.showCustom}}" class="empty">
+        <view class="ico">🦌</view>
+        <view class="et">{{panel.spotName}} 暂无项目</view>
+        <view class="es">换个打卡点看看其他项目</view>
+      </view>
+    </scroll-view>
+
+    <!-- 底部选中栏 -->
+    <view class="cart">
+      <scroll-view wx:if="{{cart.length}}" scroll-x class="cart-scroll" show-scrollbar="{{false}}">
+        <view wx:for="{{cart}}" wx:key="uid" class="citem">
+          <text class="cn">{{item.name}}</text>
+          <text class="cp" wx:if="{{item.price}}">¥{{item.price}}</text>
+          <text class="cp" wx:else>待定价</text>
+          <view class="cx" catchtap="toggleCart" data-uid="{{item.uid}}">×</view>
+        </view>
+      </scroll-view>
+      <view wx:else class="cart-hint">先把喜欢的项目加入选择栏，可一次添加多个</view>
+      <view class="confirm {{cart.length ? '' : 'disabled'}}" bindtap="onConfirm">确定添加{{cart.length ? '(' + cart.length + ')' : ''}}</view>
+    </view>
+  </view>
+</view>
+
+<!-- 横向产品卡模板（横滑 / 展开列表共用） -->
+<template name="hcard">
+  <view class="hcard {{added ? 'added' : ''}}">
+    <view class="cv">
+      <image src="{{cover}}" mode="aspectFill" />
+      <view class="tag">{{catLabel}}</view>
+    </view>
+    <view class="body">
+      <view class="pn">{{name}}</view>
+      <view class="pm">{{spotName ? spotName + ' · ' : ''}}{{meta}}</view>
+      <view class="bot">
+        <view class="pp">¥{{price}}<text class="unit"> 起</text></view>
+        <view class="add {{added ? 'done' : ''}}" catchtap="toggleCart" data-uid="{{uid}}">{{added ? '✓ 已加入' : '加入'}}</view>
+      </view>
+    </view>
+  </view>
+</template>

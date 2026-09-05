@@ -1,0 +1,96 @@
+/* 我的收藏 · 列表页（UI Designer · 暖胶片国风令牌） */
+
+.fav-page {
+  min-height: 100vh;
+  padding: 0 24rpx 40rpx;
+  background: var(--lxm-c-bg);
+  color: var(--lxm-c-ink);
+  box-sizing: border-box;
+}
+
+.fav-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+  padding-top: 24rpx;
+}
+
+.fav-item {
+  display: flex;
+  align-items: center;
+  padding: 20rpx;
+  border-radius: var(--lxm-r-md);
+  background: var(--lxm-c-surface);
+  box-shadow: var(--lxm-shadow-card);
+  box-sizing: border-box;
+}
+
+.fav-cover {
+  width: 140rpx;
+  height: 140rpx;
+  border-radius: 16rpx;
+  background: var(--lxm-c-gray-400);
+  flex-shrink: 0;
+}
+
+.fav-info {
+  flex: 1;
+  min-width: 0;
+  padding: 0 20rpx;
+}
+
+.fav-type {
+  display: inline-block;
+  margin-bottom: 10rpx;
+  padding: 4rpx 12rpx;
+  border-radius: var(--lxm-r-pill);
+  background: var(--lxm-c-gold-soft);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-xs);
+  font-weight: var(--lxm-fw-bold);
+}
+
+.fav-title {
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-md);
+  font-weight: var(--lxm-fw-bold);
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fav-meta {
+  margin-top: 8rpx;
+  color: var(--lxm-c-muted);
+  font-size: var(--lxm-fz-xs);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fav-price {
+  margin-top: 10rpx;
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-md);
+  font-weight: var(--lxm-fw-bold);
+}
+
+.fav-remove {
+  flex-shrink: 0;
+  width: 64rpx;
+  height: 64rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: 4rpx;
+  border-radius: 50%;
+}
+
+.fav-remove:active {
+  background: var(--lxm-c-gray-250);
+}
+
+.fav-empty {
+  padding-top: 80rpx;
+}

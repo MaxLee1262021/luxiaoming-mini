@@ -1,0 +1,38 @@
+<view
+  class="guide-card guide-card--{{variant}} {{active ? 'is-active' : ''}}"
+  bindtap="onTap"
+  hover-class="lxm-card-lift"
+  hover-stay-time="150"
+>
+  <view class="gc-cover gc-cover--{{coverType}}">
+    <image
+      wx:if="{{coverType === 'image'}}"
+      class="gc-cover-img"
+      src="{{coverUrl || '/images/placeholder.png'}}"
+      mode="{{variant === 'waterfall' ? 'widthFix' : 'aspectFill'}}"
+      lazy-load
+    />
+    <view wx:else class="gc-cover-badge" style="background:{{badgeBg}};">
+      <text>{{badgeText}}</text>
+    </view>
+  </view>
+
+  <view class="gc-body">
+    <view class="gc-tags" wx:if="{{variant !== 'thumb' && (primaryTag || showHot)}}">
+      <text class="gc-tag" wx:if="{{primaryTag}}">{{primaryTag}}</text>
+      <text class="gc-tag gc-tag--hot" wx:if="{{showHot}}">热门</text>
+    </view>
+    <block wx:if="{{variant === 'thumb'}}">
+      <view class="gc-thumb-foot">
+        <text class="gc-title gc-title--thumb">{{titleText}}</text>
+        <text wx:if="{{showHot}}" class="gc-thumb-badge">热门</text>
+      </view>
+      <text class="gc-index">{{indexLabel}}</text>
+    </block>
+    <text wx:else class="gc-title">{{titleText}}</text>
+    <text class="gc-desc" wx:if="{{variant !== 'thumb' && descText}}">{{descText}}</text>
+    <view class="gc-meta" wx:if="{{variant !== 'thumb' && metaList.length}}">
+      <text wx:for="{{metaList}}" wx:for-item="m" wx:key="*this">{{m}}</text>
+    </view>
+  </view>
+</view>

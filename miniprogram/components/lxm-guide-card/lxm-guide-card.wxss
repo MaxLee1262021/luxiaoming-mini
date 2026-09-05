@@ -1,0 +1,234 @@
+/* 攻略 / 城市故事 卡片：单源组件
+   支持 list（封面在左的列表项）与 thumb（横滑缩略图）两变体；
+   封面支持 image（图片）与 badge（渐变编号徽标）。 */
+.guide-card {
+  display: flex;
+  align-items: stretch;
+  gap: 18rpx;
+  padding: 16rpx;
+  border-radius: 26rpx;
+  background: var(--lxm-c-surface);
+  box-shadow: 0 16rpx 34rpx rgba(64, 39, 26, 0.10);
+  box-sizing: border-box;
+}
+
+.guide-card:active {
+  transform: scale(0.985);
+}
+
+/* 缩略图变体：悬浮卡片流（E 方案） */
+.guide-card--thumb {
+  display: inline-flex;
+  flex-direction: column;
+  width: 158rpx;
+  margin-right: 18rpx;
+  padding: 0;
+  border-radius: var(--lxm-r-sm);
+  background: var(--lxm-c-surface);
+  border: 2rpx solid transparent;
+  box-shadow: 0 4rpx 12rpx rgba(42, 33, 27, 0.06);
+  vertical-align: top;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.guide-card--thumb.is-active {
+  border-color: var(--lxm-c-orange);
+  transform: translateY(-6rpx);
+  box-shadow: 0 14rpx 30rpx rgba(255, 141, 82, 0.22);
+}
+
+.gc-cover {
+  flex-shrink: 0;
+  border-radius: 20rpx;
+  overflow: hidden;
+  background: var(--lxm-c-gray-400);
+}
+
+.guide-card--list .gc-cover {
+  width: 200rpx;
+  height: 190rpx;
+}
+
+.guide-card--list .gc-cover--badge {
+  width: 120rpx;
+  height: 120rpx;
+}
+
+.guide-card--thumb .gc-cover {
+  width: 100%;
+  height: 140rpx;
+  position: relative;
+  border-radius: 0;
+  border: none;
+  box-shadow: none;
+}
+
+/* (E 方案：白底悬浮卡，无裁切角标) */
+
+.gc-cover-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.gc-cover-badge {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--lxm-c-surface);
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+}
+
+.gc-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.gc-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8rpx;
+  margin-bottom: 10rpx;
+}
+
+.gc-tag {
+  max-width: 220rpx;
+  padding: 5rpx 12rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-gray-150);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.gc-tag--hot {
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-surface);
+}
+
+.gc-title {
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-md);
+  font-weight: 900;
+  line-height: 1.28;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.guide-card--thumb .gc-body {
+  overflow: visible;
+  padding-top: 6rpx;
+}
+
+/* 缩略图卡底部：地名 + 渐变 HOT 徽章（单行，省略号防溢出） */
+.guide-card--thumb .gc-thumb-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6rpx;
+  margin-top: 8rpx;
+  padding: 0 10rpx;
+  min-height: 32rpx;
+}
+.guide-card--thumb .gc-title--thumb {
+  flex: 1;
+  min-width: 0;
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 700;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.guide-card--thumb.is-active .gc-title--thumb {
+  color: var(--lxm-c-red-ink);
+}
+.guide-card--thumb .gc-thumb-badge {
+  flex-shrink: 0;
+  padding: 3rpx 10rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, var(--lxm-c-red), var(--lxm-c-orange));
+  color: var(--lxm-c-surface);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+  line-height: 1.2;
+}
+/* 斜体序号（E 方案：低调装饰） */
+.guide-card--thumb .gc-index {
+  display: block;
+  margin-top: 6rpx;
+  padding: 0 10rpx;
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--lxm-c-gray-650);
+}
+.guide-card--thumb.is-active .gc-index {
+  color: var(--lxm-c-orange);
+}
+
+.gc-desc {
+  margin-top: 8rpx;
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-sm);
+  line-height: 1.42;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.gc-meta {
+  display: flex;
+  gap: 12rpx;
+  margin-top: auto;
+}
+
+.gc-meta text {
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-xs);
+  font-weight: 900;
+}
+
+/* 瀑布流变体（旅拍灵感双列）：竖向卡，封面按图片原始比例自适应高度 */
+.guide-card--waterfall {
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  gap: 0;
+  border-radius: var(--lxm-r-md);
+  overflow: hidden;
+}
+
+.guide-card--waterfall .gc-cover {
+  width: 100%;
+  height: auto;
+  border-radius: 0;
+}
+
+.guide-card--waterfall .gc-cover--badge {
+  height: 320rpx;
+}
+
+.guide-card--waterfall .gc-cover-img {
+  height: auto;
+}
+
+.guide-card--waterfall .gc-body {
+  padding: 16rpx 18rpx 20rpx;
+}

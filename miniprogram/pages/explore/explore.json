@@ -1,0 +1,15 @@
+{
+  "usingComponents": {
+    "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal",
+    "lxm-icon": "/components/lxm-icon/lxm-icon",
+    "lxm-empty-state": "/components/lxm-empty-state/lxm-empty-state",
+    "lxm-album-card": "/components/lxm-album-card/lxm-album-card",
+    "lxm-video-card": "/components/lxm-video-card/lxm-video-card",
+    "lxm-package-card": "/components/lxm-package-card/lxm-package-card",
+    "lxm-custom-booking-card": "/components/lxm-custom-booking-card/lxm-custom-booking-card",
+    "lxm-search-panel": "/components/lxm-search-panel/lxm-search-panel"
+  },
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": false,
+  "backgroundTextStyle": "dark"
+}

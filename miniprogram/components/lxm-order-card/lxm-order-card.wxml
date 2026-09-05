@@ -1,0 +1,25 @@
+<view class="order-card" hover-class="lxm-card-lift" bindtap="emitDetail">
+  <view class="order-hd">
+    <view class="status-tag status-{{item.status}}">
+      <view class="status-dot-inner"></view>
+      <text>{{item.statusText}}</text>
+    </view>
+    <text class="order-no">{{item.orderNo || item._id}}</text>
+  </view>
+  <view class="order-body">
+    <text class="package-name">{{item.packageName}}</text>
+    <text class="package-price">¥{{item.packagePrice}}</text>
+  </view>
+  <view class="order-spot" wx:if="{{item.spotName || item.seriesName}}">
+    {{item.spotName}}{{item.spotName && item.seriesName ? ' · ' : ''}}{{item.seriesName}}
+  </view>
+  <view class="order-time">{{item.date}} {{item.timePeriod}}</view>
+  <view class="order-type">{{item.type === 'video' ? '视频摄像' : '照片留影'}}</view>
+
+  <view class="btn-row">
+    <view wx:if="{{item.canCancel}}" class="cancel-btn" catchtap="emitCancel">取消订单</view>
+    <view wx:if="{{item.canAfterSale}}" class="after-sale-btn" catchtap="emitAfterSale">申请售后</view>
+    <view wx:if="{{item.status === 'canceled'}}" class="delete-btn" catchtap="emitDelete">删除订单</view>
+    <view class="detail-btn" catchtap="emitDetail">查看详情</view>
+  </view>
+</view>

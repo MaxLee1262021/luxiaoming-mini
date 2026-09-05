@@ -1,0 +1,36 @@
+<view class="fav-page">
+  <lxm-nav-bar showBack="{{true}}" title="我的收藏" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+  </view>
+
+  <view wx:elif="{{list.length === 0}}" class="fav-empty">
+    <lxm-empty-state
+      type="default"
+      title="还没有收藏任何内容"
+      desc="在照片留影、旅拍套餐、视频摄像或影像周边点收藏，就会出现在这里。"
+      button-text="去逛逛"
+      bind:action="goDiscover"
+    />
+  </view>
+
+  <view wx:else class="fav-list">
+    <view class="fav-item" wx:for="{{list}}" wx:key="id" bindtap="goDetail" data-url="{{item.url}}">
+      <image class="fav-cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+      <view class="fav-info">
+        <view class="fav-type">{{item.typeLabel}}</view>
+        <view class="fav-title">{{item.title}}</view>
+        <view class="fav-meta" wx:if="{{item.spot}}">{{item.spot}}</view>
+        <view class="fav-price" wx:if="{{item.priceText}}">{{item.priceText}}</view>
+      </view>
+      <view class="fav-remove" catchtap="removeFav" data-id="{{item.id}}">
+        <lxm-icon type="close" size="32" color="muted"></lxm-icon>
+      </view>
+    </view>
+  </view>
+</view>

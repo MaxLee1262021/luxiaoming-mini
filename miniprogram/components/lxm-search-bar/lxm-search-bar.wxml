@@ -1,0 +1,18 @@
+<view class="searchbar {{focused ? 'focused' : ''}} {{compact ? 'compact' : ''}}">
+  <lxm-icon class="sb-icon" type="search" size="20" color="{{iconColor}}"></lxm-icon>
+  <input
+    class="sb-input"
+    value="{{value}}"
+    placeholder="{{placeholder}}"
+    placeholder-class="sb-placeholder"
+    confirm-type="search"
+    bindinput="onInput"
+    bindconfirm="onConfirm"
+    bindfocus="onFocus"
+    bindblur="onBlur"
+  />
+  <view class="sb-clear" wx:if="{{value.length > 0}}" catchtap="onClear">
+    <lxm-icon type="close" size="18" color="white"></lxm-icon>
+  </view>
+  <view class="sb-action {{actionStyle}}" wx:if="{{actionVisible && mode === 'global'}}" catchtap="onAction">探索</view>
+</view>

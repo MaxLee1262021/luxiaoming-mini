@@ -1,0 +1,510 @@
+const app = getApp()
+const demoData = require('../../utils/demoData')
+const homeApi = require('../../api/home')
+const searchApi = require('../../api/search')
+const { parseScene, buildUrlWithSource } = require('../../utils/query')
+const { buildModuleConfigMap, normalizeModuleConfig } = require('../../service/pageConfig')
+const { buildHomeViewData, findHomePackage, getBannerTarget, getHomePackageDetailPath, isHomeDataEmpty } = require('../../service/homeData')
+const router = require('../../utils/router')
+const { setSitePageConfig } = require('../../service/siteConfig')
+const { routeSearchSuggestion } = require('../../utils/searchNav')
+const { buildSearchSuggestions } = require('../../utils/searchSuggestions')
+
+const defaultHomeModules = normalizeModuleConfig()
+
+Page({
+  onShow() {
+    if (typeof this.getTabBar === 'function' && this.getTabBar()) {
+      this.getTabBar().setData({ selected: 0 })
+    }
+  },
+  data: {
+    loading: true,
+    shopId: '',
+    scene: '',
+    spot: '',
+    shopInfo: {},
+    activityText: '',
+    banners: [],
+    spots: [],
+    series: [],
+    bookingAlbums: [],
+    hotSpots: [],
+    guides: [],
+    packages: [],
+    hotPackages: [],
+    videoPackages: [],
+    peripherals: [],
+    spotTabs: [],
+    activeSpotId: '',
+    activeSpotName: '',
+    filteredAlbums: [],
+    filteredVideos: [],
+    filteredPackages: [],
+    spotNoProducts: false,
+    quickNav: [],
+    homeModules: defaultHomeModules,
+    moduleConfig: buildModuleConfigMap(defaultHomeModules),
+    bannerAutoplay: true,
+    bannerIndex: 0,
+    searchKeywords: ['打卡点', '旅拍套餐', '夜景视频摄像', '闺蜜旅拍', '亲子路线'],
+    activeSearchKeyword: '打卡点',
+    searchKeyword: '',
+    searchFocused: false,
+    searchHistory: [],
+    searchDropdownTop: 150,
+    searchHasInput: false,
+    searchSuggestions: [],
+    hotSearchKeywords: ['橘子洲头', '橘子洲头日落机位攻略', '旅拍帆布包', '橘洲日落写真', '长沙经典2小时旅拍套餐'],
+    headerCompact: false,
+    navTopPx: 26,
+    capsuleSafeRightPx: 104
+  },
+
+  async onLoad(options = {}) {
+    this.initNavMetrics()
+    const source = app.captureSource ? app.captureSource(options) : {}
+    const sceneParams = parseScene(options.scene)
+    const shopId = options.shopId || source.shopId || sceneParams.shopId || ''
+    const scene = options.sceneName || source.scene || sceneParams.scene || options.scene || ''
+
+    this.setData({
+      shopId,
+      scene,
+      spot: options.spot || ''
+    })
+    await this.loadHomeData()
+    this.loadSearchConfig()
+    this.startSearchKeywordLoop()
+  },
+
+  onUnload() {
+    this.stopSearchKeywordLoop()
+  },
+
+  // 首页专属分享：带上当前选中的打卡点，吸引好友点开
+  onShareAppMessage() {
+    const spotName = this.data.activeSpotName || ''
+    return {
+      title: spotName ? `鹿小鸣旅拍｜${spotName}打卡点，把长沙拍成你的旅行封面` : '鹿小鸣旅拍｜把城市拍成你的旅行封面',
+      path: '/pages/index/index'
+    }
+  },
+
+  onPageScroll(e) {
+    const scrollTop = e.scrollTop || 0
+    this._lastScrollTop = scrollTop
+    const { headerCompact, searchFocused } = this.data
+
+    // 搜索聚焦时：若用户主动滚动页面（超过阈值），自动收起下拉
+    if (searchFocused) {
+      const base = this.searchFocusScrollTop || 0
+      if (Math.abs(scrollTop - base) > 15) {
+        this.closeSearchDropdown()
+      }
+      return
+    }
+
+    // 迟滞：往上滚需要超过 104 才变紧凑，往下滚需要低于 60 才恢复
+    // 避免在阈值附近反复切换导致闪跳
+    if (!headerCompact && scrollTop > 104) {
+      this.setData({ headerCompact: true })
+    } else if (headerCompact && scrollTop < 60) {
+      this.setData({ headerCompact: false })
+    }
+  },
+
+  // 下拉刷新：重新拉取首页数据（不改业务逻辑，仅重新加载并收起刷新圈）
+  async onPullDownRefresh() {
+    try {
+      await this.loadHomeData()
+      this.loadSearchConfig()
+    } finally {
+      wx.stopPullDownRefresh()
+    }
+  },
+
+  initNavMetrics() {
+    try {
+      const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null
+      const system = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
+      const windowWidth = system.windowWidth || 375
+      const statusBarHeight = system.statusBarHeight || 20
+      const navTopPx = menu && menu.top ? menu.top : statusBarHeight + 8
+      const capsuleSafeRightPx = menu && menu.left ? windowWidth - menu.left + 12 : 104
+      this.setData({ navTopPx, capsuleSafeRightPx })
+    } catch (err) {
+      console.warn('init nav metrics fallback', err)
+    }
+  },
+
+  startSearchKeywordLoop() {
+    this.stopSearchKeywordLoop()
+    this.searchKeywordTimer = setInterval(() => {
+      const keywords = this.data.searchKeywords || []
+      if (!keywords.length) return
+      const currentIndex = keywords.indexOf(this.data.activeSearchKeyword)
+      const nextIndex = (currentIndex + 1) % keywords.length
+      this.setData({ activeSearchKeyword: keywords[nextIndex] })
+    }, 2400)
+  },
+
+  stopSearchKeywordLoop() {
+    if (this.searchKeywordTimer) {
+      clearInterval(this.searchKeywordTimer)
+      this.searchKeywordTimer = null
+    }
+  },
+
+  // 搜索热词接入后台配置（getSearchConfig）：配置就绪后，
+  // 搜索框占位词轮播 + 下拉热门搜索同源更新；后台未接 / 失败时保留内置默认词，页面零回归。
+  async loadSearchConfig() {
+    try {
+      const res = await searchApi.getSearchConfig()
+      const cfg = (res && res.success && res.data) || {}
+      const hotWords = Array.isArray(cfg.hotWords) ? cfg.hotWords.filter(w => w && String(w).trim()) : []
+      if (!hotWords.length) return
+      this.setData({
+        searchKeywords: hotWords.slice(0, 4),
+        activeSearchKeyword: hotWords[0],
+        hotSearchKeywords: hotWords
+      })
+    } catch (err) {
+      console.warn('loadSearchConfig fallback', err)
+    }
+  },
+
+  buildUrl(path, params = {}) {
+    return buildUrlWithSource(path, params, this.data)
+  },
+
+  async loadHomeData() {
+    try {
+      const res = await homeApi.getHomeData({ shopId: this.data.shopId, spot: this.data.spot })
+      if (!res || !res.success) {
+        this.applyDemoHomeData()
+      } else {
+        this.applyHomeData(res.data || {})
+      }
+    } catch (err) {
+      console.error('getHomeData error', err)
+      this.applyDemoHomeData()
+    } finally {
+      this.setData({ loading: false })
+    }
+  },
+
+  applyHomeData(data = {}) {
+    const previewData = data
+    setSitePageConfig(data.pageConfig || {})
+    this.setData(buildHomeViewData(data, previewData, demoData))
+    this.initSpotTabs()
+  },
+
+  // 构建首页「打卡点热榜」：热门前 8 打卡点（带排名），默认选中第 1 名，下方三分类按选中点过滤
+  initSpotTabs() {
+    const spots = this.data.spots || []
+    const spotTabs = spots.map((s, i) => ({
+      _id: s._id,
+      name: s.name,
+      cover: s.cover,
+      cardGradient: s.cardGradient,
+      rank: i + 1
+    }))
+    const first = spotTabs[0] || {}
+    this.setData({
+      spotTabs,
+      activeSpotId: first._id || '',
+      activeSpotName: first.name || ''
+    })
+    this.applySpotFilter()
+  },
+
+  // 按当前选中打卡点过滤三分类货架（照片留影按单个 spotId；视频/套餐支持 spotIds 数组）
+  applySpotFilter() {
+    const activeSpotId = this.data.activeSpotId || ''
+    const albums = this.data.bookingAlbums || []
+    const videos = this.data.videoPackages || []
+    const packages = this.data.hotPackages || []
+    const matchSingle = (item) => !activeSpotId || item.spotId === activeSpotId
+    const matchMulti = (item) => !activeSpotId || item.spotId === activeSpotId || (Array.isArray(item.spotIds) && item.spotIds.includes(activeSpotId))
+    const activeSpot = (this.data.spots || []).find(s => s._id === activeSpotId)
+    const filteredAlbums = activeSpotId ? albums.filter(matchSingle) : albums
+    const filteredVideos = activeSpotId ? videos.filter(matchMulti) : videos
+    const filteredPackages = activeSpotId ? packages.filter(matchMulti) : packages
+    const spotNoProducts = !!activeSpotId && !filteredAlbums.length && !filteredVideos.length && !filteredPackages.length
+    this.setData({
+      activeSpotName: activeSpot ? activeSpot.name : '',
+      filteredAlbums,
+      filteredVideos,
+      filteredPackages,
+      spotNoProducts
+    })
+  },
+
+  onSpotTabTap(e) {
+    const id = e.currentTarget.dataset.id || ''
+    if (id === this.data.activeSpotId) return
+    this.setData({ activeSpotId: id })
+    this.applySpotFilter()
+  },
+
+  applyDemoHomeData() {
+    this.applyHomeData(demoData.getHomeData())
+  },
+
+  onBannerChange(e) {
+    const current = e.detail.current
+    this.setData({ bannerIndex: current })
+    this.pauseAllVideos()
+    const banners = this.data.banners
+    if (banners[current] && banners[current].type === 'video') {
+      this.playCurrentVideo(current)
+      this.setData({ bannerAutoplay: false })
+    } else {
+      this.setData({ bannerAutoplay: true })
+    }
+  },
+
+  pauseAllVideos() {
+    for (let i = 0; i < this.data.banners.length; i++) {
+      if (this.data.banners[i].type === 'video') {
+        const ctx = wx.createVideoContext(`video-${i}`)
+        ctx.pause()
+      }
+    }
+  },
+
+  playCurrentVideo(index) {
+    wx.createVideoContext(`video-${index}`).play()
+  },
+
+  onVideoPlay() {
+    this.setData({ bannerAutoplay: false })
+  },
+
+  onVideoPause() {
+    this.setData({ bannerAutoplay: true })
+  },
+
+  goAllSpots() {
+    wx.switchTab({ url: '/pages/explore/explore' })
+  },
+
+  goExplore() {
+    wx.switchTab({ url: '/pages/explore/explore' })
+  },
+
+  onSearchInput(e) {
+    const kw = e.detail.value || ''
+    this.setData({ searchKeyword: kw })
+    this.updateSuggestions(kw)
+  },
+
+  updateSuggestions(kw) {
+    const k = (kw || '').trim()
+    const list = k ? buildSearchSuggestions(k, demoData.spots) : []
+    this.setData({
+      searchHasInput: !!k,
+      searchSuggestions: list
+    })
+  },
+
+  onSearchFocus() {
+    if (this.searchBlurTimer) {
+      clearTimeout(this.searchBlurTimer)
+      this.searchBlurTimer = null
+    }
+    this.stopSearchKeywordLoop()
+    // 记录聚焦时的滚动位置，用于判断用户是否主动滚动页面来关闭下拉
+    this.searchFocusScrollTop = this._lastScrollTop || 0
+    this.setData({ searchFocused: true, bannerAutoplay: false })
+    this.updateSuggestions(this.data.searchKeyword)
+    wx.createSelectorQuery().in(this).select('.search-entry').boundingClientRect(rect => {
+      if (rect) this.setData({ searchDropdownTop: rect.bottom + 6 })
+    }).exec()
+  },
+
+  closeSearchDropdown() {
+    if (this.searchBlurTimer) {
+      clearTimeout(this.searchBlurTimer)
+      this.searchBlurTimer = null
+    }
+    const banners = this.data.banners || []
+    const current = banners[this.data.bannerIndex]
+    this.setData({
+      searchFocused: false,
+      bannerAutoplay: !(current && current.type === 'video')
+    })
+    this.startSearchKeywordLoop()
+  },
+
+  onSearchBlur() {
+    // 延迟隐藏，让下拉项 click 先触发
+    this.searchBlurTimer = setTimeout(() => {
+      this.closeSearchDropdown()
+    }, 150)
+  },
+
+  onSearchBackdropTap() {
+    this.closeSearchDropdown()
+  },
+
+  onHotSearchTap(e) {
+    const keyword = e.detail.keyword
+    this.setData({ searchKeyword: keyword, searchFocused: false })
+    this.stopSearchKeywordLoop()
+    wx.navigateTo({ url: this.buildUrl('/pages/search/search', { keyword }) })
+  },
+
+  onSearchItemTap(e) {
+    const item = e.detail.item || {}
+    this.setData({ searchKeyword: item.name || '', searchFocused: false })
+    this.stopSearchKeywordLoop()
+    // 与探索页统一：点下拉建议项直达对应详情页（找不到目标则兜底跳结果页）
+    routeSearchSuggestion(item, this.buildUrl.bind(this))
+  },
+
+  onSearchBooking(e) {
+    this.closeSearchDropdown()
+    this.goCustomBookingByKeyword(e)
+  },
+
+  clearSearchKeyword() {
+    this.setData({ searchKeyword: '', searchHasInput: false, searchSuggestions: [] })
+  },
+
+  onSearchConfirm() {
+    const keyword = (this.data.searchKeyword || '').trim()
+    if (!keyword) {
+      wx.showToast({ title: '请输入搜索内容', icon: 'none' })
+      return
+    }
+    this.setData({ searchFocused: false })
+    this.stopSearchKeywordLoop()
+    wx.navigateTo({
+      url: this.buildUrl('/pages/search/search', { keyword })
+    })
+  },
+
+  onSearchAction() {
+    const keyword = (this.data.searchKeyword || '').trim()
+    this.closeSearchDropdown()
+    if (!keyword) {
+      wx.showToast({ title: '请输入搜索内容', icon: 'none' })
+      return
+    }
+    this.stopSearchKeywordLoop()
+    wx.navigateTo({ url: this.buildUrl('/pages/search/search', { keyword }) })
+  },
+
+  // 从「打卡点热榜」空态卡或搜索入口发起约拍定制
+  goCustomBooking() {
+    const activeSpotId = this.data.activeSpotId || ''
+    const activeSpotName = this.data.activeSpotName || ''
+    wx.navigateTo({
+      url: this.buildUrl('/pages/bookingInfo/bookingInfo', {
+        spotId: activeSpotId,
+        spotName: activeSpotName,
+        requestedSpot: activeSpotName
+      })
+    })
+  },
+
+  goCustomBookingByKeyword(e) {
+    const kw = ((e && e.detail && e.detail.keyword) || this.data.searchKeyword || '').trim()
+    if (!kw) return
+    wx.navigateTo({
+      url: this.buildUrl('/pages/bookingInfo/bookingInfo', { requestedSpot: kw })
+    })
+  },
+
+
+  goBanner(e) {
+    const index = Number(e.currentTarget.dataset.index || 0)
+    const banner = (this.data.banners || [])[index]
+    const target = getBannerTarget(banner)
+    if (!target) return
+    const url = target.url || this.buildUrl(target.path, target.params)
+    if (!url) return
+    if (target.method === 'switchTab') {
+      wx.switchTab({ url: url.split('?')[0] })
+      return
+    }
+    wx.navigateTo({ url })
+  },
+
+
+  goPackage(e) {
+    // 支持两种事件格式：组件 triggerEvent('tap', {id}) → e.detail.id；原生 bindtap → e.currentTarget.dataset.id
+    const packageId = (e && e.detail && e.detail.id) || (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id)
+    if (!packageId) {
+      wx.showToast({ title: '旅拍套餐不存在', icon: 'none' })
+      return
+    }
+    const pkg = findHomePackage([this.data.hotPackages, this.data.packages], packageId)
+    if (!pkg) {
+      wx.showToast({ title: '旅拍套餐不存在', icon: 'none' })
+      return
+    }
+
+    wx.navigateTo({
+      url: this.buildUrl(getHomePackageDetailPath(pkg), {
+        id: pkg.seriesId,
+        packageId,
+        productId: packageId,
+        spotId: pkg.spotId
+      })
+    })
+  },
+
+  goVideoProduct(e) {
+    // lxm-video-card 组件 triggerEvent('tap', {id, spotId, item})
+    const d = e && e.detail || {}
+    const productId = d.id
+    if (!productId) {
+      wx.showToast({ title: '视频摄像商品不存在', icon: 'none' })
+      return
+    }
+    wx.navigateTo({
+      url: this.buildUrl('/pages/videoProductDetail/videoProductDetail', {
+        productId,
+        spotId: d.spotId
+      })
+    })
+  },
+
+  goBookingAlbum(e) {
+    // lxm-album-card 组件 triggerEvent('tap', {id, albumId, seriesId, spotId})
+    const d = e && e.detail || {}
+    const albumId = d.albumId || d.id
+    if (!albumId) {
+      wx.showToast({ title: '照片留影不存在', icon: 'none' })
+      return
+    }
+    wx.navigateTo({
+      url: this.buildUrl('/pages/photoCollection/photoCollection', {
+        albumId,
+        seriesId: d.seriesId,
+        spotId: d.spotId
+      })
+    })
+  },
+
+  goVideoExplore() {
+    wx.switchTab({ url: '/pages/explore/explore' })
+  },
+
+
+  goPeripheralList() {
+    wx.navigateTo({ url: this.buildUrl('/pages/peripherals/peripherals') })
+  },
+
+  goGuideList() {
+    wx.navigateTo({ url: this.buildUrl('/pages/guideList/guideList') })
+  },
+
+
+  // 首页快捷入口（后台可配置的"导航"）点击：按 targetType 跳转到对应页面
+
+})

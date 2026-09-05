@@ -1,0 +1,52 @@
+<!-- 搜索建议下拉面板：首页与探索页共用的同一套（不写两套） -->
+<view class="sp">
+  <view class="sp__backdrop" bindtap="onClose"></view>
+  <view class="sp__panel" style="top: {{top}}px;">
+    <!-- 输入联想态：实时匹配，点建议项直达对应详情页 -->
+    <block wx:if="{{hasInput}}">
+      <view class="search-section search-suggest">
+        <view class="search-section-title">找到 {{suggestions.length}} 个结果</view>
+        <view wx:if="{{suggestions.length}}" class="search-all-list">
+          <view
+            class="search-all-item"
+            wx:for="{{suggestions}}"
+            wx:key="id"
+            bindtap="onItemTap"
+            data-item="{{item}}"
+          >
+            <view class="search-all-tag" style="background-color: {{item.bgColor}}; color: {{item.color}};">
+              <text class="search-all-icon">{{item.icon}}</text>
+              <text>{{item.tag}}</text>
+            </view>
+            <view class="search-all-name">
+              <text>{{item.nameBefore}}</text><text class="search-all-name-highlight">{{item.nameMatch}}</text><text>{{item.nameAfter}}</text>
+            </view>
+            <text class="search-all-area">{{item.desc || item.area}}</text>
+          </view>
+        </view>
+        <view wx:else class="search-suggest-empty">
+          <text>没有找到与“{{keyword}}”相关的内容</text>
+          <lxm-custom-booking-card keyword="{{keyword}}" bind:booking="onBooking" />
+        </view>
+      </view>
+    </block>
+    <!-- 默认态：聚焦无输入，只显示热门搜索（不再展示「全部内容」） -->
+    <block wx:else>
+      <view class="search-section search-hot">
+        <view class="search-section-title">
+          <text class="search-section-emoji">🔥</text>
+          <text>热门搜索</text>
+        </view>
+        <view class="search-hot-list">
+          <view
+            class="search-hot-item"
+            wx:for="{{hotKeywords}}"
+            wx:key="*this"
+            bindtap="onHotTap"
+            data-keyword="{{item}}"
+          >{{item}}</view>
+        </view>
+      </view>
+    </block>
+  </view>
+</view>

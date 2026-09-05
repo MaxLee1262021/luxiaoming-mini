@@ -1,0 +1,74 @@
+{
+  "pages": [
+    "pages/launch/launch",
+    "pages/scanEntry/scanEntry",
+    "pages/index/index",
+    "pages/explore/explore",
+    "pages/spotSheet/spotSheet",
+    "pages/search/search",
+    "pages/peripheralDetail/peripheralDetail",
+    "pages/my/my",
+    "pages/myFavorites/myFavorites",
+    "pages/photoCollection/photoCollection",
+    "pages/photoPackageDetail/photoPackageDetail",
+    "pages/bookingInfo/bookingInfo",
+    "pages/bookingSuccess/bookingSuccess",
+    "pages/myOrders/myOrders",
+    "pages/orderDetail/orderDetail",
+    "pages/peripherals/peripherals",
+    "pages/videoProductDetail/videoProductDetail",
+    "pages/guideList/guideList",
+    "pages/guideDetail/guideDetail",
+    "pages/privacy/privacy"
+  ],
+  "usingComponents": {
+    "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal",
+    "lxm-icon": "/components/lxm-icon/lxm-icon",
+    "lxm-nav-bar": "/components/lxm-nav-bar/lxm-nav-bar",
+    "lxm-video-card": "/components/lxm-video-card/lxm-video-card",
+    "lxm-search-bar": "/components/lxm-search-bar/lxm-search-bar"
+  },
+  "window": {
+    "navigationBarBackgroundColor": "#FFF7EF",
+    "navigationBarTitleText": "鹿小鸣长沙旅拍",
+    "navigationBarTextStyle": "black",
+    "backgroundColor": "#F6F1EC",
+    "backgroundTextStyle": "dark"
+  },
+  "tabBar": {
+    "custom": true,
+    "color": "#9C877A",
+    "selectedColor": "#EE2C2C",
+    "backgroundColor": "#FFFDF9",
+    "borderStyle": "white",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "images/tab-home.png",
+        "selectedIconPath": "images/tab-home-active.png"
+      },
+      {
+        "pagePath": "pages/explore/explore",
+        "text": "探索",
+        "iconPath": "images/tab-explore.png",
+        "selectedIconPath": "images/tab-explore-active.png"
+      },
+      {
+        "pagePath": "pages/my/my",
+        "text": "我的",
+        "iconPath": "images/tab-my.png",
+        "selectedIconPath": "images/tab-my-active.png"
+      }
+    ]
+  },
+  "permission": {
+    "scope.userLocation": {
+      "desc": "用于在地图展示您附近的旅拍打卡点，推荐就近拍摄点位"
+    }
+  },
+  "requiredPrivateInfos": ["getLocation"],
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "__usePrivacyCheck__": true
+}

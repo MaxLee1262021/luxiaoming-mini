@@ -1,0 +1,98 @@
+/* 约拍定制承接卡（全站统一 banner 母版） */
+.lxm-cbc {
+  margin: 6rpx 28rpx 20rpx;
+  border-radius: 24rpx;
+  background: var(--lxm-c-surface);
+  border: 2rpx solid rgba(238, 44, 44, 0.16);
+  overflow: hidden;
+  box-shadow: 0 10rpx 26rpx rgba(64, 39, 26, 0.08);
+}
+
+.lxm-cbc--hover {
+  transform: scale(0.99);
+}
+
+.lxm-cbc__ctx {
+  padding: 18rpx 26rpx 2rpx;
+  font-size: var(--lxm-fz-2xs);
+  color: var(--lxm-c-gray-650);
+  line-height: 1.5;
+}
+
+.lxm-cbc__banner {
+  padding: 26rpx 28rpx 30rpx;
+  background: var(--lxm-gradient-primary);
+  color: var(--lxm-c-cream);
+}
+
+.lxm-cbc__title {
+  display: block;
+  font-size: var(--lxm-fz-xl);
+  font-weight: var(--lxm-fw-bold);
+  line-height: 1.3;
+}
+
+.lxm-cbc__sub {
+  display: block;
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  opacity: 0.92;
+  line-height: 1.4;
+}
+
+.lxm-cbc__body {
+  padding: 22rpx 24rpx 24rpx;
+}
+
+.lxm-cbc__price {
+  margin-bottom: 14rpx;
+}
+
+.lxm-cbc__price-main {
+  font-size: 52rpx;
+  font-weight: var(--lxm-fw-bold);
+  color: var(--lxm-c-ink);
+  line-height: 1.1;
+}
+
+.lxm-cbc__price-unit {
+  font-size: var(--lxm-fz-sm);
+  font-weight: var(--lxm-fw-semibold);
+  color: var(--lxm-c-gray-650);
+}
+
+.lxm-cbc__price-add {
+  margin-top: 6rpx;
+  font-size: var(--lxm-fz-sm);
+  font-weight: var(--lxm-fw-bold);
+  color: var(--lxm-c-orange);
+}
+
+.lxm-cbc__note {
+  margin-bottom: 18rpx;
+  font-size: var(--lxm-fz-2xs);
+  color: var(--lxm-c-gray-650);
+  line-height: 1.5;
+}
+
+.lxm-cbc__btn {
+  width: 100%;
+  height: 88rpx;
+  line-height: 88rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-gradient-primary);
+  color: var(--lxm-c-cream);
+  font-size: 28rpx;
+  font-weight: var(--lxm-fw-bold);
+  letter-spacing: 2rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  box-shadow: 0 10rpx 22rpx rgba(238, 44, 44, 0.28);
+}
+
+.lxm-cbc__btn:active {
+  transform: translateY(1rpx);
+  opacity: 0.94;
+}

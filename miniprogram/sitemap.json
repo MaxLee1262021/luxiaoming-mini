@@ -1,0 +1,12 @@
+{
+  "desc": "鹿小鸣旅拍索引策略：营销页与内容页允许收录；个人中心、订单、预约等隐私与交易页禁止收录。规则自上而下匹配，命中即止。",
+  "rules": [
+    { "action": "disallow", "page": "pages/my/my" },
+    { "action": "disallow", "page": "pages/myOrders/myOrders" },
+    { "action": "disallow", "page": "pages/myFavorites/myFavorites" },
+    { "action": "disallow", "page": "pages/orderDetail/orderDetail" },
+    { "action": "disallow", "page": "pages/bookingInfo/bookingInfo" },
+    { "action": "disallow", "page": "pages/bookingSuccess/bookingSuccess" },
+    { "action": "allow", "page": "*" }
+  ]
+}

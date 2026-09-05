@@ -1,0 +1,4 @@
+<view wx:if="{{visible}}" class="lxm-toast lxm-toast--{{type}}">
+  <view wx:if="{{type !== 'none'}}" class="lxm-toast__icon lxm-toast__icon--{{type}}"></view>
+  <text class="lxm-toast__text">{{title}}</text>
+</view>

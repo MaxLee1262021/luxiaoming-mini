@@ -1,0 +1,7 @@
+<view class="shooting-notes" wx:if="{{notes.length || note}}">
+  <view class="shooting-notes__title">{{title}}</view>
+  <block wx:if="{{notes.length}}">
+    <view class="shooting-notes__item" wx:for="{{notes}}" wx:key="*this">{{item}}</view>
+  </block>
+  <view wx:elif="{{note}}" class="shooting-notes__body">{{note}}</view>
+</view>

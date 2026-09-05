@@ -1,0 +1,101 @@
+<view class="page">
+  <lxm-nav-bar showBack="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+  <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
+    <view class="lxm-skeleton lxm-skeleton-hero"></view>
+    <view class="lxm-skeleton lxm-skeleton-block"></view>
+    <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
+  </view>
+
+  <view wx:elif="{{error}}" class="state-box">
+    <view class="state-icon">!</view>
+    <view class="state-title">加载失败</view>
+    <view class="state-desc">{{error}}</view>
+    <button class="state-btn" bindtap="retry">重新加载</button>
+  </view>
+
+  <block wx:else>
+    <view class="package-card">
+      <view class="package-card__decor package-card__decor--tr"></view>
+      <view class="package-card__decor package-card__decor--bl"></view>
+      <view class="package-top">
+        <view class="kicker-pill">组合套餐</view>
+        <view class="sold-pill is-hot-sale" wx:if="{{selectedPackage.isHotSale}}">爆款预约</view>
+        <view class="sold-pill" wx:elif="{{selectedPackage.isMainPush}}">主推套餐</view>
+        <view class="sold-pill" wx:elif="{{selectedPackage.isHot}}">热门预约</view>
+      </view>
+      <view class="package-title">{{selectedPackage.name}}</view>
+      <view class="combo-metrics">
+        <view class="combo-metric">
+          <text class="combo-metric__value">{{packageStats.itemCount}}</text>
+          <text class="combo-metric__label">件商品</text>
+        </view>
+        <view class="combo-metric">
+          <text class="combo-metric__value">{{packageStats.typeCount}}</text>
+          <text class="combo-metric__label">种类型</text>
+        </view>
+        <view class="combo-metric">
+          <text class="combo-metric__value">省¥{{packageStats.saveAmount}}</text>
+          <text class="combo-metric__label">组合优惠</text>
+        </view>
+      </view>
+      <view class="combo-price-row">
+        <view class="combo-price-left">
+          <text class="combo-origin" wx:if="{{selectedPackage.originalPrice}}">组合原价 ¥{{selectedPackage.originalPrice}}</text>
+          <text class="combo-sale">¥{{selectedPackage.price || 0}}</text>
+        </view>
+        <text class="combo-tail">一键预约 · 客服跟进</text>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{includedItems.length}}">
+      <view class="section-head">
+        <view class="section-title">旅拍套餐包含</view>
+      </view>
+      <view class="item-cards">
+        <view
+          class="item-card"
+          wx:for="{{includedItems}}"
+          wx:key="name"
+          bindtap="goIncludedItem"
+          data-index="{{index}}"
+        >
+          <view class="item-card__dot item-card__dot--{{item.typeClass}}"></view>
+          <view class="item-card__main">
+            <view class="item-card__name">{{item.name}}</view>
+            <view class="item-card__specs" wx:if="{{item.specs}}">{{item.specs}}</view>
+          </view>
+          <view class="item-card__meta">
+            <text class="item-card__price">{{item.priceText}}</text>
+            <text class="item-card__arrow">›</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{spots.length}}">
+      <view class="section-head">
+        <view class="section-title">适用打卡点</view>
+      </view>
+      <view class="spot-pills">
+        <view class="spot-pill" wx:for="{{spots}}" wx:key="_id" bindtap="goSpot" data-id="{{item._id}}">
+          <text class="spot-pill__name">{{item.name}}</text>
+          <text class="spot-pill__arrow">›</text>
+        </view>
+      </view>
+    </view>
+
+    <lxm-shooting-notes notes="{{instructions}}" wx:if="{{moduleVisible.bookingRule && instructions.length}}" />
+
+    <view class="lxm-foot-bar">
+      <view class="lxm-foot-bar__side">
+        <button class="lxm-foot-btn {{collected ? 'is-active' : ''}}" bindtap="toggleCollect">
+          <lxm-icon type="star" size="40" color="{{collected ? 'red' : 'ink'}}"></lxm-icon>
+          <text class="lxm-foot-btn__txt">收藏</text>
+        </button>
+      </view>
+      <button class="lxm-foot-btn__main" bindtap="goBookingInfo">预约此套餐</button>
+    </view>
+  </block>
+</view>

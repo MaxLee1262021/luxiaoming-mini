@@ -1,0 +1,8 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "lxm-toast": "/components/lxm-toast/lxm-toast",
+    "lxm-order-card": "/components/lxm-order-card/lxm-order-card",
+    "lxm-empty-state": "/components/lxm-empty-state/lxm-empty-state"
+  }
+}

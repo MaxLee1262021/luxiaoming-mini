@@ -1,0 +1,27 @@
+<!-- 统一「相关推荐」模块：短视频单品/套餐横滑卡片
+     用法：
+     <lxm-related-videos videos="{{list}}" bind:tap="onTap" />
+     - 卡片点击会 triggerEvent('tap', { item, index, id, spot })
+     - 内部统一使用 lxm-video-card，避免第四套内联模板
+-->
+<view class="lxm-related" wx:if="{{videos.length}}">
+  <view class="lxm-related-head">
+    <view class="lxm-related-titles">
+      <view class="lxm-related-title">{{title}}</view>
+      <view class="lxm-related-subtitle" wx:if="{{subtitle}}">{{subtitle}}</view>
+    </view>
+    <view class="lxm-related-badge {{badgeType}}" wx:if="{{badge}}">{{badge}}</view>
+  </view>
+
+  <scroll-view scroll-x class="video-product-scroll" show-scrollbar="{{false}}">
+    <lxm-video-card
+      wx:for="{{videos}}"
+      wx:key="_id"
+      item="{{item}}"
+      index="{{index}}"
+      mode="product"
+      variant="{{item.productKind === 'video_single' ? 'single' : 'package'}}"
+      bind:tap="onTapCard"
+    />
+  </scroll-view>
+</view>

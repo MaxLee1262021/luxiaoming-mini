@@ -1,0 +1,181 @@
+/* pages/launch/launch.wxss — 方案 B · 品牌沉浸 */
+.launch-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  /* 墨 → 红 径向渐变满屏，品牌记忆点最强 */
+  background: radial-gradient(circle at 50% 36%, var(--lxm-c-red) 0%, var(--lxm-c-red-ink) 42%, var(--lxm-c-ink) 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* 跳过按钮：左上与胶囊同高，触摸区 ≥ 44px */
+.launch-skip {
+  position: absolute;
+  left: 24rpx;
+  z-index: 20;
+  min-height: 64rpx;
+  padding: 0 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1rpx solid rgba(255, 255, 255, 0.40);
+  opacity: 0;
+  animation: fadeUp 0.6s ease 1.0s forwards;
+}
+
+.launch-skip-hover {
+  background: rgba(255, 255, 255, 0.30);
+}
+
+.skip-text {
+  font-size: var(--lxm-fz-sm);
+  font-weight: var(--lxm-fw-semibold);
+  color: rgba(255, 255, 255, 0.94);
+  letter-spacing: 2rpx;
+  line-height: 1;
+}
+
+.skip-arrow {
+  margin-left: 6rpx;
+  font-size: 26rpx;
+  color: rgba(255, 255, 255, 0.80);
+  line-height: 1;
+}
+
+.brand-emblem {
+  width: 196rpx;
+  height: 196rpx;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.12);
+  border: 3rpx solid rgba(255, 255, 255, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: emblemPop 0.7s ease both;
+}
+
+.emblem-char {
+  font-size: 52rpx;
+  font-weight: 900;
+  color: var(--lxm-c-surface);
+  line-height: 1;
+}
+
+.slogan {
+  margin-top: 56rpx;
+  font-size: 38rpx;
+  font-weight: var(--lxm-fw-semibold);
+  color: var(--lxm-c-surface);
+  letter-spacing: 6rpx;
+  text-shadow: 0 10rpx 32rpx rgba(0, 0, 0, 0.30);
+  opacity: 0;
+  animation: fadeUp 0.9s ease 0.4s forwards;
+}
+
+.brand-name {
+  margin-top: 28rpx;
+  font-size: 28rpx;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.90);
+  letter-spacing: 8rpx;
+  opacity: 0;
+  animation: fadeUp 0.9s ease 0.8s forwards;
+}
+
+/* 扫码无预期客人引导：一行轻量"能干嘛"，不抢品牌视觉 */
+.launch-guide {
+  margin-top: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  animation: fadeUp 0.9s ease 1.2s forwards;
+}
+
+.guide-item {
+  font-size: 26rpx;
+  font-weight: var(--lxm-fw-semibold);
+  color: rgba(255, 255, 255, 0.94);
+  letter-spacing: 2rpx;
+}
+
+.guide-dot {
+  margin: 0 18rpx;
+  font-size: 23rpx;
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.progress-track {
+  position: absolute;
+  bottom: 120rpx;
+  width: 340rpx;
+  height: 6rpx;
+  border-radius: 999rpx;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  width: 0;
+  border-radius: 999rpx;
+  background: var(--lxm-c-surface);
+  animation: launchProgress 3s linear forwards;
+}
+
+@keyframes emblemPop {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20rpx);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 进度条与 5 秒跳转同步：从 0 涨满 */
+@keyframes launchProgress {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+
+/* 无障碍：晕动敏感用户关闭所有自动动画，直接显示终态 */
+@media (prefers-reduced-motion: reduce) {
+  .brand-emblem,
+  .slogan,
+  .brand-name,
+  .launch-guide,
+  .launch-skip,
+  .progress-fill {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+
+  .progress-fill {
+    width: 100%;
+  }
+}

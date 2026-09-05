@@ -1,0 +1,10 @@
+{
+  "usingComponents": {
+    "lxm-nav-bar": "/components/lxm-nav-bar/lxm-nav-bar",
+    "lxm-icon": "/components/lxm-icon/lxm-icon",
+    "lxm-toast": "/components/lxm-toast/lxm-toast",
+    "lxm-empty-state": "/components/lxm-empty-state/lxm-empty-state",
+    "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal"
+  },
+  "navigationBarTitleText": "我的收藏"
+}

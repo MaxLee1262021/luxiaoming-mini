@@ -1,0 +1,300 @@
+/* 拍照写真/旅拍套餐卡片：单源组件
+   支持 vertical（上图下文）/ horizontal（封面在左）两种布局，
+   可选中（selectable）、自定义角标（badge）、可选内嵌视频（showVideo）。 */
+.package-card {
+  display: flex;
+  flex-direction: column;
+  height: 480rpx;
+  overflow: hidden;
+  border-radius: var(--lxm-r-md);
+  background: var(--lxm-c-surface);
+  box-shadow: 0 14rpx 34rpx rgba(64, 39, 26, 0.10);
+  border: 2rpx solid transparent;
+}
+
+.package-card:active {
+  transform: scale(0.98);
+}
+
+/* 横版布局：封面在左，信息在右 */
+.package-card.is-horizontal {
+  display: flex;
+  flex-direction: row;
+  align-items: stretch;
+  height: auto;
+}
+
+/* 可选中模式 */
+.package-card.is-selectable {
+  cursor: pointer;
+}
+.package-card.is-selected {
+  border-color: var(--lxm-c-red);
+  background: var(--lxm-c-gray-100);
+}
+
+.card-img-wrap {
+  position: relative;
+  width: 100%;
+  height: var(--pkg-cover-size, 224rpx);
+  overflow: hidden;
+  background: var(--lxm-c-gray-500);
+  flex-shrink: 0;
+}
+
+.package-card.is-horizontal .card-img-wrap {
+  width: var(--pkg-cover-size, 180rpx);
+  height: var(--pkg-cover-size, 180rpx);
+}
+
+/* 横版小封面不需要底部渐隐遮罩 */
+.package-card.is-horizontal .card-img-wrap::after {
+  display: none;
+}
+
+.card-cover {
+  width: 100%;
+  height: 100%;
+}
+
+.card-img-wrap::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 108rpx;
+  background: linear-gradient(to top, rgba(42, 33, 27, 0.48), rgba(42, 33, 27, 0));
+  pointer-events: none;
+}
+
+.card-type-badge {
+  position: absolute;
+  left: 12rpx;
+  top: 12rpx;
+  z-index: 2;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-xs);
+  color: var(--lxm-c-surface);
+  font-weight: 900;
+}
+
+.badge-photo,
+.badge-video {
+  background: var(--lxm-c-red);
+}
+
+/* B3 · 封面起价角标 */
+.card-cover-badge {
+  position: absolute;
+  right: 12rpx;
+  bottom: 12rpx;
+  z-index: 3;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.package-card.is-horizontal .card-cover-badge {
+  right: 8rpx;
+  bottom: 8rpx;
+  font-size: var(--lxm-fz-2xs);
+  padding: 5rpx 12rpx;
+}
+
+.card-play {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 62rpx;
+  height: 62rpx;
+  margin-left: -31rpx;
+  margin-top: -31rpx;
+  line-height: 62rpx;
+  text-align: center;
+  border-radius: 999rpx;
+  background: rgba(255, 247, 239, 0.92);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+.package-card.is-horizontal .card-play {
+  width: 50rpx;
+  height: 50rpx;
+  margin-left: -25rpx;
+  margin-top: -25rpx;
+}
+
+.card-body {
+  display: flex;
+  flex-direction: column;
+  padding: 18rpx 18rpx 20rpx;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+}
+.package-card.is-horizontal .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10rpx;
+}
+
+.card-title {
+  display: block;
+  min-height: auto;
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-md);
+  font-weight: 900;
+  line-height: 1.35;
+  white-space: normal;
+}
+
+.card-badge {
+  flex-shrink: 0;
+  padding: 3rpx 12rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-gold);
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+}
+
+/* 营销角标配色：爆款（红）> 主推（金）> 热门（橙），由商品字段驱动 */
+.card-badge.is-hot-sale {
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+}
+.card-badge.is-main-push {
+  background: var(--lxm-c-gold);
+  color: var(--lxm-c-ink);
+}
+.card-badge.is-hot {
+  background: var(--lxm-c-orange);
+  color: var(--lxm-c-ink);
+}
+
+.card-selected-tag {
+  align-self: flex-start;
+  margin-top: 10rpx;
+  padding: 3rpx 14rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-surface);
+  font-size: var(--lxm-fz-2xs);
+  font-weight: 900;
+}
+
+.card-tags {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 7rpx;
+  margin-top: 10rpx;
+  overflow: hidden;
+}
+
+.tag {
+  font-size: var(--lxm-fz-2xs);
+  color: var(--lxm-c-red-ink);
+  background: var(--lxm-c-gray-250);
+  padding: 5rpx 12rpx;
+  border-radius: 999rpx;
+  font-weight: 900;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 套餐组合内容标签：照片 / 视频 / 周边（替换原规格行） */
+.card-compose {
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 7rpx;
+  margin-top: 10rpx;
+  overflow: hidden;
+}
+.compose-tag {
+  font-size: var(--lxm-fz-2xs);
+  color: var(--lxm-c-red-ink);
+  background: var(--lxm-c-orange-soft);
+  padding: 5rpx 12rpx;
+  border-radius: 999rpx;
+  font-weight: 900;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.card-desc {
+  flex: 1 1 auto;
+  min-height: 0;
+  color: var(--lxm-c-gray-700);
+  font-size: var(--lxm-fz-xs);
+  line-height: 1.35;
+  margin-top: 10rpx;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  overflow: hidden;
+}
+
+.price-original {
+  color: var(--lxm-c-muted);
+  font-size: var(--lxm-fz-sm);
+  text-decoration: line-through;
+  margin-top: 8rpx;
+}
+
+
+.card-price-row {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12rpx;
+  margin-top: auto;
+  padding-top: 12rpx;
+}
+.package-card.is-horizontal .card-price-row {
+  margin-top: auto;
+}
+
+.price-main {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.price-symbol {
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.price-value {
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-lg);
+  font-weight: 900;
+  margin: 0 3rpx;
+}
+
+.detail-link {
+  flex-shrink: 0;
+  padding: 12rpx 18rpx;
+  border-radius: 999rpx;
+  background: linear-gradient(135deg, var(--lxm-c-red) 0%, var(--lxm-c-orange) 100%);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+

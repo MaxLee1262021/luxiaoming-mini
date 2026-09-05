@@ -1,0 +1,73 @@
+<view class="my-orders-page">
+  <lxm-nav-bar showBack="{{true}}" placeholder="{{true}}" />
+  <lxm-privacy-modal />
+  <lxm-toast id="lxmToast" />
+
+  <view class="tabs">
+    <block wx:for="{{tabs}}" wx:key="key">
+      <view class="tab-item {{currentStatus === item.key ? 'active' : ''}}" bindtap="filterOrders" data-status="{{item.key}}">
+        {{item.text}}
+      </view>
+    </block>
+  </view>
+
+  <scroll-view class="order-list" scroll-y enable-back-to-top refresher-enabled bindrefresherrefresh="onRefresh" refresher-triggered="{{refreshing}}">
+    <block wx:if="{{loading && orders.length === 0}}">
+      <view class="lxm-skeleton-card" wx:for="{{[1,2,3,4]}}" wx:key="*this">
+        <view class="lxm-skeleton lxm-skeleton-cover"></view>
+        <view class="lxm-skeleton-body">
+          <view class="lxm-skeleton lxm-skeleton-line sk-title"></view>
+          <view class="lxm-skeleton lxm-skeleton-line sk-block"></view>
+          <view class="lxm-skeleton lxm-skeleton-line sk-short"></view>
+        </view>
+      </view>
+    </block>
+
+    <block wx:for="{{orders}}" wx:key="_id">
+      <lxm-order-card
+        item="{{item}}"
+        bind:detail="goDetail"
+        bind:cancel="cancelOrder"
+        bind:aftersale="openAfterSale"
+        bind:delete="deleteOrder"
+      />
+    </block>
+
+    <lxm-empty-state
+      wx:if="{{!loading && orders.length === 0}}"
+      type="order"
+      title="暂无相关订单"
+      desc="可以先看看旅拍套餐，选好打卡点、照片留影或视频摄像产品后再提交预约。"
+      button-text="看打卡点"
+      secondary-text="回首页"
+      bind:action="goAllPackages"
+      bind:secondary="goHome"
+    />
+
+    <view class="loading-more" wx:if="{{loading && orders.length > 0}}">加载中...</view>
+  </scroll-view>
+
+  <view class="after-sale-mask" wx:if="{{afterSaleVisible}}" catchtap="closeAfterSale">
+    <view class="after-sale-panel" catchtap="noop">
+      <view class="after-sale-hd">
+        <view>
+          <text class="after-sale-title">申请售后</text>
+          <text class="after-sale-subtitle">{{afterSaleOrder.packageName || '预约项目'}}</text>
+        </view>
+        <text class="after-sale-close" bindtap="closeAfterSale">×</text>
+      </view>
+      <textarea
+        class="after-sale-textarea"
+        value="{{afterSaleReason}}"
+        maxlength="200"
+        placeholder="请填写售后原因，例如改期、退款、拍摄安排调整等"
+        bindinput="onAfterSaleReasonInput"
+        auto-height="{{false}}"
+      />
+      <view class="after-sale-actions">
+        <button class="after-sale-cancel" bindtap="closeAfterSale">取消</button>
+        <button class="after-sale-submit" loading="{{afterSaleSubmitting}}" bindtap="submitAfterSale">提交申请</button>
+      </view>
+    </view>
+  </view>
+</view>

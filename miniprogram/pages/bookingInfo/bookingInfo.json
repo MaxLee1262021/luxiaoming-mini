@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "usingComponents": {
+    "lxm-toast": "/components/lxm-toast/lxm-toast",
+    "lxm-add-item-sheet": "/components/lxm-add-item-sheet/lxm-add-item-sheet"
+  }
+}
