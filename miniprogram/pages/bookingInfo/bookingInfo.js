@@ -560,6 +560,10 @@ Page({
       if (res && res.success) {
         const orderId = res.orderId || res._id || ''
         const orderNo = res.orderNo || ''
+        if (!orderId || !orderNo) {
+          wx.showToast({ title: '预约申请未返回有效订单，请稍后重试', icon: 'none' })
+          return
+        }
         analytics.track('booking_submit', { orderNo, itemCount: (this.data.items || []).length })
         wx.redirectTo({
           url: this.buildUrl('/pages/bookingSuccess/bookingSuccess', {
@@ -582,7 +586,7 @@ Page({
       }
     } catch (err) {
       console.error('submit booking failed', err)
-      wx.showToast({ title: '网络异常，请稍后再试', icon: 'none' })
+      wx.showToast({ title: (err && err.message) || '预约申请失败，请稍后再试', icon: 'none' })
     } finally {
       this.setData({ submitting: false })
     }
