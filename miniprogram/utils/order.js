@@ -3,6 +3,7 @@ function normalizeCustomerStatus(status = '') {
   // 历史云库数据可能混用英式 cancelled，统一收敛为美式 canceled，消除双拼写隐患
   if (status === 'cancelled') return 'canceled'
   if (status === 'delivered') return 'completed'
+  if (status === 'paid') return 'paid'
   return status
 }
 
@@ -19,6 +20,9 @@ function getOrderStatusText(status = '') {
     shooting: '拍摄中',
     editing: '修片中',
     final_pending: '修片中',
+    awaiting_final_payment: '待付尾款',
+    paid: '已支付待交付',
+    delivered: '已交付',
     completed: '已完成',
     canceled: '已取消',
     cancelled: '已取消'
@@ -39,6 +43,9 @@ function getOrderStatusDesc(status = '') {
     shooting: '订单正在拍摄中，祝你拥有一组好看的长沙旅行封面。',
     editing: '成片正在后期处理中，请耐心等待交付。',
     final_pending: '成片正在做最终确认，请耐心等待交付。',
+    awaiting_final_payment: '线下选片已确认，请按客服指引支付尾款。',
+    paid: '尾款已确认到账，等待照片交付。',
+    delivered: '照片已交付，请查看交付记录或联系客服。',
     completed: '订单已完成，感谢选择鹿小鸣城市旅拍。',
     canceled: '订单已取消，如有退款或售后问题请联系客服。',
     cancelled: '订单已取消，如有退款或售后问题请联系客服。'
@@ -51,22 +58,20 @@ function getOrderStatusIndex(status = '') {
   if (['pending', 'new', 'contacted', 'deposit_pending'].includes(normalized)) return 0
   if (['confirmed', 'deposit_paid', 'assigned'].includes(normalized)) return 1
   if (normalized === 'shooting') return 2
-  if (['editing', 'final_pending'].includes(normalized)) return 3
-  if (normalized === 'completed') return 4
+  if (['editing', 'final_pending', 'awaiting_final_payment'].includes(normalized)) return 3
+  if (['paid', 'completed'].includes(normalized)) return 4
   if (['canceled', 'cancelled'].includes(normalized)) return 0
   return 0
 }
 
 function canCancelOrder(status = '') {
-  const normalized = normalizeCustomerStatus(status)
-  // 客服尚未对接服务前均可取消：咨询预约（pending/new）+ 已付定金（deposit_paid）
-  return ['pending', 'new', 'deposit_paid'].includes(normalized)
+  // 首期取消只能由授权后台人员处理，小程序不提供自助入口。
+  return false
 }
 
 function canApplyAfterSale(status = '') {
-  const normalized = normalizeCustomerStatus(status)
-  if (['canceled', 'cancelled'].includes(normalized)) return false
-  return true
+  // 首期不开放游客售后，异常由客服后台登记处理。
+  return false
 }
 
 function normalizeOrder(order = {}) {

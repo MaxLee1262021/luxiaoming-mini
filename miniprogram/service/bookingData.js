@@ -2,14 +2,14 @@ const demoData = require('../utils/demoData')
 const bookingUtils = require('../utils/booking')
 const { mergeByIdentity } = require('../utils/list')
 
-function mergeBookingData(data = {}) {
-  const fallback = demoData.getBookingData()
+function mergeBookingData(data = {}, { allowFallback = false } = {}) {
+  const fallback = allowFallback ? demoData.getBookingData() : {}
   return {
-    spots: mergeByIdentity(data.spots, fallback.spots),
-    allSeries: mergeByIdentity(data.allSeries, fallback.allSeries),
-    allPackages: mergeByIdentity(data.allPackages || data.hotPackages, fallback.allPackages || fallback.hotPackages),
-    allAlbums: mergeByIdentity(data.albums, fallback.albums),
-    allPeripherals: data.allPeripherals || fallback.allPeripherals || demoData.peripherals || []
+    spots: allowFallback ? mergeByIdentity(data.spots, fallback.spots) : (Array.isArray(data.spots) ? data.spots : []),
+    allSeries: allowFallback ? mergeByIdentity(data.allSeries, fallback.allSeries) : (Array.isArray(data.allSeries) ? data.allSeries : []),
+    allPackages: allowFallback ? mergeByIdentity(data.allPackages || data.hotPackages, fallback.allPackages || fallback.hotPackages) : (Array.isArray(data.allPackages) ? data.allPackages : (Array.isArray(data.hotPackages) ? data.hotPackages : [])),
+    allAlbums: allowFallback ? mergeByIdentity(data.albums, fallback.albums) : (Array.isArray(data.albums) ? data.albums : []),
+    allPeripherals: Array.isArray(data.allPeripherals) ? data.allPeripherals : (allowFallback ? (fallback.allPeripherals || demoData.peripherals || []) : [])
   }
 }
 

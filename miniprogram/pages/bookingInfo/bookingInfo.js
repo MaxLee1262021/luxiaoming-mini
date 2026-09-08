@@ -10,6 +10,7 @@ const bookingConfig = require('../../service/bookingConfig')
 const userStore = require('../../store/userStore')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
 const analytics = require('../../utils/analytics')
+const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
   data: {
@@ -20,13 +21,13 @@ Page({
     boundPhone: '',
     contactPhones: [],
     phoneMode: 'wechat',
-    today: '',
     date: '',
     time: '',
     message: '',
     participantCount: 1,
     agreed: false,
     submitting: false,
+    bookingRequestKey: '',
     items: [],
     totalPrice: 0,
     prefillSeriesId: '',
@@ -68,7 +69,8 @@ Page({
       notice: true
     },
     loading: true,
-    degraded: false, // 预约项目数据拉取失败、正在展示预览数据时置 true（降级提示条）
+    degraded: false,
+    dataUnavailable: false,
     bookingMode: 'consult',
     // 约拍定制定价 / 预约须知：默认值与原硬编码一致，后台 getBookingConfig RPC 就绪后自动替换
     bookingConfig: bookingConfig.getConfig()
@@ -76,10 +78,7 @@ Page({
 
   onLoad(options = {}) {
     const source = app.captureSource ? app.captureSource(options) : {}
-    const today = new Date()
-    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
     this.setData({
-      today: todayStr,
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || '',
       prefillSeriesId: options.seriesId || '',
@@ -193,18 +192,21 @@ Page({
     try {
       const res = await bookingApi.getBookingData({ shopId: this.data.shopId })
       if (res && res.success) {
-        this.applyBookingData(res.data || {})
-        this.setData({ degraded: false })
+        this.applyBookingData(res.data || {}, false)
+        this.setData({ degraded: false, dataUnavailable: false })
       } else {
-        // 后台响应缺少成功标记（罕见，防御分支）：回退演示数据，不算失败
-        this.applyBookingData(demoData.getBookingData())
-        this.setData({ degraded: false })
+        if (isExplicitDemoMode()) {
+          this.applyBookingData(demoData.getBookingData(), true)
+          this.setData({ degraded: true, dataUnavailable: false })
+        } else {
+          this.applyBookingData({}, false)
+          this.setData({ degraded: true, dataUnavailable: true })
+        }
       }
     } catch (err) {
       console.error('load booking data failed', err)
-      // 请求失败（网络异常或后台未接通）：回退预览数据兜底 + 顶部降级提示条，客人可重试
-      this.applyBookingData(demoData.getBookingData())
-      this.setData({ degraded: true })
+      this.applyBookingData(isExplicitDemoMode() ? demoData.getBookingData() : {}, isExplicitDemoMode())
+      this.setData({ degraded: true, dataUnavailable: !isExplicitDemoMode() })
     } finally {
       this.setData({ loading: false })
     }
@@ -230,8 +232,8 @@ Page({
     }
   },
 
-  applyBookingData(data = {}) {
-    const bookingData = bookingDataService.mergeBookingData(data)
+  applyBookingData(data = {}, allowFallback = false) {
+    const bookingData = bookingDataService.mergeBookingData(data, { allowFallback })
     const spots = bookingData.spots
     const allSeries = bookingData.allSeries
     const allPackages = bookingData.allPackages
@@ -495,9 +497,6 @@ Page({
   removeContactPhone(e) { bookingInfoActions.removeContactPhone(this, e) },
   useContactPhone(e) { bookingInfoActions.useContactPhone(this, e) },
   onMessageInput(e) { this.setData({ message: e.detail.value }) },
-  onDateChange(e) { this.setData({ date: e.detail.value }) },
-  onTimeChange(e) { this.setData({ time: e.detail.value }) },
-
   changeParticipant(e) {
     const delta = Number(e.currentTarget.dataset.delta) || 0
     let next = (this.data.participantCount || 1) + delta
@@ -528,6 +527,10 @@ Page({
   },
 
   async submitBooking() {
+    if (this.data.dataUnavailable) {
+      wx.showToast({ title: '拍摄项目暂不可用，请重试后再提交', icon: 'none' })
+      return
+    }
     if (!this.isPhoneReady()) {
       this.refreshAuthState()
       wx.showToast({ title: '请先填写手机号', icon: 'none' })
@@ -555,7 +558,9 @@ Page({
         submitMessage = (submitMessage ? submitMessage + '\n' : '') + '参与人数：' + (this.data.participantCount || 1) + ' 人'
       }
       this.data.message = submitMessage
-      const payload = bookingUtils.buildBookingPayload(this.data)
+      const bookingRequestKey = this.data.bookingRequestKey || `booking-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+      this.setData({ bookingRequestKey })
+      const payload = { ...bookingUtils.buildBookingPayload(this.data), idempotencyKey: bookingRequestKey }
       const res = await bookingApi.createBooking(payload)
       if (res && res.success) {
         const orderId = res.orderId || res._id || ''

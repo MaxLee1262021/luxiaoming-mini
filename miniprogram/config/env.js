@@ -36,9 +36,21 @@ function getEnvVersion() {
 const version = getEnvVersion()
 const isProduction = version === 'release' || version === 'trial'
 
+// Demo data is opt-in. Network/API failures must never look like a persisted
+// order or a successful booking in a normal development, trial, or release build.
+function isExplicitDemoMode() {
+  try {
+    const value = wx.getStorageSync('lxm_demo_mode')
+    return value === true || value === 'true'
+  } catch (e) {
+    return false
+  }
+}
+
 module.exports = {
   // 当前生效的后台地址
   API_BASE: isProduction ? PROD_API_BASE : DEV_API_BASE,
+  isExplicitDemoMode,
 
   // 当前环境标识，方便排查问题（develop / trial / release）
   ENV_VERSION: version,
