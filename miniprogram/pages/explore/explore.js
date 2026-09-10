@@ -44,6 +44,7 @@ Page({
     searchHasInput: false,
     searchSuggestions: [],
     searchDropdownTop: 180,
+    searchCatalog: { packages: [], videos: [], albums: [], guides: [] },
 
     openPanel: '',
     cityOptions: FALLBACK_CITIES,
@@ -398,7 +399,11 @@ Page({
 
   updateSearchSuggestions(kw = '') {
     const k = (kw || '').trim()
-    const list = k ? buildSearchSuggestions(k, demoData.spots) : []
+    const catalog = this.data.searchCatalog || {}
+    const hasRemoteCatalog = [catalog.packages, catalog.videos, catalog.albums, catalog.guides].some(list => Array.isArray(list) && list.length)
+    const list = k ? buildSearchSuggestions(k, hasRemoteCatalog
+      ? { ...catalog, spots: this.data.spots }
+      : demoData.spots) : []
     this.setData({
       searchHasInput: !!k,
       searchSuggestions: list
@@ -634,12 +639,22 @@ Page({
   async loadExploreBanners() {
     try {
       const res = await homeApi.getHomeData({ shopId: this.data.shopId, spot: this.data.spot })
-      const list = (res && res.success && res.data && res.data.exploreBanners) || []
+      const payload = (res && res.success && res.data) || {}
+      const list = payload.exploreBanners || []
       const banners = normalizeBanners(list).slice(0, 6)
+      const searchCatalog = {
+        packages: Array.isArray(payload.packages) ? payload.packages : [],
+        videos: [
+          ...(Array.isArray(payload.videoSingles) ? payload.videoSingles : []),
+          ...(Array.isArray(payload.videoProducts) ? payload.videoProducts : [])
+        ],
+        albums: Array.isArray(payload.albums) ? payload.albums : [],
+        guides: Array.isArray(payload.guides) ? payload.guides : []
+      }
       if (!banners.length) {
-        this.setData({ exploreBanners: normalizeBanners(demoData.exploreBanners || []) })
+        this.setData({ exploreBanners: normalizeBanners(demoData.exploreBanners || []), searchCatalog })
       } else {
-        this.setData({ exploreBanners: banners })
+        this.setData({ exploreBanners: banners, searchCatalog })
       }
     } catch (err) {
       console.error('explore loadExploreBanners error', err)

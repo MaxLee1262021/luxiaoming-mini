@@ -51,11 +51,45 @@
 .order-header,
 .progress-section,
 .info-card,
+.payment-card,
 .deliver-card {
   margin-bottom: 22rpx;
   border-radius: 26rpx;
   background: var(--lxm-c-surface);
   box-shadow: var(--lxm-shadow-card);
+}
+
+.payment-card {
+  padding: 28rpx 24rpx;
+}
+
+.payment-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 18rpx;
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-sm);
+}
+
+.payment-amount {
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-xl);
+  font-weight: 900;
+}
+
+.payment-hint {
+  margin-top: 12rpx;
+  color: var(--lxm-c-gray-600);
+  font-size: var(--lxm-fz-xs);
+}
+
+.payment-btn {
+  margin-top: 22rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-ink);
+  color: var(--lxm-c-cream);
+  font-weight: 900;
 }
 
 .order-header {

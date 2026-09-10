@@ -3,7 +3,7 @@ const demoData = require('../../utils/demoData')
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
 const { normalizeOrder, getOrderStatusDesc } = require('../../utils/order')
-const afterSaleService = require('../../service/afterSale')
+const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
   data: {
@@ -15,10 +15,7 @@ Page({
     error: '',
     loading: true,
     isDemo: false,
-    afterSaleVisible: false,
-    afterSaleReason: '',
-    afterSaleOrder: null,
-    afterSaleSubmitting: false
+    paymentSubmitting: false
   },
 
   onLoad(options = {}) {
@@ -44,7 +41,8 @@ Page({
       // 仅云函数调用失败才用演示订单兜底；
       // 调用成功但无数据（订单不存在）时显示错误态，不展示假订单
       if (!res || !res.success) {
-        this.applyDemoOrder()
+        if (isExplicitDemoMode()) this.applyDemoOrder()
+        else this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
       } else if (res.data) {
         this.applyOrder(normalizeOrder(res.data), false)
       } else {
@@ -52,7 +50,8 @@ Page({
       }
     } catch (err) {
       console.error('getOrderDetail error', err)
-      this.applyDemoOrder()
+      if (isExplicitDemoMode()) this.applyDemoOrder()
+      else this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
     } finally {
       this.setData({ loading: false })
     }
@@ -106,83 +105,36 @@ Page({
     this.loadOrder()
   },
 
-  // —— 订单操作：取消 / 申请售后（与我的订单页一致）——
-  cancelOrder() {
-    const order = this.data.order
-    if (!order || !order.canCancel) {
-      wx.showToast({ title: '当前状态不可取消', icon: 'none' })
+  async createPayment(e) {
+    const phase = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.phase
+    const order = this.data.order || {}
+    if (!phase || !order._id || this.data.paymentSubmitting) return
+    const amount = phase === 'deposit' ? Number(order.depositDue || 0) : Number(order.finalDue || 0)
+    if (!(amount > 0)) {
+      wx.showToast({ title: '当前没有待支付金额', icon: 'none' })
       return
     }
-    wx.showModal({
-      title: '确认取消',
-      content: '待确认订单尚未进入客服确认流程，确认后将取消这笔预约。',
-      confirmText: '取消订单',
-      cancelText: '再想想',
-      success: res => {
-        if (!res.confirm) return
-        if (this.data.isDemo) {
-          this.setData({ order: { ...order, status: 'canceled', statusText: '已取消', canCancel: false, canAfterSale: true } })
-          wx.showToast({ title: '订单已取消', icon: 'success' })
-          return
-        }
-        orderApi.updateOrderStatus({ orderId: order._id, orderNo: order.orderNo, newStatus: 'canceled' })
-          .then(result => {
-            if (result && result.success) {
-              wx.showToast({ title: '订单已取消', icon: 'success' })
-              this.loadOrder()
-              return
-            }
-            wx.showToast({ title: (result && result.error) || '取消失败，请稍后再试', icon: 'none' })
-          })
-          .catch(err => {
-            console.error('cancel order failed', err)
-            wx.showToast({ title: '请求失败，请稍后再试', icon: 'none' })
-          })
-      }
-    })
-  },
-
-  openAfterSale() {
-    const order = this.data.order
-    if (!order || !order.canAfterSale) return
-    this.setData({ afterSaleVisible: true, afterSaleReason: '', afterSaleOrder: order })
-  },
-
-  closeAfterSale() {
-    if (this.data.afterSaleSubmitting) return
-    this.setData({ afterSaleVisible: false, afterSaleReason: '', afterSaleOrder: null })
-  },
-
-  onAfterSaleReasonInput(e) {
-    this.setData({ afterSaleReason: e.detail.value || '' })
-  },
-
-  async submitAfterSale() {
-    const validation = afterSaleService.validateAfterSaleReason(this.data.afterSaleReason)
-    if (!validation.valid) {
-      wx.showToast({ title: validation.message, icon: 'none' })
-      return
-    }
-    const order = this.data.afterSaleOrder
-    if (!order) return
-    this.setData({ afterSaleSubmitting: true })
+    this.setData({ paymentSubmitting: true })
     try {
-      if (!this.data.isDemo) {
-        const payload = afterSaleService.buildAfterSalePayload(order, validation.reason)
-        const res = await orderApi.submitAfterSale(payload)
-        if (!res || !res.success) {
-          wx.showToast({ title: (res && res.error) || '提交失败，请稍后再试', icon: 'none' })
-          return
-        }
+      const storageKey = `lxm_payment_intent_${order._id}_${phase}`
+      let idempotencyKey = wx.getStorageSync(storageKey)
+      if (!idempotencyKey) {
+        idempotencyKey = `mini-${phase}-${order._id}-${Date.now()}`
+        wx.setStorageSync(storageKey, idempotencyKey)
       }
-      wx.showToast({ title: '售后申请已提交', icon: 'success' })
-      this.setData({ afterSaleVisible: false, afterSaleReason: '', afterSaleOrder: null })
+      const result = await orderApi.createPayment({ orderId: order._id, phase, amount, idempotencyKey })
+      if (!result || !result.success) {
+        wx.showToast({ title: (result && result.error) || '支付单创建失败，请联系客服', icon: 'none' })
+        return
+      }
+      wx.showToast({ title: '支付单已生成，请联系客服完成支付', icon: 'none', duration: 2600 })
       this.loadOrder()
     } catch (err) {
-      console.error('submit after sale failed', err)
-      wx.showToast({ title: '提交失败，请稍后再试', icon: 'none' })
+      console.error('create payment failed', err)
+      wx.showToast({ title: '支付服务暂不可用，请联系客服', icon: 'none' })
     } finally {
-      this.setData({ afterSaleSubmitting: false })
+      this.setData({ paymentSubmitting: false })
     }
-  }
+  },
+
 })

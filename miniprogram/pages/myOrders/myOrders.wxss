@@ -82,6 +82,22 @@
   padding: 24rpx 24rpx calc(40rpx + env(safe-area-inset-bottom));
 }
 
+.order-error {
+  margin: 48rpx 24rpx;
+  padding: 28rpx 24rpx;
+  border-radius: 20rpx;
+  background: var(--lxm-c-surface);
+  color: var(--lxm-c-gray-700);
+  text-align: center;
+}
+
+.order-error-btn {
+  margin-top: 20rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-ink);
+  color: var(--lxm-c-cream);
+}
+
 .loading-more {
   padding: 22rpx 0;
   color: var(--lxm-c-muted);

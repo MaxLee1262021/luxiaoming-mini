@@ -1,6 +1,8 @@
 const demoData = require('../utils/demoData')
 const { callCloud } = require('./client')
-const { normalizePackage, normalizePackageList, isVideo } = require('../utils/product')
+const homeApi = require('./home')
+const { isExplicitDemoMode } = require('../config/env')
+const { normalizePackage, normalizePackageList, isVideo, filterVisibleProducts } = require('../utils/product')
 const { isVideoSingle } = require('../service/videoProductDetail')
 
 // 搜索热词兜底：后台 getSearchConfig 未就绪 / 请求失败时使用，保证页面不白屏。
@@ -28,7 +30,58 @@ function buildSearchTokens(keyword = '') {
 }
 
 function filterPhotoPackages(list = []) {
-  return normalizePackageList(list).filter(item => !isVideo(item))
+  return normalizePackageList(filterVisibleProducts(list)).filter(item => !isVideo(item))
+}
+
+function mergeByIdentity(...lists) {
+  const seen = new Set()
+  const output = []
+  lists.forEach(list => {
+    ;(Array.isArray(list) ? list : []).forEach(item => {
+      if (!item) return
+      const key = String(item._id || item.id || item.packageId || item.productId || item.name || '')
+      if (!key || seen.has(key)) return
+      seen.add(key)
+      output.push(item)
+    })
+  })
+  return output
+}
+
+function normalizeCatalog(data = {}) {
+  const packageRows = mergeByIdentity(data.packages, data.allPackages, data.hotPackages)
+  const packages = normalizePackageList(filterVisibleProducts(packageRows))
+  const videos = mergeByIdentity(
+    data.videoSingles,
+    data.videoProducts,
+    packages.filter(isVideo)
+  ).filter(item => filterVisibleProducts([item]).length)
+    .map(item => normalizeSearchVideoItem(item))
+  return {
+    spots: Array.isArray(data.spots) ? data.spots : [],
+    packages: packages.filter(item => !isVideo(item)),
+    videos,
+    series: Array.isArray(data.series) ? data.series : [],
+    guides: Array.isArray(data.guides) ? data.guides : []
+  }
+}
+
+function demoCatalog() {
+  return normalizeCatalog({
+    spots: demoData.spots,
+    packages: demoData.packages,
+    videoProducts: demoData.videoProducts,
+    series: demoData.series,
+    guides: demoData.guides
+  })
+}
+
+async function getCatalogFromServer() {
+  const result = await homeApi.getHomeData()
+  if (!result || !result.success) {
+    throw new Error((result && (result.error || result.message)) || '套餐目录暂不可用')
+  }
+  return normalizeCatalog(result.data || {})
 }
 
 function normalizeSearchVideoItem(item = {}) {
@@ -70,6 +123,15 @@ async function getSearchHome() {
     }
   ]
 
+  let catalog
+  try {
+    catalog = await getCatalogFromServer()
+  } catch (error) {
+    if (!isExplicitDemoMode()) throw error
+    catalog = demoCatalog()
+  }
+  const promotedPackages = catalog.packages.filter(item => item.isHot || item.isHotSale || item.isMainPush || item.mainPush || item.isFeatured)
+
   // 热词优先从后台配置取，失败 / 为空时回退内置默认（与老页面一致，零回归）
   let hotKeywords = DEFAULT_HOT_KEYWORDS
   try {
@@ -87,15 +149,15 @@ async function getSearchHome() {
     data: {
       hotKeywords,
       routes,
-      spots: demoData.spots.slice(0, 6),
-      packages: filterPhotoPackages(demoData.packages).filter(item => item.isHot).slice(0, 6),
-      videos: demoData.videoProducts.map(item => normalizeSearchVideoItem(item)).slice(0, 3),
-      guides: demoData.guides.filter(item => item.isHot).slice(0, 3)
+      spots: catalog.spots.slice(0, 6),
+      packages: (promotedPackages.length ? promotedPackages : catalog.packages).slice(0, 6),
+      videos: catalog.videos.slice(0, 3),
+      guides: catalog.guides.filter(item => item.isHot).slice(0, 3)
     }
   }
 }
 
-function search({ keyword = '' } = {}) {
+async function search({ keyword = '' } = {}) {
   const value = String(keyword || '').trim()
   const tokens = buildSearchTokens(value)
   const matchText = item => {
@@ -103,29 +165,29 @@ function search({ keyword = '' } = {}) {
     const hay = JSON.stringify(item).toLowerCase()
     return tokens.some(t => hay.includes(t))
   }
-  const source = {
-    spots: demoData.spots,
-    packages: demoData.packages,
-    series: demoData.series,
-    guides: demoData.guides,
-    videos: demoData.videoProducts.map(item => normalizeSearchVideoItem(item))
-  }
-
   if (!value) {
     return getSearchHome()
   }
 
-  return Promise.resolve({
+  let source
+  try {
+    source = await getCatalogFromServer()
+  } catch (error) {
+    if (!isExplicitDemoMode()) throw error
+    source = demoCatalog()
+  }
+
+  return {
     success: true,
     data: {
       keyword: value,
       spots: source.spots.filter(matchText),
-      packages: filterPhotoPackages(source.packages).filter(matchText),
+      packages: source.packages.filter(matchText),
       series: source.series.filter(matchText),
       guides: source.guides.filter(matchText),
       videos: source.videos.filter(matchText)
     }
-  })
+  }
 }
 
 module.exports = {

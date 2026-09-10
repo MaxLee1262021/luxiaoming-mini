@@ -8,9 +8,9 @@
     <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
   </view>
   <block wx:else>
-  <!-- 加载失败降级提示：已回退预览数据，可重试拉真实数据 -->
+  <!-- 加载失败提示：只有显式演示模式才展示本地预览数据 -->
   <view wx:if="{{degraded}}" class="lxm-degrade-bar">
-    <text class="lxm-degrade-bar__txt">内容加载失败，拍摄项目暂时展示预览内容</text>
+    <text class="lxm-degrade-bar__txt">拍摄项目暂时无法加载，请重试后再提交预约</text>
     <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载拍摄项目">重新加载</view>
   </view>
   <view class="booking-hero">
@@ -96,13 +96,8 @@
     </view>
 
     <view class="card">
-      <view class="card-title">拍摄时间</view>
-      <picker mode="date" value="{{date}}" start="{{today}}" bindchange="onDateChange">
-        <view class="picker-value">{{date || '请选择日期'}}</view>
-      </picker>
-      <picker mode="time" value="{{time}}" bindchange="onTimeChange">
-        <view class="picker-value">{{time || '请选择具体时间'}}</view>
-      </picker>
+      <view class="card-title">拍摄安排</view>
+      <view class="schedule-hint">具体拍摄时间、地点和摄影师由客服在订金确认后与你线下沟通确定。</view>
     </view>
 
     <view class="card">
@@ -139,7 +134,7 @@
       <text class="notice-link" catchtap="showNotice">《预约须知》</text>
     </view>
 
-    <button class="submit-btn" bindtap="submitBooking" disabled="{{submitting || items.length === 0}}">
+    <button class="submit-btn" bindtap="submitBooking" disabled="{{submitting || dataUnavailable || items.length === 0}}">
       {{submitting ? '提交中...' : (items.length === 0 ? '先选择拍摄项目' : '确认预约')}}
     </button>
 

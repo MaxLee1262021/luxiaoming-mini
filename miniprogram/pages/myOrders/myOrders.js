@@ -3,7 +3,7 @@ const demoData = require('../../utils/demoData')
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
 const { normalizeOrder, normalizeCustomerStatus } = require('../../utils/order')
-const afterSaleService = require('../../service/afterSale')
+const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
   data: {
@@ -25,10 +25,7 @@ Page({
     refreshing: false,
     loading: false,
     isDemo: false,
-    afterSaleVisible: false,
-    afterSaleReason: '',
-    afterSaleOrder: null,
-    afterSaleSubmitting: false
+    error: ''
   },
 
   onLoad(options = {}) {
@@ -62,13 +59,22 @@ Page({
       // 仅当云函数调用失败（未部署/网络异常）才用演示数据兜底；
       // 调用成功但返回空（真实用户确实无订单）时展示真实空列表，绝不显示假订单
       if (!res || !res.success) {
-        this.applyOrders(this.getDemoOrders(), reset, true)
+        if (isExplicitDemoMode()) this.applyOrders(this.getDemoOrders(), reset, true)
+        else {
+          if (reset) this.setData({ orders: [] })
+          this.setData({ error: '订单暂时无法加载，请重试' })
+        }
       } else {
         this.applyOrders(res.data || [], reset, false)
+        this.setData({ error: '' })
       }
     } catch (err) {
       console.error('getMyOrders error', err)
-      this.applyOrders(this.getDemoOrders(), reset, true)
+      if (isExplicitDemoMode()) this.applyOrders(this.getDemoOrders(), reset, true)
+      else {
+        if (reset) this.setData({ orders: [] })
+        this.setData({ error: '订单暂时无法加载，请重试' })
+      }
     } finally {
       this.setData({ loading: false, refreshing: false })
     }
@@ -131,141 +137,9 @@ Page({
     wx.switchTab({ url: '/pages/explore/explore' })
   },
 
-  cancelOrder(e) {
-    const orderId = (e.detail && e.detail.id) || e.currentTarget.dataset.id
-    if (!orderId) return
-    const order = this.data.orders.find(item => item._id === orderId)
-    if (order && !order.canCancel) {
-      wx.showToast({ title: '当前状态请申请售后处理', icon: 'none' })
-      return
-    }
-    wx.showModal({
-      title: '确认取消',
-      content: '待确认订单尚未进入客服确认流程，确认后将取消这笔预约。',
-      confirmText: '取消订单',
-      cancelText: '再想想',
-      success: res => {
-        if (!res.confirm) return
-        // 演示模式：无真实云环境，直接本地更新状态
-        if (this.data.isDemo) {
-          this.patchOrderCanceled(orderId)
-          wx.showToast({ title: '订单已取消', icon: 'success' })
-          return
-        }
-        orderApi.updateOrderStatus({ orderId, newStatus: 'canceled' })
-          .then(result => {
-            if (result && result.success) {
-              wx.showToast({ title: '订单已取消', icon: 'success' })
-              this.loadOrders(true)
-              return
-            }
-            wx.showToast({ title: (result && result.error) || '取消失败，请稍后再试', icon: 'none' })
-          })
-          .catch(err => {
-            console.error('cancel order failed', err)
-            wx.showToast({ title: '请求失败，请稍后再试', icon: 'none' })
-          })
-      }
-    })
-  },
-
-  patchOrderCanceled(orderId) {
-    this.setData({
-      orders: this.data.orders.map(item => item._id === orderId
-        ? { ...item, status: 'canceled', statusText: '已取消', canCancel: false, canAfterSale: true }
-        : item)
-    })
-  },
-
-  deleteOrder(e) {
-    const orderId = (e.detail && e.detail.id) || e.currentTarget.dataset.id
-    if (!orderId) return
-    const order = this.data.orders.find(item => item._id === orderId)
-    if (!order || order.status !== 'canceled') return
-    wx.showModal({
-      title: '删除订单',
-      content: '删除后该订单将从「我的订单」移除，后台仍保留记录。确定删除吗？',
-      confirmText: '删除',
-      cancelText: '再想想',
-      success: res => {
-        if (!res.confirm) return
-        if (this.data.isDemo) {
-          this.setData({ orders: this.data.orders.filter(item => item._id !== orderId) })
-          wx.showToast({ title: '已删除', icon: 'success' })
-          return
-        }
-        orderApi.updateOrderStatus({ orderId, newStatus: 'deleted' })
-          .then(result => {
-            if (result && result.success) {
-              this.setData({ orders: this.data.orders.filter(item => item._id !== orderId) })
-              wx.showToast({ title: '已删除', icon: 'success' })
-              return
-            }
-            wx.showToast({ title: (result && result.error) || '删除失败，请稍后再试', icon: 'none' })
-          })
-          .catch(err => {
-            console.error('delete order failed', err)
-            wx.showToast({ title: '删除失败，请稍后再试', icon: 'none' })
-          })
-      }
-    })
-  },
-
-  openAfterSale(e) {
-    const orderId = (e.detail && e.detail.id) || e.currentTarget.dataset.id
-    const order = this.data.orders.find(item => item._id === orderId)
-    if (!order) return
-    this.setData({
-      afterSaleVisible: true,
-      afterSaleReason: '',
-      afterSaleOrder: order
-    })
-  },
-
-  closeAfterSale() {
-    if (this.data.afterSaleSubmitting) return
-    this.setData({
-      afterSaleVisible: false,
-      afterSaleReason: '',
-      afterSaleOrder: null
-    })
-  },
-
-  onAfterSaleReasonInput(e) {
-    this.setData({ afterSaleReason: e.detail.value || '' })
-  },
-
-  async submitAfterSale() {
-    const validation = afterSaleService.validateAfterSaleReason(this.data.afterSaleReason)
-    if (!validation.valid) {
-      wx.showToast({ title: validation.message, icon: 'none' })
-      return
-    }
-    const order = this.data.afterSaleOrder
-    if (!order) return
-
-    this.setData({ afterSaleSubmitting: true })
-    try {
-      if (!this.data.isDemo) {
-        const payload = afterSaleService.buildAfterSalePayload(order, validation.reason)
-        const res = await orderApi.submitAfterSale(payload)
-        if (!res || !res.success) {
-          wx.showToast({ title: (res && res.error) || '提交失败，请稍后再试', icon: 'none' })
-          return
-        }
-      }
-      wx.showToast({ title: '售后申请已提交', icon: 'success' })
-      this.setData({
-        afterSaleVisible: false,
-        afterSaleReason: '',
-        afterSaleOrder: null
-      })
-    } catch (err) {
-      console.error('submit after sale failed', err)
-      wx.showToast({ title: '提交失败，请稍后再试', icon: 'none' })
-    } finally {
-      this.setData({ afterSaleSubmitting: false })
-    }
+  onRetryLoad() {
+    this.setData({ error: '' })
+    this.loadOrders(true)
   },
 
   onRefresh() {

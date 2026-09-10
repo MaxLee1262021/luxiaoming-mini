@@ -20,9 +20,6 @@ function sumItemsPrice(items = []) {
 function validateBookingForm(data = {}) {
   if (!String(data.name || '').trim()) return { valid: false, message: '请输入姓名' }
   if (!isValidPhone(data.phone)) return { valid: false, message: '手机号格式错误' }
-  if (!data.date) return { valid: false, message: '请选择日期' }
-  if (isPastDate(data.date)) return { valid: false, message: '拍摄日期不能早于今天' }
-  if (!data.time) return { valid: false, message: '请选择时间' }
   if (!data.agreed) return { valid: false, message: '请同意预约须知' }
   const items = data.items || []
   if (!items.length) return { valid: false, message: '请至少添加一个拍摄项目' }

@@ -26,6 +26,10 @@
         <view class="sold-pill" wx:elif="{{selectedPackage.isHot}}">热门预约</view>
       </view>
       <view class="package-title">{{selectedPackage.name}}</view>
+      <view class="package-description" wx:if="{{packageDescription}}">{{packageDescription}}</view>
+      <view class="package-tags" wx:if="{{serviceTags.length}}">
+        <text wx:for="{{serviceTags}}" wx:key="*this" class="package-tag">{{item}}</text>
+      </view>
       <view class="combo-metrics">
         <view class="combo-metric">
           <text class="combo-metric__value">{{packageStats.itemCount}}</text>
@@ -46,6 +50,16 @@
           <text class="combo-sale">¥{{selectedPackage.price || 0}}</text>
         </view>
         <text class="combo-tail">一键预约 · 客服跟进</text>
+      </view>
+    </view>
+
+    <view class="section" wx:if="{{packageBenefits.length}}">
+      <view class="section-head"><view class="section-title">套餐服务</view></view>
+      <view class="benefit-list">
+        <view class="benefit-row" wx:for="{{packageBenefits}}" wx:key="label">
+          <text class="benefit-label">{{item.label}}</text>
+          <text class="benefit-value">{{item.value}}</text>
+        </view>
       </view>
     </view>
 

@@ -111,8 +111,15 @@ function normalizePackage(item = {}) {
   const single = isVideoSingle(item) || isPhotoSingle(item)
   const isPkg = isPhotoPackage(item)
   const tags = item.serviceTags || item.tags || []
+  const id = item._id || item.id || item.packageId || item.productId || ''
+  const description = item.description || item.intro || item.desc || ''
   return {
     ...item,
+    _id: id,
+    id: item.id || id,
+    name: item.name || item.title || '',
+    intro: description,
+    description,
     cover: item.cover || item.coverUrl || item.image || '/images/placeholder.png',
     category,
     mediaType: getMediaType(item),
@@ -188,15 +195,30 @@ function buildPackageBenefits(pkg = {}) {
   return benefits
 }
 
+const PUBLIC_HIDDEN_STATUSES = [
+  'draft', 'pending', 'reviewing', 'rejected', 'offline', 'disabled', 'down',
+  '草稿', '待审', '待审核', '驳回', '下架', '停用', '禁用', '已下', '已下架'
+]
+const PUBLIC_AUDIT_STATUSES = [
+  'approved', 'pass', 'passed', 'published', 'online', '已上', '已上架',
+  '审核通过', '通过', '已审', '已审核'
+]
+
+// Public RPCs already filter most rows, but pages can also receive preview or
+// merged data. Keep the same visibility contract at the client boundary.
+function isPublicProduct(item = {}) {
+  if (!item || item.deleted === true || item.isDeleted === true || item.isShow === false || item.visible === false || item.enabled === false) return false
+  const status = normalizeType(item.status || item.saleStatus || item.shelfStatus)
+  if (status && PUBLIC_HIDDEN_STATUSES.includes(status)) return false
+  const auditStatus = normalizeType(item.auditStatus || item.reviewStatus)
+  if (auditStatus && !PUBLIC_AUDIT_STATUSES.includes(auditStatus)) return false
+  const productType = normalizeType(item.productType || item.serviceType || item.type)
+  if (['add_on', 'addon', 'add-on', '增值服务', '增值'].includes(productType)) return false
+  return true
+}
+
 function filterVisibleProducts(list = []) {
-  const hiddenStatuses = ['draft', 'pending', 'rejected', 'offline', 'disabled', '草稿', '待审核', '驳回', '下架', '禁用']
-  return (list || []).filter(item => {
-    const status = item.status || item.auditStatus || item.saleStatus || ''
-    const productType = item.productType || item.serviceType || item.type || ''
-    if (hiddenStatuses.includes(status)) return false
-    if (productType === 'add_on' || productType === '增值服务') return false
-    return true
-  })
+  return (list || []).filter(isPublicProduct)
 }
 
 function filterPackagesByTypeAndSpot(packages = [], { type = '', spotId = '' } = {}) {
@@ -235,6 +257,7 @@ module.exports = {
   normalizePackageList,
   normalizeTags,
   buildVideoFields,
+  isPublicProduct,
   buildPackageBenefits,
   filterVisibleProducts,
   filterPackagesByTypeAndSpot,

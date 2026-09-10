@@ -85,34 +85,23 @@
       <view class="info-content">{{order.message}}</view>
     </view>
 
-    <view class="deliver-card" wx:if="{{order.status === 'completed'}}">
+    <view class="payment-card" wx:if="{{order.workflowStage === 'awaiting_deposit' || order.workflowStage === 'awaiting_final_payment'}}">
+      <view class="card-title">待支付</view>
+      <view class="payment-row" wx:if="{{order.workflowStage === 'awaiting_deposit'}}"><text>本次应付订金</text><text class="payment-amount">¥{{order.depositDue}}</text></view>
+      <view class="payment-row" wx:if="{{order.workflowStage === 'awaiting_final_payment'}}"><text>本次应付尾款</text><text class="payment-amount">¥{{order.finalDue}}</text></view>
+      <view class="payment-hint">支付完成后以客服/财务核对结果为准</view>
+      <button class="payment-btn" loading="{{paymentSubmitting}}" bindtap="createPayment" data-phase="{{order.workflowStage === 'awaiting_deposit' ? 'deposit' : 'final'}}">生成支付单</button>
+    </view>
+
+    <view class="deliver-card" wx:if="{{order.workflowStage === 'delivered' || order.status === 'completed'}}">
       <view class="card-title">成片交付</view>
       <view class="deliver-desc">成片与精修由鹿小鸣摄影团队完成后，会通过企业微信直接发给你，不在小程序内下载。</view>
       <button class="deliver-btn" bindtap="contactService">去企业微信联系客服</button>
     </view>
 
     <view class="footer-action">
-      <button wx:if="{{order.canCancel}}" class="act-btn cancel-act" bindtap="cancelOrder">取消订单</button>
-      <button wx:if="{{order.canAfterSale}}" class="act-btn aftersale-act" bindtap="openAfterSale">申请售后</button>
       <button class="contact-btn" bindtap="contactService">去企业微信联系客服</button>
       <button class="booking-btn" bindtap="goBookingAgain">再约一单</button>
-    </view>
-
-    <view class="after-sale-mask" wx:if="{{afterSaleVisible}}" catchtap="closeAfterSale">
-      <view class="after-sale-panel" catchtap="noop">
-        <view class="after-sale-hd">
-          <view>
-            <text class="after-sale-title">申请售后</text>
-            <text class="after-sale-subtitle">{{afterSaleOrder.packageName || '预约项目'}}</text>
-          </view>
-          <text class="after-sale-close" bindtap="closeAfterSale">×</text>
-        </view>
-        <textarea class="after-sale-textarea" value="{{afterSaleReason}}" maxlength="200" placeholder="请填写售后原因，例如改期、退款、拍摄安排调整等" bindinput="onAfterSaleReasonInput" />
-        <view class="after-sale-actions">
-          <button class="after-sale-cancel" bindtap="closeAfterSale">取消</button>
-          <button class="after-sale-submit" loading="{{afterSaleSubmitting}}" bindtap="submitAfterSale">提交申请</button>
-        </view>
-      </view>
     </view>
   </view>
 </view>

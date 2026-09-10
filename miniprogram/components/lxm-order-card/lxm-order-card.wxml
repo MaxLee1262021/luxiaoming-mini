@@ -17,9 +17,6 @@
   <view class="order-type">{{item.type === 'video' ? '视频摄像' : '照片留影'}}</view>
 
   <view class="btn-row">
-    <view wx:if="{{item.canCancel}}" class="cancel-btn" catchtap="emitCancel">取消订单</view>
-    <view wx:if="{{item.canAfterSale}}" class="after-sale-btn" catchtap="emitAfterSale">申请售后</view>
-    <view wx:if="{{item.status === 'canceled'}}" class="delete-btn" catchtap="emitDelete">删除订单</view>
     <view class="detail-btn" catchtap="emitDetail">查看详情</view>
   </view>
 </view>
