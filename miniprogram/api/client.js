@@ -8,6 +8,18 @@ let _openid = ''
 let _token = ''
 let _loginPromise = null
 
+// Browsing content is intentionally public on the server. Requiring a WeChat
+// session before these calls makes the storefront silently fall back to demo
+// data whenever login is not configured, even though the package catalog is
+// available. Stateful customer operations remain outside this allowlist.
+const PUBLIC_BROWSING_RPCS = new Set([
+  'getHomeData', 'getSpots', 'getBookingData', 'getSeriesList',
+  'getSeriesDetail', 'getPhotoCollection', 'getPeripherals', 'getGuides',
+  'listGuides', 'getGuide', 'resolveMerchantCode', 'getCities',
+  'getPrivacyPolicy', 'getSearchConfig', 'getBookingConfig',
+  'getFootprintConfig', 'getCorpConfig', 'getVideoSingles'
+])
+
 function getOpenid() { return _openid }
 
 function clearSession() {
@@ -61,7 +73,7 @@ function doLogin() {
 }
 
 // 原始请求：POST /api/rpc/{name}，请求体 { data, openid }。
-function callRaw(name, data) {
+function callRaw(name, data, { clearOnUnauthorized = true } = {}) {
   return new Promise((resolve, reject) => {
     wx.request({
       url: `${API_BASE}/rpc/${name}`,
@@ -74,7 +86,7 @@ function callRaw(name, data) {
       success: (res) => {
         const result = res.data
         if (res.statusCode && res.statusCode >= 400) {
-          if (res.statusCode === 401) clearSession()
+          if (res.statusCode === 401 && clearOnUnauthorized) clearSession()
           return reject(new Error((result && (result.error || result.message)) || ('服务器错误 ' + res.statusCode)))
         }
         if (result && result.success === false) {
@@ -92,11 +104,12 @@ function callRaw(name, data) {
 //   成功返回结果对象（含 success/data 等）；
 //   服务器返回 success===false 时 reject，调用方 catch 即可拿到 message。
 async function callCloud(name, data = {}) {
-  await ensureLogin()
-  return await callRaw(name, data)
+  const isPublicBrowse = PUBLIC_BROWSING_RPCS.has(name)
+  if (!isPublicBrowse) await ensureLogin()
+  return await callRaw(name, data, { clearOnUnauthorized: !isPublicBrowse })
 }
 
 // 主动登录（app onLaunch 调一次即可，后续请求自动复用 openid）。
 function login() { return ensureLogin() }
 
-module.exports = { callCloud, login, getOpenid }
+module.exports = { callCloud, login, getOpenid, PUBLIC_BROWSING_RPCS }

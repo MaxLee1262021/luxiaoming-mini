@@ -1,9 +1,11 @@
 const app = getApp()
 const demoData = require('../../utils/demoData')
 const spotApi = require('../../api/spot')
+const bookingApi = require('../../api/booking')
+const peripheralApi = require('../../api/peripheral')
 const spotFilter = require('../../service/spotFilter')
 const { buildUrlWithSource } = require('../../utils/query')
-const { isVideoSingle } = require('../../utils/product')
+const { isVideo, isVideoSingle, isPublicProduct, normalizePackage } = require('../../utils/product')
 
 Page({
   data: {
@@ -16,6 +18,9 @@ Page({
     selectedSpot: {},
     selectedSpotProducts: { photoSingles: [], videos: [], peripherals: [], photoPackages: [] },
     selectedSpotGuides: [],
+    _spotList: [],
+    catalog: { allSeries: [], allAlbums: [], allPackages: [], peripherals: [], guides: [] },
+    catalogReady: false,
     spotNoMedia: false,
     relatedRecs: [],
 
@@ -45,20 +50,55 @@ Page({
 
   async loadSpots() {
     this.setData({ loading: true, error: '' })
+    const spotRequest = spotApi.getSpots({ shopId: this.data.shopId, limit: 100 }).catch(error => ({ error }))
+    const bookingRequest = bookingApi.getBookingData({ shopId: this.data.shopId }).catch(error => ({ error }))
+    const peripheralRequest = peripheralApi.getPeripherals({}).catch(error => ({ error }))
+    const [spotResult, bookingResult, peripheralResult] = await Promise.all([spotRequest, bookingRequest, peripheralRequest])
     try {
-      const res = await spotApi.getSpots({ shopId: this.data.shopId, limit: 100 })
-      if (!res || !res.success) {
-        this.applyDemoSpots()
-      } else {
-        const list = (res.data || []).map(item => spotFilter.normalizeSpot(item))
-        this.applySpotList(list)
-      }
+      const hasRealSpots = !!(spotResult && spotResult.success && Array.isArray(spotResult.data))
+      const list = hasRealSpots
+        ? spotResult.data.map(item => spotFilter.normalizeSpot(item))
+        : demoData.spots.map(item => spotFilter.normalizeSpot(item))
+      const hasRealCatalog = !!(bookingResult && bookingResult.success)
+      const useDemoCatalog = !hasRealSpots && !hasRealCatalog && !(peripheralResult && peripheralResult.success)
+      this.applyCatalog(bookingResult, peripheralResult, useDemoCatalog, () => this.applySpotList(list))
     } catch (err) {
       console.error('spotSheet loadSpots error', err)
-      this.applyDemoSpots()
+      this.applyCatalog(null, null, true, () => this.applySpotList(demoData.spots.map(item => spotFilter.normalizeSpot(item))))
     } finally {
       this.setData({ loading: false })
     }
+  },
+
+  applyCatalog(bookingResult, peripheralResult, useDemoFallback = false, done) {
+    const bookingData = bookingResult && bookingResult.success ? (bookingResult.data || {}) : {}
+    const rawPackages = bookingData.allPackages || bookingData.packages || bookingData.hotPackages || []
+    const rawSeries = bookingData.allSeries || bookingData.series || []
+    const rawAlbums = bookingData.allAlbums || bookingData.albums || []
+    const peripheralData = peripheralResult && peripheralResult.success
+      ? (Array.isArray(peripheralResult.data) ? peripheralResult.data : [])
+      : (bookingData.allPeripherals || bookingData.peripherals || [])
+    const source = useDemoFallback
+      ? {
+          allSeries: demoData.series || [],
+          allAlbums: demoData.albums || [],
+          allPackages: [...(demoData.packages || []), ...(demoData.videoProducts || [])],
+          peripherals: demoData.peripherals || [],
+          guides: demoData.guides || []
+        }
+      : {
+          allSeries: Array.isArray(rawSeries) ? rawSeries : [],
+          allAlbums: Array.isArray(rawAlbums) ? rawAlbums.filter(isPublicProduct) : [],
+          allPackages: Array.isArray(rawPackages)
+            ? rawPackages.filter(isPublicProduct).map(item => {
+                const normalized = normalizePackage(item)
+                return { ...normalized, _id: normalized._id || normalized.id || item.packageId || item.id }
+              })
+            : [],
+          peripherals: Array.isArray(peripheralData) ? peripheralData.filter(isPublicProduct) : [],
+          guides: Array.isArray(bookingData.guides) ? bookingData.guides.filter(isPublicProduct) : []
+        }
+    this.setData({ catalog: source, catalogReady: !!(bookingResult && bookingResult.success) }, done)
   },
 
   applyDemoSpots() {
@@ -67,12 +107,15 @@ Page({
   },
 
   applySpotList(list = []) {
-    const spot = list.find(item => item._id === this.data.id)
-    if (!spot) {
-      this.setData({ error: '打卡点不存在', loading: false })
-      return
-    }
-    this.applySpot(spot)
+    const normalized = (list || []).filter(Boolean)
+    const spot = normalized.find(item => item._id === this.data.id)
+    this.setData({ _spotList: normalized }, () => {
+      if (!spot) {
+        this.setData({ error: '打卡点不存在', loading: false })
+        return
+      }
+      this.applySpot(spot)
+    })
   },
 
   // 原探索页底部弹窗内容，这里作为整页渲染（系统返回键原生关闭本页）
@@ -100,13 +143,15 @@ Page({
 
   resolveSpotGuides(spot = {}) {
     const spotId = spot._id
-    return (demoData.guides || []).filter(g => g.spotId === spotId)
+    const guides = (this.data.catalog && this.data.catalog.guides) || []
+    return guides.filter(g => g.spotId === spotId || (Array.isArray(g.spotIds) && g.spotIds.includes(spotId)))
   },
 
   onPackageTap(e) {
     const d = (e && e.detail) || {}
     const packageId = d.id || (e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id)
-    const pkg = (demoData.packages || []).find(p => p._id === packageId)
+    const pkg = (this.data.selectedSpotProducts.photoPackages || []).find(p => p._id === packageId || p.id === packageId)
+      || (this.data.catalog.allPackages || []).find(p => p._id === packageId || p.id === packageId)
     if (!pkg) {
       wx.showToast({ title: '旅拍套餐不存在', icon: 'none' })
       return
@@ -123,17 +168,40 @@ Page({
 
   resolveSpotProducts(spot = {}) {
     const spotId = spot._id
-    const photoSingles = (demoData.albums || []).filter(album => {
-      const series = (demoData.series || []).find(s => s._id === album.seriesId)
-      return series && Array.isArray(series.spotIds) && series.spotIds.includes(spotId)
-    }).map(album => ({ ...album, spotId }))
-
-    const videos = (demoData.videoProducts || []).filter(item => item.spotId === spotId)
-    const peripherals = (demoData.peripherals || []).slice(0, 10)
-
-    const photoPackages = (demoData.packages || []).filter(p => p.productType === 'photo' && Array.isArray(p.spotIds) && p.spotIds.includes(spotId))
-
-    return { photoSingles, videos, peripherals, photoPackages }
+    const catalog = this.data.catalog || {}
+    const series = catalog.allSeries || []
+    const albums = catalog.allAlbums || []
+    const products = catalog.allPackages || []
+    const belongsToSpot = item => {
+      if (!spotId) return true
+      if (String(item.spotId || '') === String(spotId) || (Array.isArray(item.spotIds) && item.spotIds.map(String).includes(String(spotId)))) return true
+      if (!item.spotId && !(Array.isArray(item.spotIds) && item.spotIds.length)) return true
+      const seriesId = item.seriesId
+      const owner = series.find(entry => entry._id === seriesId || entry.id === seriesId)
+      return !!(owner && (String(owner.spotId || '') === String(spotId) || (Array.isArray(owner.spotIds) && owner.spotIds.map(String).includes(String(spotId)))))
+    }
+    const photoSingles = albums.filter(belongsToSpot).map(album => ({
+      ...album,
+      _id: album._id || album.id || album.albumId,
+      spotId,
+      cover: album.cover || album.coverImage || (album.sampleUrls && album.sampleUrls[0]) || '/images/placeholder.png'
+    }))
+    const videos = products.filter(item => isVideo(item) && belongsToSpot(item))
+    const peripherals = (catalog.peripherals || []).filter(item => {
+      if (!spotId || !item.spotId || item.mode === '全城通用') return true
+      return item.spotId === spotId || (Array.isArray(item.spotIds) && item.spotIds.includes(spotId))
+    }).slice(0, 10)
+    const photoPackages = products.filter(item => !isVideo(item) && !isVideoSingle(item) && belongsToSpot(item))
+    const unique = list => list.filter((item, index, rows) => {
+      const id = item && (item._id || item.id || item.name)
+      return id && rows.findIndex(other => (other && (other._id || other.id || other.name)) === id) === index
+    })
+    return {
+      photoSingles: unique(photoSingles),
+      videos: unique(videos),
+      peripherals: unique(peripherals),
+      photoPackages: unique(photoPackages)
+    }
   },
 
   onPhotoScroll(e) { this.updateDot('photo', e) },
@@ -172,7 +240,7 @@ Page({
   buildRelatedRecs(currentSpot = {}) {
     const currentId = currentSpot._id
     const recs = []
-    for (const s of demoData.spots) {
+    for (const s of (this.data._spotList || [])) {
       if (!s || s._id === currentId) continue
       const p = this.resolveSpotProducts(s)
       if (p.photoSingles.length || p.photoPackages.length || p.videos.length) {
@@ -186,7 +254,7 @@ Page({
   // 相关推荐：同页内直接切换展示，避免反复压栈
   onRecTap(e) {
     const id = e.currentTarget.dataset.id
-    const spot = (demoData.spots || []).find(s => s._id === id)
+    const spot = (this.data._spotList || []).find(s => s._id === id)
     if (!spot) return
     this.setData({ id })
     this.applySpot(spot)

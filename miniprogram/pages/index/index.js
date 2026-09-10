@@ -4,7 +4,7 @@ const homeApi = require('../../api/home')
 const searchApi = require('../../api/search')
 const { parseScene, buildUrlWithSource } = require('../../utils/query')
 const { buildModuleConfigMap, normalizeModuleConfig } = require('../../service/pageConfig')
-const { buildHomeViewData, findHomePackage, getBannerTarget, getHomePackageDetailPath, isHomeDataEmpty } = require('../../service/homeData')
+const { buildHomeViewData, findHomePackage, getBannerTarget, getHomePackageDetailPath, isGlobalPackage, isHomeDataEmpty } = require('../../service/homeData')
 const router = require('../../utils/router')
 const { setSitePageConfig } = require('../../service/siteConfig')
 const { routeSearchSuggestion } = require('../../utils/searchNav')
@@ -227,7 +227,8 @@ Page({
     const videos = this.data.videoPackages || []
     const packages = this.data.hotPackages || []
     const matchSingle = (item) => !activeSpotId || item.spotId === activeSpotId
-    const matchMulti = (item) => !activeSpotId || item.spotId === activeSpotId || (Array.isArray(item.spotIds) && item.spotIds.includes(activeSpotId))
+    // 未绑定打卡点的全局套餐（通常是后台“主页主推”）应在每个点位货架可见。
+    const matchMulti = (item) => !activeSpotId || isGlobalPackage(item) || item.spotId === activeSpotId || (Array.isArray(item.spotIds) && item.spotIds.includes(activeSpotId))
     const activeSpot = (this.data.spots || []).find(s => s._id === activeSpotId)
     const filteredAlbums = activeSpotId ? albums.filter(matchSingle) : albums
     const filteredVideos = activeSpotId ? videos.filter(matchMulti) : videos
@@ -303,7 +304,13 @@ Page({
 
   updateSuggestions(kw) {
     const k = (kw || '').trim()
-    const list = k ? buildSearchSuggestions(k, demoData.spots) : []
+    const list = k ? buildSearchSuggestions(k, {
+      spots: this.data.spots,
+      packages: this.data.packages,
+      videos: this.data.videoPackages,
+      albums: this.data.bookingAlbums,
+      guides: this.data.guides
+    }) : []
     this.setData({
       searchHasInput: !!k,
       searchSuggestions: list

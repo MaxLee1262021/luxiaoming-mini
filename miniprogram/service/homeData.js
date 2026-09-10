@@ -1,4 +1,4 @@
-const { normalizePackage, sortByHotScore } = require('../utils/product')
+const { normalizePackage, sortByHotScore, filterVisibleProducts } = require('../utils/product')
 const { isVideoSingle } = require('./videoProductDetail')
 const { buildModuleConfigMap, normalizeModuleConfig } = require('./pageConfig')
 const { filterPhotoSeries } = require('../utils/catalog')
@@ -8,11 +8,44 @@ function mergePreviewList(list = [], fallback = []) {
   const seen = {}
   return [...(list || []), ...(fallback || [])].filter(item => {
     if (!item) return false
-    const key = item._id || item.id || item.name || JSON.stringify(item)
+    const key = String(item._id || item.id || item.packageId || item.name || JSON.stringify(item))
     if (seen[key]) return false
     seen[key] = true
     return true
   })
+}
+
+function mergeManyLists(...lists) {
+  return (lists || []).reduce((result, list) => mergePreviewList(result, list), [])
+}
+
+function packageIdentity(item = {}) {
+  return String(item._id || item.id || item.packageId || item.name || '')
+}
+
+function collectPackageRecommendationIds(...configs) {
+  const ids = new Set()
+  const add = value => {
+    if (value && typeof value === 'object') value = value._id || value.id || value.packageId
+    if (value !== undefined && value !== null && String(value).trim()) ids.add(String(value))
+  }
+  const read = config => {
+    if (!config || typeof config !== 'object') return
+    const fields = ['hotPackageIds', 'featuredPackageIds', 'mainPushPackageIds', 'packageIds', 'packages']
+    fields.forEach(field => {
+      const values = config[field]
+      if (Array.isArray(values)) values.forEach(add)
+      else if (values && typeof values === 'object') Object.values(values).forEach(add)
+    })
+    const pages = config.pageModules && typeof config.pageModules === 'object' ? Object.values(config.pageModules) : []
+    pages.forEach(page => read(page))
+  }
+  configs.forEach(read)
+  return ids
+}
+
+function isGlobalPackage(item = {}) {
+  return !item.spotId && !(Array.isArray(item.spotIds) && item.spotIds.length)
 }
 
 function isVideoBanner(item = {}) {
@@ -161,33 +194,62 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
   const mergedAlbums = mergePreviewList(data.albums, previewData.albums || demoData.albums)
   const mergedGuides = mergePreviewList(data.guides, previewData.guides)
   const mergedPeripherals = mergePreviewList(data.peripherals, previewData.peripherals)
-  const allPackages = mergePreviewList(data.packages, previewData.packages).map(item => {
+  const recommendationIds = collectPackageRecommendationIds(
+    data.recommendations,
+    data.pageConfig && data.pageConfig.recommendations,
+    data.homeConfig,
+    previewData.recommendations,
+    previewData.pageConfig && previewData.pageConfig.recommendations
+  )
+  // Different RPC generations expose packages under different keys. Merge all
+  // of them, then apply the public visibility contract before normalizing.
+  const allPackages = mergeManyLists(
+    data.packages,
+    data.allPackages,
+    data.hotPackages,
+    previewData.packages,
+    previewData.allPackages,
+    previewData.hotPackages
+  ).filter(item => filterVisibleProducts([item]).length).map(item => {
     const normalized = normalizePackage(item)
+    const id = packageIdentity(normalized)
     // 后端 getHomeData 若未返回 includedItems，先用 demoData 同 id 套餐兜底，避免首页组合标签为空
     if (!normalized.includedItems || !normalized.includedItems.length) {
-      const demoPkg = (demoData.packages || []).find(p => p._id === normalized._id)
+      const demoPkg = (demoData.packages || []).find(p => packageIdentity(p) === id)
       if (demoPkg && demoPkg.includedItems) {
         normalized.includedItems = demoPkg.includedItems
       }
     }
-    return normalized
+    return { ...normalized, _id: id }
   })
   // 短视频单品：兼容后端 getHomeData 的 videoSingles 推荐字段（与 videoProducts 同源，去重合并）
-  const explicitVideoProducts = mergePreviewList(
-    mergePreviewList(data.videoProducts, data.videoSingles),
-    mergePreviewList(previewData.videoProducts, previewData.videoSingles)
-  ).map(item => normalizeHomeVideoItem(item))
+  const explicitVideoProducts = mergeManyLists(
+    data.videoProducts,
+    data.videoSingles,
+    previewData.videoProducts,
+    previewData.videoSingles
+  ).filter(item => filterVisibleProducts([item]).length).map(item => normalizeHomeVideoItem(item))
   // 远程与预览都无短视频单品时，回退演示数据，避免首页短视频区空白
   const fallbackVideoItems = (demoData.videoProducts || []).map(item => normalizeHomeVideoItem(item))
-  // 「热门套餐」只展示旅拍套餐，严格过滤视频相关商品
-  const hotPackages = allPackages
-    .filter(item => item.isHot && item.displayType === 'photo' && !isVideoSingle(item))
+  // 「热门套餐」只展示可公开的旅拍套餐。后台可能只设置 isMainPush，
+  // 也可能通过首页 recommendations 配置，因此不能只依赖 isHot。
+  const photoPackages = allPackages
+    .filter(item => item.displayType === 'photo' && !isVideoSingle(item))
+  const recommendedPhotoPackages = photoPackages.filter(item => (
+    recommendationIds.has(packageIdentity(item))
+      || item.isHot
+      || item.isHotSale
+      || item.isMainPush
+      || item.mainPush
+      || item.isFeatured
+  ))
+  const hotPackages = (recommendedPhotoPackages.length ? recommendedPhotoPackages : photoPackages)
     .sort((a, b) => (b.hotScore || 0) - (a.hotScore || 0))
     .slice(0, 6)
-  const videoPackages = mergePreviewList(
+  const videoPackages = mergeManyLists(
     explicitVideoProducts.length ? explicitVideoProducts : fallbackVideoItems,
     allPackages.filter(item => item.displayType === 'video').map(item => normalizeHomeVideoItem(item))
-  )
+  ).filter(item => filterVisibleProducts([item]).length)
   const homeVideoProducts = pickHomeVideoItems(videoPackages, 4)
   const homeModules = normalizeModuleConfig(data.modules || previewData.modules)
   const homeSpots = buildHomeSpots(mergedSpots)
@@ -246,6 +308,7 @@ module.exports = {
   findHomePackage,
   getBannerTarget,
   getHomePackageDetailPath,
+  isGlobalPackage,
   isHomeDataEmpty,
   mergePreviewList,
   normalizeBanner,

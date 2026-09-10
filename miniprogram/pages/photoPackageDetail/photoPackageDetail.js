@@ -5,6 +5,7 @@ const { buildUrlWithSource } = require('../../utils/query')
 const { buildPhotoPackageDetail } = require('../../service/packageDetail')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
 const favorite = require('../../utils/favorite')
+const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
   data: {
@@ -17,6 +18,8 @@ Page({
     scene: '',
     seriesInfo: {},
     selectedPackage: null,
+    packageDescription: '',
+    serviceTags: [],
     packageBenefits: [],
     includedItems: [],
     spots: [],
@@ -79,13 +82,15 @@ Page({
         spotId: this.data.spotId
       })
       if (!res || !res.success) {
-        this.applyDemoDetail()
+        if (isExplicitDemoMode()) this.applyDemoDetail()
+        else this.setData({ error: (res && (res.error || res.message)) || '套餐内容暂不可用，请稍后重试' })
       } else {
         this.applyDetailData(res.data || {})
       }
     } catch (err) {
       console.error('photoPackageDetail loadData error', err)
-      this.applyDemoDetail()
+      if (isExplicitDemoMode()) this.applyDemoDetail()
+      else this.setData({ error: '套餐内容暂不可用，请稍后重试' })
     } finally {
       this.setData({ loading: false })
     }
@@ -103,6 +108,10 @@ Page({
     }
     const includedItems = detail.includedItems || []
     const selectedPackage = detail.selectedPackage || {}
+    const packageDescription = selectedPackage.description || selectedPackage.intro || ''
+    const serviceTags = Array.isArray(selectedPackage.serviceTags)
+      ? selectedPackage.serviceTags.filter(Boolean)
+      : (Array.isArray(selectedPackage.tags) ? selectedPackage.tags.filter(Boolean) : [])
     const packageStats = {
       itemCount: includedItems.length,
       typeCount: new Set(includedItems.map(i => i.typeClass)).size,
@@ -113,6 +122,8 @@ Page({
       spotId: detail.spotId,
       seriesInfo: detail.seriesInfo,
       selectedPackage,
+      packageDescription,
+      serviceTags,
       packageBenefits: detail.packageBenefits,
       includedItems,
       spots: detail.spots || [],
@@ -176,7 +187,7 @@ Page({
     } else if (page === 'peripheral') {
       wx.navigateTo({
         url: this.buildUrl('/pages/peripheralDetail/peripheralDetail', {
-          id: t.id || item.peripheralId || ''
+          id: t.id || t.peripheralId || t.productId || item.peripheralId || item.productId || ''
         })
       })
     } else {
