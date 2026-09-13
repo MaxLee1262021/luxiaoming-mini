@@ -4,6 +4,11 @@ function bindPhone(data = {}) {
   return callCloud('bindPhone', data)
 }
 
+function getMyProfile() {
+  return callCloud('getMyProfile')
+}
+
 module.exports = {
-  bindPhone
+  bindPhone,
+  getMyProfile
 }

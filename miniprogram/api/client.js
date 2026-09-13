@@ -2,7 +2,7 @@
 // 通过 wx.request 请求自托管后台的 POST /api/rpc/{name}（后台地址见 config/env.js）。
 // openid：由 login() 获取（wx.login 换取，开发期用本地匿名 openid），
 //         之后每次请求自动注入请求体，后台据此判定订单归属与权限。
-const { API_BASE } = require('../config/env')
+const { API_BASE, API_ERROR } = require('../config/env')
 
 let _openid = ''
 let _token = ''
@@ -75,6 +75,10 @@ function doLogin() {
 // 原始请求：POST /api/rpc/{name}，请求体 { data, openid }。
 function callRaw(name, data, { clearOnUnauthorized = true } = {}) {
   return new Promise((resolve, reject) => {
+    if (API_ERROR) {
+      reject(new Error(API_ERROR))
+      return
+    }
     wx.request({
       url: `${API_BASE}/rpc/${name}`,
       method: 'POST',

@@ -1,6 +1,7 @@
 const userApi = require('../api/user')
 
 const USER_KEY = 'lxm_user_profile'
+let profileSyncPromise = null
 
 function getUser() {
   return wx.getStorageSync(USER_KEY) || {}
@@ -15,7 +16,9 @@ function saveUser(user = {}) {
 
 function isAuthed() {
   const user = getUser()
-  return !!(user.openid || user._openid || user.phone)
+  let hasToken = false
+  try { hasToken = !!wx.getStorageSync('lxm_public_token') } catch (e) {}
+  return !!(user.openid || user._openid || user.phone || hasToken)
 }
 
 function hasBoundPhone() {
@@ -24,6 +27,10 @@ function hasBoundPhone() {
 
 function getBoundPhone() {
   return getUser().phone || ''
+}
+
+function getLastContactPhone() {
+  return getUser().lastContactPhone || ''
 }
 
 function getDisplayUserInfo() {
@@ -41,12 +48,30 @@ async function bindPhoneByCode(code, extra = {}) {
   })
 }
 
+function syncUserProfile() {
+  if (profileSyncPromise) return profileSyncPromise
+  profileSyncPromise = userApi.getMyProfile()
+    .then((res) => {
+      const data = (res && res.data) || res || {}
+      if (!data.openid) return getUser()
+      return saveUser({
+        openid: data.openid,
+        phone: data.phone || getBoundPhone(),
+        userInfo: data.userInfo || getDisplayUserInfo()
+      })
+    })
+    .finally(() => { profileSyncPromise = null })
+  return profileSyncPromise
+}
+
 module.exports = {
   bindPhoneByCode,
   getBoundPhone,
+  getLastContactPhone,
   getDisplayUserInfo,
   getUser,
   hasBoundPhone,
   isAuthed,
-  saveUser
+  saveUser,
+  syncUserProfile
 }

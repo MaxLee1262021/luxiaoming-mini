@@ -256,53 +256,73 @@ Page({
   // 把页面四类商品归一化为「添加拍摄项目」弹窗可选择的行（单一来源，组件内部只做分组展示）
   buildSheetProducts({ allPackages = [], allSeries = [], allAlbums = [], allPeripherals = [], spotOptions = [] } = {}) {
     const productUtils = require('../../utils/product')
-    const findSeries = id => (allSeries || []).find(s => s._id === id) || {}
-    const findSpot = id => (spotOptions || []).find(s => s._id === id) || {}
+    const itemId = item => String((item && (item._id || item.id || item.albumId)) || '')
+    const findSeries = id => (allSeries || []).find(s => itemId(s) === String(id || '')) || {}
+    const findSpot = id => (spotOptions || []).find(s => itemId(s) === String(id || '')) || {}
+    const uniqueSpotIds = values => [...new Set((values || [])
+      .filter(value => value !== undefined && value !== null && String(value).trim())
+      .map(value => String(value)))]
+    const spotIdsFor = (item = {}, series = {}, includeAllWhenGlobal = false) => {
+      const direct = uniqueSpotIds([
+        ...(Array.isArray(item.spotIds) ? item.spotIds : []),
+        item.spotId
+      ])
+      if (direct.length) return direct
+      const inherited = uniqueSpotIds([
+        ...(Array.isArray(series.spotIds) ? series.spotIds : []),
+        series.spotId
+      ])
+      if (inherited.length || !includeAllWhenGlobal) return inherited
+      // 全局套餐没有点位字段时，也要能从任一已开通点位进入预约。
+      return uniqueSpotIds((spotOptions || []).map(itemId))
+    }
     const rows = []
     // 套餐 / 视频单品（均在 allPackages 中，按 isVideo 区分）
     ;(allPackages || []).forEach(pkg => {
       const isVid = productUtils.isVideo(pkg)
       const series = findSeries(pkg.seriesId)
-      const spotId = pkg.spotId || (Array.isArray(pkg.spotIds) && pkg.spotIds[0]) || (series.spotIds && series.spotIds[0]) || ''
-      const spot = findSpot(spotId)
       const meta = isVid
         ? [pkg.videoDuration, pkg.finishedVideoCount].filter(Boolean).join(' · ') || '短视频成片'
         : [pkg.duration ? pkg.duration + '分钟' : '', pkg.retouchCount ? '精修' + pkg.retouchCount + '张' : ''].filter(Boolean).join(' · ') || '旅拍套餐'
-      rows.push({
-        uid: 'pkg_' + pkg._id,
-        kind: 'package',
-        cat: isVid ? 'video' : 'package',
-        spotId,
-        spotName: spot.name || pkg.spotName || '',
-        name: pkg.name,
-        cover: pkg.cover || pkg.coverUrl || pkg.image || '/images/placeholder.png',
-        price: pkg.price || 0,
-        meta,
-        catLabel: isVid ? '视频摄像' : '旅拍套餐',
-        src: { _id: pkg._id, name: pkg.name, price: pkg.price, spotId: pkg.spotId, spotName: pkg.spotName, seriesId: pkg.seriesId, seriesName: pkg.seriesName },
-        series,
-        spot
+      spotIdsFor(pkg, series, true).forEach(spotId => {
+        const spot = findSpot(spotId)
+        rows.push({
+          uid: `pkg_${itemId(pkg)}_${spotId}`,
+          kind: 'package',
+          cat: isVid ? 'video' : 'package',
+          spotId,
+          spotName: spot.name || pkg.spotName || '',
+          name: pkg.name,
+          cover: pkg.cover || pkg.coverUrl || pkg.image || '/images/placeholder.png',
+          price: pkg.price || 0,
+          meta,
+          catLabel: isVid ? '视频摄像' : '旅拍套餐',
+          src: { ...pkg, _id: itemId(pkg), spotId, spotName: spot.name || pkg.spotName || '' },
+          series,
+          spot
+        })
       })
     })
     // 照片留影（album = photo_single）
     ;(allAlbums || []).forEach(album => {
       const series = findSeries(album.seriesId)
-      const spotId = (series.spotIds && series.spotIds[0]) || album.spotId || ''
-      const spot = findSpot(spotId)
-      rows.push({
-        uid: 'album_' + album._id,
-        kind: 'album',
-        cat: 'album',
-        spotId,
-        spotName: spot.name || '',
-        name: album.name,
-        cover: album.cover || album.coverImage || (album.sampleUrls && album.sampleUrls[0]) || '/images/placeholder.png',
-        price: album.price || 0,
-        meta: (album.photoCount || (album.sampleUrls && album.sampleUrls.length) || 0) + ' 张照片',
-        catLabel: '照片留影',
-        src: { _id: album._id, albumId: album._id, name: album.name, price: album.price, seriesId: album.seriesId },
-        series,
-        spot
+      spotIdsFor(album, series).forEach(spotId => {
+        const spot = findSpot(spotId)
+        rows.push({
+          uid: `album_${itemId(album)}_${spotId}`,
+          kind: 'album',
+          cat: 'album',
+          spotId,
+          spotName: spot.name || '',
+          name: album.name,
+          cover: album.cover || album.coverImage || (album.sampleUrls && album.sampleUrls[0]) || '/images/placeholder.png',
+          price: album.price || 0,
+          meta: (album.photoCount || (album.sampleUrls && album.sampleUrls.length) || 0) + ' 张照片',
+          catLabel: '照片留影',
+          src: { ...album, _id: itemId(album), albumId: itemId(album), spotId },
+          series,
+          spot
+        })
       })
     })
     // 影像周边（全城通用，spotId 留空，由组件在每个面板补充）
@@ -341,7 +361,8 @@ Page({
     if (!prefillPackageId && !prefillAlbumId && !prefillSeriesId && !prefillSpotId && this.data.requestedSpot) {
       const customItem = bookingConfig.buildCustomItem({
         count: this.data.participantCount || 1,
-        spotName: this.data.requestedSpot
+        spotName: this.data.requestedSpot,
+        requestedSpot: this.data.requestedSpot
       })
       this.setData({ items: [customItem] })
       this.updateTotalPrice()
@@ -353,7 +374,8 @@ Page({
       const customItem = bookingConfig.buildCustomItem({
         count: this.data.participantCount || 1,
         spotId: prefillSpotId,
-        spotName: spot.name || ''
+        spotName: spot.name || '',
+        requestedSpot: spot.name || ''
       })
       const items = [customItem]
       this.setData({ items })
@@ -451,7 +473,8 @@ Page({
         return bookingConfig.buildCustomItem({
           count,
           spotId: row.spotId || '',
-          spotName: row.spotName || ''
+          spotName: row.spotName || '',
+          requestedSpot: row.spotName || ''
         })
       }
       if (row.kind === 'peripheral') {
@@ -512,7 +535,7 @@ Page({
     const count = this.data.participantCount || 1
     const items = (this.data.items || []).map(item => {
       if (!item.custom) return item
-      return { ...item, price: bookingConfig.calcCustomPrice(count) }
+      return { ...item, price: bookingConfig.calcCustomPrice(count), participantCount: count }
     })
     this.setData({ items })
   },
@@ -527,6 +550,7 @@ Page({
   },
 
   async submitBooking() {
+    if (this.data.submitting) return
     if (this.data.dataUnavailable) {
       wx.showToast({ title: '拍摄项目暂不可用，请重试后再提交', icon: 'none' })
       return
@@ -543,6 +567,9 @@ Page({
     }
     this.setData({ submitting: true })
     try {
+      // Keep a manually entered contact phone as a convenience without
+      // overwriting the verified WeChat phone stored on the profile.
+      userStore.saveUser({ lastContactPhone: this.data.phone })
       // 下单前把实时来源（商家二维码扫码溯源）并入 payload
       const source = (app.getSource && app.getSource()) || {}
       this.setData({
@@ -557,10 +584,9 @@ Page({
       if (!submitMessage.includes('参与人数')) {
         submitMessage = (submitMessage ? submitMessage + '\n' : '') + '参与人数：' + (this.data.participantCount || 1) + ' 人'
       }
-      this.data.message = submitMessage
       const bookingRequestKey = this.data.bookingRequestKey || `booking-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
       this.setData({ bookingRequestKey })
-      const payload = { ...bookingUtils.buildBookingPayload(this.data), idempotencyKey: bookingRequestKey }
+      const payload = { ...bookingUtils.buildBookingPayload({ ...this.data, message: submitMessage }), idempotencyKey: bookingRequestKey }
       const res = await bookingApi.createBooking(payload)
       if (res && res.success) {
         const orderId = res.orderId || res._id || ''
@@ -578,7 +604,7 @@ Page({
             timePeriod: this.data.time,
             contactName: this.data.name,
             contactPhone: this.data.phone,
-            message: this.data.message,
+            message: submitMessage,
             bookingMode: 'consult'
           })
         })
@@ -587,7 +613,7 @@ Page({
       }
     } catch (err) {
       console.error('submit booking failed', err)
-      wx.showToast({ title: '网络异常，请稍后再试', icon: 'none' })
+      wx.showToast({ title: (err && err.message) || '网络异常，请稍后再试', icon: 'none' })
     } finally {
       this.setData({ submitting: false })
     }

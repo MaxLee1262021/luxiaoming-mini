@@ -10,7 +10,7 @@
         <text class="user-nickname">{{userInfo.nickName || '鹿小鸣游客'}}</text>
         <view class="user-role-tag role-{{roleType}}">{{roleLabel}}</view>
       </view>
-      <text class="user-signature">{{authReady ? ('已绑定 ' + phone) : '授权后查看订单、预约和客服服务'}}</text>
+      <text class="user-signature">{{authReady ? (phone ? ('联系电话 ' + phone) : '已登录，可查看订单') : '授权后查看订单、预约和客服服务'}}</text>
     </view>
   </view>
 
@@ -47,12 +47,17 @@
     <view class="order-status-row">
       <view class="order-status-item" bindtap="goToOrders" data-status="pending">
         <view class="status-icon-wrap pending-bg"><view class="status-mark"></view></view>
-        <text class="status-name">待确认</text>
+        <text class="status-name">待安排</text>
         <text class="status-num">{{orderCounts.pending || 0}}单</text>
+      </view>
+      <view class="order-status-item" bindtap="goToOrders" data-status="deposit">
+        <view class="status-icon-wrap pending-bg"><view class="status-mark"></view></view>
+        <text class="status-name">待付定金</text>
+        <text class="status-num">{{orderCounts.deposit || 0}}单</text>
       </view>
       <view class="order-status-item" bindtap="goToOrders" data-status="confirmed">
         <view class="status-icon-wrap confirmed-bg"><view class="status-mark"></view></view>
-        <text class="status-name">已确认</text>
+        <text class="status-name">已安排</text>
         <text class="status-num">{{orderCounts.confirmed || 0}}单</text>
       </view>
       <view class="order-status-item" bindtap="goToOrders" data-status="shooting">
@@ -62,12 +67,17 @@
       </view>
       <view class="order-status-item" bindtap="goToOrders" data-status="editing">
         <view class="status-icon-wrap editing-bg"><view class="status-mark"></view></view>
-        <text class="status-name">修片中</text>
+        <text class="status-name">待选片</text>
         <text class="status-num">{{orderCounts.editing || 0}}单</text>
+      </view>
+      <view class="order-status-item" bindtap="goToOrders" data-status="final">
+        <view class="status-icon-wrap editing-bg"><view class="status-mark"></view></view>
+        <text class="status-name">待付尾款</text>
+        <text class="status-num">{{orderCounts.final || 0}}单</text>
       </view>
       <view class="order-status-item" bindtap="goToOrders" data-status="completed">
         <view class="status-icon-wrap completed-bg"><view class="status-mark"></view></view>
-        <text class="status-name">已完成</text>
+        <text class="status-name">已交付</text>
         <text class="status-num">{{orderCounts.completed || 0}}单</text>
       </view>
     </view>

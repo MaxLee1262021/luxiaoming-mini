@@ -6,6 +6,7 @@ const { buildUrlWithSource } = require('../../utils/query')
 const { buildVideoProductDetail } = require('../../service/videoProductDetail')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
 const favorite = require('../../utils/favorite')
+const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
   data: {
@@ -79,9 +80,12 @@ Page({
         packageApi.getPackageBaseData({ shopId: this.data.shopId }),
         spotApi.getSpots()
       ])
-      const spots = (spotRes && spotRes.data) ? (spotRes.data || []) : demoData.spots
+      const spots = (spotRes && spotRes.success && Array.isArray(spotRes.data))
+        ? spotRes.data
+        : (isExplicitDemoMode() ? demoData.spots : [])
       if (!packageRes || !packageRes.success) {
-        this.applyDemoDetail()
+        if (isExplicitDemoMode()) this.applyDemoDetail()
+        else this.setData({ error: '视频摄像内容暂不可用，请稍后重试' })
         return
       }
       const packageData = packageRes.data || {}
@@ -102,7 +106,8 @@ Page({
       }
     } catch (err) {
       console.error('videoProductDetail loadData error', err)
-      this.applyDemoDetail()
+      if (isExplicitDemoMode()) this.applyDemoDetail()
+      else this.setData({ error: '视频摄像内容暂不可用，请稍后重试' })
     } finally {
       this.setData({ loading: false })
     }

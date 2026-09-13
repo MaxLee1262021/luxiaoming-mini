@@ -35,6 +35,7 @@ function matchKeyword(item = {}, keyword = '') {
 function getItemKey(item = {}) {
   if (item.peripheralId) return `peripheral:${item.peripheralId}`
   if (item.packageId) return `package:${item.packageId}`
+  if (item.custom) return `custom:${item.spotId || item.requestedSpot || item.spotName || 'default'}`
   return `album:${item.albumId || item.seriesId || item.seriesName}`
 }
 

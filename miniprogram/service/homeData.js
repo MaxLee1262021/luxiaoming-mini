@@ -254,6 +254,8 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
   const homeModules = normalizeModuleConfig(data.modules || previewData.modules)
   const homeSpots = buildHomeSpots(mergedSpots)
   const homeSeries = buildHomeSeries(photoSeries, mergedSpots, mergedAlbums, allPackages)
+  const rawQuickNav = data.quickNav || previewData.quickNav
+  const quickNav = Array.isArray(rawQuickNav) ? rawQuickNav.filter(Boolean) : []
 
   return {
     shopInfo: data.shopInfo || previewData.shopInfo || {},
@@ -262,7 +264,7 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
     // 探索页轮播：与首页轮播「单独一套」，后台在 homeConfig.exploreBanners 独立配置
     exploreBanners: normalizeBanners(mergePreviewList(data.exploreBanners, previewData.exploreBanners)).slice(0, 6),
     // 首页快捷入口：后台可配置的"导航"（tabBar 不可运行时改，故用首页快捷入口承载）
-    quickNav: data.quickNav || previewData.quickNav || [],
+    quickNav,
     spots: homeSpots,
     series: homeSeries,
     bookingAlbums: buildBookingAlbums(mergedAlbums, photoSeries, mergedSpots).slice(0, 10),
@@ -283,7 +285,12 @@ function isHomeDataEmpty(data = {}) {
 }
 
 function findHomePackage(packageGroups = [], packageId = '') {
-  return packageGroups.flat().find(item => item && item._id === packageId) || {}
+  const wanted = String(packageId || '').trim()
+  if (!wanted) return null
+  const groups = Array.isArray(packageGroups) ? packageGroups : []
+  return groups
+    .flat()
+    .find(item => item && String(item._id || item.id || item.packageId || item.productId || '').trim() === wanted) || null
 }
 
 function getHomePackageDetailPath(pkg = {}) {
@@ -299,7 +306,7 @@ function getBannerTarget(banner = {}) {
     }
   }
   // 统一从路由表取目标（首页 Banner 与快捷入口共用 utils/router）
-  return buildTarget(String(banner.targetType || '').toLowerCase(), banner.targetId || '')
+  return buildTarget(String(banner.targetType || ''), banner.targetId || '')
 }
 
 module.exports = {

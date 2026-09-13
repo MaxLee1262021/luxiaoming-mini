@@ -9,6 +9,7 @@ const router = require('../../utils/router')
 const { setSitePageConfig } = require('../../service/siteConfig')
 const { routeSearchSuggestion } = require('../../utils/searchNav')
 const { buildSearchSuggestions } = require('../../utils/searchSuggestions')
+const { isExplicitDemoMode } = require('../../config/env')
 
 const defaultHomeModules = normalizeModuleConfig()
 
@@ -17,9 +18,12 @@ Page({
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 })
     }
+    // Tab 页面会被微信缓存，切回时 onLoad 不会再次触发；复用同一刷新入口同步最新内容。
+    this.refreshOnTabShow()
   },
   data: {
     loading: true,
+    error: '',
     shopId: '',
     scene: '',
     spot: '',
@@ -73,8 +77,8 @@ Page({
       scene,
       spot: options.spot || ''
     })
-    await this.loadHomeData()
-    this.loadSearchConfig()
+    // 首次加载与首个 onShow 共用刷新 Promise，避免重复请求。
+    await this.refreshOnTabShow()
     this.startSearchKeywordLoop()
   },
 
@@ -117,11 +121,26 @@ Page({
   // 下拉刷新：重新拉取首页数据（不改业务逻辑，仅重新加载并收起刷新圈）
   async onPullDownRefresh() {
     try {
-      await this.loadHomeData()
-      this.loadSearchConfig()
+      await this.refreshOnTabShow()
     } finally {
       wx.stopPullDownRefresh()
     }
+  },
+
+  refreshOnTabShow() {
+    if (this._tabRefreshPromise) return this._tabRefreshPromise
+    this._tabRefreshPromise = Promise.all([
+      this.loadHomeData(),
+      this.loadSearchConfig()
+    ])
+      .catch((err) => {
+        // 两个加载方法各自有降级处理，这里只兜住意外异常，避免 onShow 产生未处理拒绝。
+        console.warn('refresh home tab failed', err)
+      })
+      .finally(() => {
+        this._tabRefreshPromise = null
+      })
+    return this._tabRefreshPromise
   },
 
   initNavMetrics() {
@@ -182,13 +201,21 @@ Page({
     try {
       const res = await homeApi.getHomeData({ shopId: this.data.shopId, spot: this.data.spot })
       if (!res || !res.success) {
-        this.applyDemoHomeData()
+        if (isExplicitDemoMode()) this.applyDemoHomeData()
+        else {
+          this.applyHomeData({})
+          this.setData({ error: '首页内容加载失败，请稍后重试' })
+        }
       } else {
         this.applyHomeData(res.data || {})
       }
     } catch (err) {
       console.error('getHomeData error', err)
-      this.applyDemoHomeData()
+      if (isExplicitDemoMode()) this.applyDemoHomeData()
+      else {
+        this.applyHomeData({})
+        this.setData({ error: '首页内容加载失败，请稍后重试' })
+      }
     } finally {
       this.setData({ loading: false })
     }
@@ -197,7 +224,7 @@ Page({
   applyHomeData(data = {}) {
     const previewData = data
     setSitePageConfig(data.pageConfig || {})
-    this.setData(buildHomeViewData(data, previewData, demoData))
+    this.setData({ ...buildHomeViewData(data, previewData, isExplicitDemoMode() ? demoData : {}), error: '' })
     this.initSpotTabs()
   },
 
@@ -428,10 +455,30 @@ Page({
 
 
   goBanner(e) {
-    const index = Number(e.currentTarget.dataset.index || 0)
+    const detail = (e && e.detail) || {}
+    const dataset = (e && e.currentTarget && e.currentTarget.dataset) || {}
+    const rawIndex = detail.index !== undefined ? detail.index : (dataset.index !== undefined ? dataset.index : this.data.bannerIndex)
+    const parsedIndex = Number(rawIndex)
+    const index = Number.isFinite(parsedIndex) ? parsedIndex : 0
     const banner = (this.data.banners || [])[index]
+    if (!banner) {
+      wx.showToast({ title: '首页内容暂未准备好', icon: 'none' })
+      return
+    }
     const target = getBannerTarget(banner)
-    if (!target) return
+    if (!target) {
+      const configuredType = String(banner.targetType || banner.linkType || banner.jumpType || '').trim().toLowerCase()
+      // targetType 为空代表旧版素材未配置跳转，给首页主视觉一个稳定的探索页兜底；
+      // 明确配置 none/static 时保持后台“不跳转”语义，但给出轻量反馈。
+      if (!configuredType) {
+        wx.switchTab({ url: '/pages/explore/explore' })
+      } else if (configuredType === 'none' || configuredType === 'static') {
+        wx.showToast({ title: '该轮播为展示内容', icon: 'none' })
+      } else {
+        wx.showToast({ title: '该轮播入口暂未配置', icon: 'none' })
+      }
+      return
+    }
     const url = target.url || this.buildUrl(target.path, target.params)
     if (!url) return
     if (target.method === 'switchTab') {
@@ -444,22 +491,27 @@ Page({
 
   goPackage(e) {
     // 支持两种事件格式：组件 triggerEvent('tap', {id}) → e.detail.id；原生 bindtap → e.currentTarget.dataset.id
-    const packageId = (e && e.detail && e.detail.id) || (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.id)
+    const detail = (e && e.detail) || {}
+    const dataset = (e && e.currentTarget && e.currentTarget.dataset) || {}
+    const item = detail.item || dataset.item || {}
+    const packageId = detail.id || detail.packageId || detail.productId || dataset.id || dataset.packageId || dataset.productId || item._id || item.id
     if (!packageId) {
       wx.showToast({ title: '旅拍套餐不存在', icon: 'none' })
       return
     }
-    const pkg = findHomePackage([this.data.hotPackages, this.data.packages], packageId)
-    if (!pkg) {
+    const hasItemId = item && (item._id || item.id || item.packageId || item.productId)
+    const pkg = hasItemId ? item : findHomePackage([this.data.hotPackages, this.data.packages], packageId)
+    if (!pkg || !(pkg._id || pkg.id || pkg.packageId || pkg.productId)) {
       wx.showToast({ title: '旅拍套餐不存在', icon: 'none' })
       return
     }
+    const id = String(pkg._id || pkg.id || pkg.packageId || pkg.productId || packageId)
 
     wx.navigateTo({
       url: this.buildUrl(getHomePackageDetailPath(pkg), {
         id: pkg.seriesId,
-        packageId,
-        productId: packageId,
+        packageId: id,
+        productId: id,
         spotId: pkg.spotId
       })
     })
@@ -468,7 +520,9 @@ Page({
   goVideoProduct(e) {
     // lxm-video-card 组件 triggerEvent('tap', {id, spotId, item})
     const d = e && e.detail || {}
-    const productId = d.id
+    const dataset = (e && e.currentTarget && e.currentTarget.dataset) || {}
+    const item = d.item || dataset.item || {}
+    const productId = d.id || d.productId || dataset.id || dataset.productId || item._id || item.id
     if (!productId) {
       wx.showToast({ title: '视频摄像商品不存在', icon: 'none' })
       return
@@ -476,7 +530,7 @@ Page({
     wx.navigateTo({
       url: this.buildUrl('/pages/videoProductDetail/videoProductDetail', {
         productId,
-        spotId: d.spotId
+        spotId: d.spotId || dataset.spotId || item.spotId
       })
     })
   },
@@ -484,7 +538,9 @@ Page({
   goBookingAlbum(e) {
     // lxm-album-card 组件 triggerEvent('tap', {id, albumId, seriesId, spotId})
     const d = e && e.detail || {}
-    const albumId = d.albumId || d.id
+    const dataset = (e && e.currentTarget && e.currentTarget.dataset) || {}
+    const item = d.item || dataset.item || {}
+    const albumId = d.albumId || d.id || dataset.albumId || dataset.id || item.albumId || item._id || item.id
     if (!albumId) {
       wx.showToast({ title: '照片留影不存在', icon: 'none' })
       return
@@ -492,8 +548,8 @@ Page({
     wx.navigateTo({
       url: this.buildUrl('/pages/photoCollection/photoCollection', {
         albumId,
-        seriesId: d.seriesId,
-        spotId: d.spotId
+        seriesId: d.seriesId || dataset.seriesId || item.seriesId,
+        spotId: d.spotId || dataset.spotId || item.spotId
       })
     })
   },
@@ -511,7 +567,19 @@ Page({
     wx.navigateTo({ url: this.buildUrl('/pages/guideList/guideList') })
   },
 
-
-  // 首页快捷入口（后台可配置的"导航"）点击：按 targetType 跳转到对应页面
+  // 首页快捷入口（后台可配置的"导航"）点击：统一走路由表，避免各入口各写一套跳转逻辑。
+  goQuickNav(e) {
+    const detail = (e && e.detail) || {}
+    const dataset = (e && e.currentTarget && e.currentTarget.dataset) || {}
+    const index = Number(dataset.index)
+    const configured = Number.isInteger(index) ? (this.data.quickNav || [])[index] : {}
+    const item = detail.item || dataset.item || configured || {}
+    const targetType = detail.targetType || detail.type || dataset.targetType || dataset.type || item.targetType || item.type
+    const targetId = detail.targetId || detail.id || dataset.targetId || dataset.id || item.targetId || item.id || ''
+    const handled = router.navigateToType(targetType, targetId, this.buildUrl.bind(this))
+    if (!handled) {
+      wx.showToast({ title: '该入口暂未配置', icon: 'none' })
+    }
+  }
 
 })

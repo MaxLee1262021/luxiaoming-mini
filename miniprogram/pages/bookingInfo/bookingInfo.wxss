@@ -3,14 +3,14 @@
 
 page {
   background: var(--lxm-c-bg);
-  padding-bottom: 40rpx;
+  padding-bottom: calc(152rpx + env(safe-area-inset-bottom));
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
   color: var(--lxm-c-ink);
 }
 
 .page {
   min-height: 100vh;
-  padding-bottom: 28rpx;
+  padding-bottom: calc(152rpx + env(safe-area-inset-bottom));
 }
 
 .booking-hero {
@@ -327,6 +327,24 @@ page {
   box-shadow: var(--lxm-shadow-red-strong);
 }
 .submit-btn[disabled] { background: var(--lxm-c-gray-550); box-shadow: none; }
+
+.booking-submit-bar {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
+  background: rgba(255,253,249,0.96);
+  border-top: 1rpx solid var(--lxm-c-line);
+  box-shadow: 0 -12rpx 30rpx rgba(64,39,26,0.10);
+  box-sizing: border-box;
+}
+
+.booking-submit-bar .submit-btn {
+  width: 100%;
+  margin: 0;
+}
 
 /* 预约方式二选一 */
 .booking-mode-card { margin-top: 4rpx; }

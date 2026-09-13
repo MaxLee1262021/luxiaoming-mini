@@ -45,6 +45,7 @@
   border-radius: 999rpx;
   background: rgba(255,253,249,0.96);
   box-shadow: 0 16rpx 36rpx rgba(64,39,26,0.10);
+  overflow-x: auto;
 }
 
 .tab-item {
@@ -57,6 +58,7 @@
   color: var(--lxm-c-gray-700);
   font-size: var(--lxm-fz-sm);
   font-weight: 900;
+  min-width: 132rpx;
 }
 
 /* 无障碍：视觉不变，透明热区高度扩至 88rpx（WCAG 2.5.5） */

@@ -1,8 +1,12 @@
 const { normalizeToGcj02 } = require('../utils/coord')
+const { hasCoordinates } = require('./citySpot')
 
 function normalizeSpot(item = {}) {
   // 坐标纠偏：把点位经纬度统一转成微信地图所需的 GCJ-02，避免漂移
-  const coord = normalizeToGcj02(item.latitude, item.longitude, item.coordType)
+  const configuredCoordinates = hasCoordinates(item)
+  const coord = configuredCoordinates
+    ? normalizeToGcj02(Number(item.latitude), Number(item.longitude), item.coordType)
+    : { latitude: null, longitude: null }
   return {
     ...item,
     latitude: coord.latitude,

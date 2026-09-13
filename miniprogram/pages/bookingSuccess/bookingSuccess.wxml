@@ -11,6 +11,10 @@
   <view class="info-card">
     <view class="card-title">预约信息</view>
     <view class="info-row">
+      <text class="info-label">当前状态</text>
+      <text class="info-value price">{{statusText}}</text>
+    </view>
+    <view class="info-row">
       <text class="info-label">预约编号</text>
       <view class="info-value-row">
         <text class="order-no">{{orderNo || '待生成'}}</text>
@@ -50,9 +54,14 @@
       <text class="info-label">特殊需求</text>
       <text class="info-value message">{{message}}</text>
     </view>
+    <view class="info-row" wx:if="{{depositDue > 0}}">
+      <text class="info-label">待付定金</text>
+      <text class="info-value price">¥{{depositDue}}</text>
+    </view>
   </view>
 
   <view class="btn-group">
+    <button class="btn-primary" bindtap="goOrderDetail" wx:if="{{orderId || orderNo}}">查看订单并生成支付单</button>
     <button class="btn-secondary" bindtap="goMyOrders">查看我的订单</button>
     <button class="btn-secondary light" bindtap="contactService">去企业微信联系客服</button>
     <button class="btn-secondary light" bindtap="goBookingAgain">再约一单</button>

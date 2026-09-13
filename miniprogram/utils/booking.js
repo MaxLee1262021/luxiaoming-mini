@@ -14,7 +14,11 @@ function isPastDate(dateStr = '') {
 }
 
 function sumItemsPrice(items = []) {
-  return (items || []).reduce((sum, item) => sum + (Number(item.price) || 0), 0)
+  return (items || []).reduce((sum, item) => {
+    const price = Number(item && item.price) || 0
+    const quantity = Math.max(1, Math.min(99, Math.floor(Number(item && (item.quantity ?? item.qty)) || 1)))
+    return sum + price * quantity
+  }, 0)
 }
 
 function validateBookingForm(data = {}) {
@@ -63,6 +67,7 @@ function buildPrefillItem({ series = {}, spot = {}, album = {}, pkg = {}, defaul
     packageId: pkg._id || '',
     packageName: pkg.name || '',
     price: Number(pkg.price || defaultPrice || album.price || 0),
+    quantity: 1,
     defaultPrice: Number(defaultPrice || album.price || 0)
   }
 }
@@ -89,6 +94,7 @@ function buildItemFromPackage({ pkg = {}, series = {}, spot = {}, album = {} } =
     packageId: pkg._id || '',
     packageName: pkg.name || '',
     price: pkg.price || 0,
+    quantity: 1,
     defaultPrice: album.price || 0
   }
 }
@@ -106,6 +112,7 @@ function buildItemFromPeripheral({ peripheral = {} } = {}) {
     peripheralId: peripheral._id || '',
     peripheralName: peripheral.name || '',
     price: peripheral.price || 0,
+    quantity: 1,
     defaultPrice: 0
   }
 }

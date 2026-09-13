@@ -4,6 +4,7 @@ const collectionApi = require('../../api/collection')
 const { buildUrlWithSource } = require('../../utils/query')
 const { isVideoSingle } = require('../../service/videoProductDetail')
 const favorite = require('../../utils/favorite')
+const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
   data: {
@@ -27,6 +28,7 @@ Page({
     isAlbumDetail: false,
     spots: [],
     loading: true,
+    error: '',
     degraded: false, // 照片留影数据拉取失败、正在展示预览数据时置 true（降级提示条）
     collected: false
   },
@@ -44,7 +46,8 @@ Page({
     if (seriesId || options.albumId) {
       this.loadCollection(seriesId, options.albumId)
     } else {
-      this.applyCollectionData(demoData.getPhotoCollection(), true)
+      if (isExplicitDemoMode()) this.applyCollectionData(demoData.getPhotoCollection(), true)
+      else this.setData({ loading: false, error: '缺少照片留影信息' })
     }
   },
 
@@ -60,15 +63,21 @@ Page({
         this.applyCollectionData(res.data || {})
         this.setData({ degraded: false })
       } else {
-        // 后台响应缺少成功标记（罕见，防御分支）：回退演示数据，不算失败
-        this.applyCollectionData(demoData.getPhotoCollection({ seriesId, albumId, spotId: this.data.currentSpotId }), true)
-        this.setData({ degraded: false })
+        if (isExplicitDemoMode()) {
+          this.applyCollectionData(demoData.getPhotoCollection({ seriesId, albumId, spotId: this.data.currentSpotId }), true)
+          this.setData({ degraded: false })
+        } else {
+          this.setData({ error: (res && (res.error || res.message)) || '照片留影内容暂不可用，请稍后重试', degraded: false })
+        }
       }
     } catch (err) {
       console.error('load photo collection failed', err)
-      // 请求失败（网络异常或后台未接通）：回退预览数据兜底 + 顶部降级提示条，客人可重试
-      this.applyCollectionData(demoData.getPhotoCollection({ seriesId, albumId, spotId: this.data.currentSpotId }), true)
-      this.setData({ degraded: true })
+      if (isExplicitDemoMode()) {
+        this.applyCollectionData(demoData.getPhotoCollection({ seriesId, albumId, spotId: this.data.currentSpotId }), true)
+        this.setData({ degraded: true })
+      } else {
+        this.setData({ error: '照片留影内容暂不可用，请稍后重试', degraded: false })
+      }
     } finally {
       this.setData({ loading: false })
     }
@@ -82,11 +91,11 @@ Page({
   },
 
   applyCollectionData(data = {}, isDemo = false) {
-    const fallback = demoData.getPhotoCollection({
+    const fallback = isDemo ? demoData.getPhotoCollection({
       seriesId: data.series && data.series._id,
       albumId: this.data.pendingAlbumId,
       spotId: this.data.currentSpotId || data.currentSpotId || ''
-    })
+    }) : {}
     const packages = (data.packages && data.packages.length) ? data.packages : (fallback.packages || [])
     const featuredPackages = (data.featuredPackages && data.featuredPackages.length) ? data.featuredPackages : (fallback.featuredPackages || [])
     const spotPackages = (data.spotPackages && data.spotPackages.length) ? data.spotPackages : (fallback.spotPackages || packages)

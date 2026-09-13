@@ -18,7 +18,7 @@ Page({
     authReady: false,
     authLoading: false,
     phone: '',
-    orderCounts: { pending: 0, confirmed: 0, shooting: 0, editing: 0, completed: 0 },
+    orderCounts: { pending: 0, deposit: 0, confirmed: 0, shooting: 0, editing: 0, final: 0, completed: 0 },
     footprint: footprintService.getEmptyFootprint({ authReady: false }),
     navTopPx: 26,
     capsuleSafeRightPx: 104,
@@ -42,10 +42,7 @@ Page({
   onLoad(options = {}) {
     this.initNavMetrics()
     this.captureSource(options)
-    this.loadUserInfo()
-    this.loadOrderStatusCount()
-    this.loadFootprint()
-    this.loadFavoriteCount()
+    this.refreshUserState()
   },
 
   onShow() {
@@ -53,7 +50,17 @@ Page({
       this.getTabBar().setData({ selected: 2 })
     }
     this.captureSource()
+    this.refreshUserState()
+  },
+
+  async refreshUserState() {
     this.loadUserInfo()
+    try {
+      await userStore.syncUserProfile()
+      this.loadUserInfo()
+    } catch (err) {
+      console.warn('sync user profile failed', err)
+    }
     this.loadOrderStatusCount()
     this.loadFootprint()
     this.loadFavoriteCount()
@@ -79,15 +86,18 @@ Page({
   },
 
   loadUserInfo() {
+    // 登录态即可读取本人订单；手机号是联系人资料，不应成为订单查询的额外门槛。
+    const authenticated = userStore.isAuthed()
     const bound = userStore.hasBoundPhone()
     const rawInfo = userStore.getDisplayUserInfo() || {}
-    const nickName = rawInfo.nickName || (bound ? this.maskPhone(userStore.getBoundPhone()) : '')
+    const displayPhone = userStore.getBoundPhone() || userStore.getLastContactPhone()
+    const nickName = rawInfo.nickName || (displayPhone ? this.maskPhone(displayPhone) : '')
     this.setData({
       userInfo: { ...rawInfo, nickName: nickName || '鹿小鸣游客' },
-      phone: userStore.getBoundPhone(),
-      authReady: bound,
+      phone: displayPhone,
+      authReady: authenticated,
       roleType: bound ? 'member' : 'visitor',
-      roleLabel: bound ? '会员' : '游客'
+      roleLabel: bound ? '会员' : authenticated ? '已登录' : '游客'
     })
   },
 
@@ -113,7 +123,7 @@ Page({
   },
 
   ensureAuth() {
-    if (userStore.hasBoundPhone()) {
+    if (userStore.isAuthed()) {
       this.loadUserInfo()
       return true
     }
@@ -122,8 +132,8 @@ Page({
   },
 
   async loadOrderStatusCount() {
-    if (!userStore.hasBoundPhone()) {
-      this.setData({ orderCounts: { pending: 0, confirmed: 0, shooting: 0, editing: 0, completed: 0 } })
+    if (!userStore.isAuthed()) {
+      this.setData({ orderCounts: { pending: 0, deposit: 0, confirmed: 0, shooting: 0, editing: 0, final: 0, completed: 0 } })
       return
     }
     try {
@@ -146,6 +156,7 @@ Page({
         confirmed: demoData.orders.filter(item => ['confirmed', 'deposit_paid', 'assigned'].includes(item.status)).length,
         shooting: demoData.orders.filter(item => item.status === 'shooting').length,
         editing: demoData.orders.filter(item => item.status === 'editing').length,
+        final: demoData.orders.filter(item => item.status === 'final_pending' || item.workflowStage === 'awaiting_final_payment').length,
         completed: demoData.orders.filter(item => ['delivered', 'completed'].includes(item.status)).length
       })
     })
@@ -157,7 +168,7 @@ Page({
     if (typeof footprintService.ensureLoaded === 'function') {
       await footprintService.ensureLoaded()
     }
-    const authReady = userStore.hasBoundPhone()
+    const authReady = userStore.isAuthed()
     if (!authReady) {
       this.setData({ footprint: footprintService.getEmptyFootprint({ authReady: false }) })
       return
@@ -185,10 +196,12 @@ Page({
 
   normalizeOrderCounts(counts = {}) {
     return {
-      pending: counts.pending || counts.new || 0,
+      pending: counts.pending || 0,
+      deposit: counts.deposit || counts.awaiting_deposit || counts.deposit_pending || 0,
       confirmed: (counts.confirmed || 0) + (counts.deposit_paid || 0) + (counts.assigned || 0),
       shooting: counts.shooting || 0,
-      editing: (counts.editing || 0) + (counts.final_pending || 0),
+      editing: counts.editing || 0,
+      final: counts.final || counts.awaiting_final_payment || 0,
       completed: (counts.completed || 0) + (counts.delivered || 0)
     }
   },

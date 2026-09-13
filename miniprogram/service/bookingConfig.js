@@ -70,6 +70,8 @@ function buildCustomItem({ count = 1, spotId = '', spotName = '', requestedSpot 
     price: calcCustomPrice(count),
     defaultPrice: singlePrice(),
     custom: true,
+    participantCount: Math.max(1, Number(count) || 1),
+    requestedSpot: requestedSpot || spotName || '',
     pricingRule: buildCustomRuleText(),
     serviceType: 'custom'
   }

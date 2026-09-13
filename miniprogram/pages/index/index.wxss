@@ -334,6 +334,59 @@
   background: var(--lxm-c-orange);
 }
 
+/* 后台可配置首页快捷入口：横向滚动，单项保留足够触摸高度。 */
+.quick-nav {
+  display: flex;
+  width: auto;
+  margin: 0 28rpx 20rpx;
+  padding: 2rpx 0 8rpx;
+  white-space: nowrap;
+}
+
+.quick-nav-item {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 128rpx;
+  min-height: 104rpx;
+  margin-right: 14rpx;
+  padding: 12rpx 8rpx;
+  box-sizing: border-box;
+  border: 1rpx solid var(--lxm-c-line-soft);
+  border-radius: var(--lxm-r-md);
+  background: var(--lxm-c-surface);
+  box-shadow: var(--lxm-shadow-card);
+}
+
+.quick-nav-item:active {
+  transform: scale(0.96);
+}
+
+.quick-nav-icon {
+  width: 48rpx;
+  height: 48rpx;
+  line-height: 48rpx;
+  margin-bottom: 8rpx;
+  border-radius: 50%;
+  background: rgba(238, 44, 44, 0.08);
+  color: var(--lxm-c-red-ink);
+  text-align: center;
+  font-size: 28rpx;
+}
+
+.quick-nav-label {
+  max-width: 112rpx;
+  overflow: hidden;
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-xs);
+  font-weight: var(--lxm-fw-semibold);
+  line-height: 1.25;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* .booking-strip 背景/边距/阴影统一由 .lxm-panel 提供，子元素样式保持不变 */
 
 .strip-head {

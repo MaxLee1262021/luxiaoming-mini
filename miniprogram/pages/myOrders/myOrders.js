@@ -13,10 +13,12 @@ Page({
     tabs: [
       { key: '', text: '全部' },
       { key: 'pending', text: '待确认' },
+      { key: 'deposit', text: '待付定金' },
       { key: 'confirmed', text: '已确认' },
       { key: 'shooting', text: '拍摄中' },
       { key: 'editing', text: '修片中' },
-      { key: 'completed', text: '已完成' }
+      { key: 'final', text: '待付尾款' },
+      { key: 'completed', text: '交付/完成' }
     ],
     orders: [],
     page: 1,
@@ -82,6 +84,12 @@ Page({
 
   getDemoOrders() {
     if (!this.data.currentStatus) return demoData.orders
+    if (this.data.currentStatus === 'deposit') {
+      return demoData.orders.filter(item => item.status === 'deposit_pending' || item.workflowStage === 'awaiting_deposit')
+    }
+    if (this.data.currentStatus === 'final') {
+      return demoData.orders.filter(item => item.status === 'final_pending' || item.workflowStage === 'awaiting_final_payment')
+    }
     if (this.data.currentStatus === 'confirmed') {
       return demoData.orders.filter(item => ['confirmed', 'deposit_paid', 'assigned'].includes(normalizeCustomerStatus(item.status)))
     }
@@ -105,12 +113,26 @@ Page({
   matchCurrentStatus(order = {}) {
     const currentStatus = this.data.currentStatus
     if (!currentStatus) return true
+    const stage = order.workflowStage
+    const stageGroups = {
+      pending: ['awaiting_dispatch'],
+      deposit: ['awaiting_deposit'],
+      confirmed: ['awaiting_shoot'],
+      shooting: ['shooting'],
+      editing: ['selection_pending'],
+      final: ['awaiting_final_payment'],
+      completed: ['paid', 'delivered']
+    }
+    if (currentStatus === 'final' && stage === 'delivered' && order.paymentPhase === 'final' && order.finalPaymentStatus !== 'confirmed') return true
+    if (stage && stageGroups[currentStatus]) return stageGroups[currentStatus].includes(stage)
     const status = normalizeCustomerStatus(order.status)
     const groups = {
-      pending: ['pending', 'new'],
+      pending: ['pending', 'new', 'contacted'],
+      deposit: ['deposit_pending'],
       confirmed: ['confirmed', 'deposit_paid', 'assigned'],
       shooting: ['shooting'],
       editing: ['editing', 'final_pending'],
+      final: ['awaiting_final_payment'],
       completed: ['completed', 'delivered']
     }
     return (groups[currentStatus] || [currentStatus]).includes(status)

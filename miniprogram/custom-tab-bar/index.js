@@ -9,9 +9,32 @@ Component({
   },
   methods: {
     switchTab(e) {
-      const idx = e.currentTarget.dataset.index
-      const url = this.data.list[idx].pagePath
-      wx.switchTab({ url })
+      const idx = Number(e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.index)
+      const item = this.data.list[idx]
+      // Ignore malformed taps, repeated taps on the current page, and taps while
+      // WeChat is still resolving the previous tab switch.
+      if (!Number.isInteger(idx) || !item || this._tabSwitching || idx === this.data.selected) return
+
+      const previousSelected = this.data.selected
+      this._tabSwitching = true
+
+      try {
+        wx.switchTab({
+          url: item.pagePath,
+          success: () => {
+            this.setData({ selected: idx })
+          },
+          fail: () => {
+            this.setData({ selected: previousSelected })
+          },
+          complete: () => {
+            this._tabSwitching = false
+          }
+        })
+      } catch (err) {
+        this.setData({ selected: previousSelected })
+        this._tabSwitching = false
+      }
     }
   }
 })

@@ -2,6 +2,7 @@ const sourceStore = require('./store/sourceStore')
 const { parseScene } = require('./utils/query')
 const { API_BASE, CORP_ID } = require('./config/env')
 const { callCloud, login } = require('./api/client')
+const userStore = require('./store/userStore')
 const shareHelper = require('./utils/share')
 const analytics = require('./utils/analytics')
 
@@ -45,7 +46,12 @@ App({
     })
     // 自托管架构：不再依赖微信云开发。启动即登录拿 openid（失败也不阻塞首屏）。
     login()
-      .then((oid) => { this.globalData.openid = oid })
+      .then((oid) => {
+        this.globalData.openid = oid
+        return userStore.syncUserProfile()
+          .then((user) => { this.globalData.userInfo = user.userInfo || null })
+          .catch((e) => { console.warn('用户资料同步失败（不影响浏览）', e) })
+      })
       .catch((e) => { console.warn('登录失败（不影响浏览）', e) })
     // 记录进入来源（普通带参启动：如 scene=shopId=xxx）
     if (options && options.query) this.captureSource(options.query)
@@ -77,17 +83,18 @@ App({
 
   // 隐私授权：微信要求收集手机号/微信信息前必须让用户同意
   initPrivacy() {
-    if (typeof wx.onNeedPrivacyAuthorize !== 'function') return
-
-    // 当任意页面调用需要隐私授权的接口（如授权手机号）时，微信会先走到这里
-    wx.onNeedPrivacyAuthorize((resolve, event) => {
-      this.globalData._privacyResolve = resolve
-      this.globalData._privacyEvent = event
-      this.globalData._privacyNeed = true
-      this._showPrivacyModalIfReady()
-    })
+    // 当任意页面调用需要隐私授权的接口（如授权手机号）时，微信会先走到这里。
+    if (typeof wx.onNeedPrivacyAuthorization === 'function') {
+      wx.onNeedPrivacyAuthorization((resolve, eventInfo) => {
+        this.globalData._privacyResolve = resolve
+        this.globalData._privacyEventInfo = eventInfo
+        this.globalData._privacyNeed = true
+        this._showPrivacyModalIfReady()
+      })
+    }
 
     // 首次进入主动检查：若还未授权，则弹出授权框
+    if (typeof wx.getPrivacySetting !== 'function') return
     wx.getPrivacySetting({
       success: (res) => {
         if (res.needAuthorization && typeof wx.requirePrivacyAuthorize === 'function') {

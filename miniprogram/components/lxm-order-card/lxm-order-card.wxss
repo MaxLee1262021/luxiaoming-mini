@@ -100,6 +100,17 @@
   line-height: 1.4;
 }
 
+.order-payment {
+  display: inline-block;
+  margin-top: 12rpx;
+  padding: 6rpx 14rpx;
+  border-radius: 999rpx;
+  background: var(--lxm-c-gold-soft-3);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
 .order-type {
   display: inline-block;
   padding: 6rpx 14rpx;

@@ -1,6 +1,7 @@
 # WeChat Developer Tools local configuration
 project.private.config.json
 project.*.private.config.json
+miniprogram/config/private-env.js
 
 # Local environment and generated dependencies
 .env

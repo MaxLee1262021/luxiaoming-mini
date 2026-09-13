@@ -2,8 +2,8 @@
 // 鹿小鸣旅拍 · 环境配置（上线必看）
 // ============================================================================
 //
-// 【上线前唯一必须修改的地方】
-//   把下面的 PROD_API_BASE 换成后台的真实公网 HTTPS 地址。
+// 【上线前唯一必须配置的地方】
+//   复制 private-env.example.js 为 private-env.js，再填写真实公网 HTTPS 地址。
 //   例如：'https://api.luxiaoming.com/api'
 //   ⚠️ 必须是 https（微信小程序正式版禁止 http 请求）
 //   ⚠️ 末尾必须带 /api（后台 RPC 真实路径是 /api/rpc/{name}）
@@ -12,12 +12,22 @@
 //
 // 本文件会根据小程序运行环境自动切换后台地址：
 //   · 开发版（微信开发者工具 / 开发版预览）→ 用 DEV_API_BASE（本地联调）
-//   · 体验版 / 正式版                      → 用 PROD_API_BASE（线上服务器）
+//   · 体验版 / 正式版                      → 用 private-env.js 的 PROD_API_BASE（线上服务器）
 //   这样本地调试和线上发布互不干扰，不用每次手动改。
 // ============================================================================
 
-// 线上后台地址 —— ✏️【必须改成你的真实域名，否则线上无法联网】
-const PROD_API_BASE = 'https://你的后台域名/api'
+// 线上后台地址从本地发布配置读取，避免把部署域名写死在仓库。
+// 发布前复制 private-env.example.js 为 private-env.js，并填写真实 HTTPS 地址。
+let privateEnv = {}
+try {
+  privateEnv = require('./private-env')
+} catch (e) {}
+
+function normalizeApiBase(value) {
+  return String(value || '').trim().replace(/\/+$/, '')
+}
+
+const PROD_API_BASE = normalizeApiBase(privateEnv.PROD_API_BASE)
 
 // 本地开发后台地址（跑 luxiaoming-admin，npm run server，默认端口 5192）
 const DEV_API_BASE = 'http://localhost:5192/api'
@@ -36,6 +46,11 @@ function getEnvVersion() {
 const version = getEnvVersion()
 const isProduction = version === 'release' || version === 'trial'
 
+const API_BASE = isProduction ? PROD_API_BASE : DEV_API_BASE
+const API_ERROR = isProduction && !/^https:\/\//i.test(API_BASE)
+  ? '小程序生产接口未配置：请在 miniprogram/config/private-env.js 设置 PROD_API_BASE'
+  : ''
+
 // Demo data is opt-in. Network/API failures must never look like a persisted
 // order or a successful booking in a normal development, trial, or release build.
 function isExplicitDemoMode() {
@@ -49,7 +64,8 @@ function isExplicitDemoMode() {
 
 module.exports = {
   // 当前生效的后台地址
-  API_BASE: isProduction ? PROD_API_BASE : DEV_API_BASE,
+  API_BASE,
+  API_ERROR,
   isExplicitDemoMode,
 
   // 当前环境标识，方便排查问题（develop / trial / release）

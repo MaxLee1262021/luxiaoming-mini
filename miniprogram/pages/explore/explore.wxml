@@ -58,7 +58,7 @@
 
     <view class="explore-filters">
       <view id="filter-city" class="explore-filter {{openPanel === 'city' ? 'open' : ''}}" bindtap="togglePanel" data-type="city">
-        <text class="explore-filter-text">{{selectedCity}}</text>
+        <text class="explore-filter-text">{{selectedCityName || '选择城市'}}</text>
         <lxm-icon class="explore-filter-icon" type="arrow-right" size="14" color="ink"></lxm-icon>
       </view>
       <view id="filter-district" class="explore-filter {{openPanel === 'district' ? 'open' : ''}} {{selectedDistrict ? 'selected' : ''}}" bindtap="togglePanel" data-type="district">
@@ -92,7 +92,7 @@
         >
           <view class="fo-main">
             <text wx:if="{{selectedCity === item.value}}" class="fo-check">✓</text>
-            <text>{{item.name}}</text>
+            <text>{{item.displayName || item.name}}</text>
           </view>
           <text wx:if="{{item.count !== undefined}}" class="filter-count">{{item.count}}</text>
         </view>
@@ -147,11 +147,11 @@
       </view>
     </view>
 
-    <!-- 加载失败降级提示：已回退预览打卡点，可重试拉真实数据 -->
-    <view wx:if="{{degraded && !loading}}" class="lxm-degrade-bar explore-degrade">
-      <text class="lxm-degrade-bar__txt">内容加载失败，正在展示预览打卡点</text>
-      <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载打卡点">重新加载</view>
-    </view>
+  </view>
+  <!-- 显式演示模式下才会展示本地点位降级提示。 -->
+  <view wx:if="{{degraded && !loading}}" class="lxm-degrade-bar explore-degrade">
+    <text class="lxm-degrade-bar__txt">内容加载失败，正在展示预览打卡点</text>
+    <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载打卡点">重新加载</view>
   </view>
   <!-- 搜索建议下拉：统一复用 lxm-search-panel（与首页同一套，不写两套） -->
   <lxm-search-panel
@@ -183,7 +183,16 @@
     <view class="lxm-skeleton lxm-skeleton-circle" style="width: 80rpx; height: 80rpx;"></view>
   </view>
 
-  <view wx:if="{{!loading && !filteredSpots.length}}" class="explore-empty">
+  <view wx:if="{{!loading && filteredSpots.length && !markers.length}}" class="explore-map-notice">
+    <text>当前城市的打卡点正在完善定位信息</text>
+  </view>
+
+  <view wx:if="{{!loading && error}}" class="explore-empty">
+    <view class="explore-error-text">{{error}}</view>
+    <view class="explore-error-retry" bindtap="onRetryLoad" role="button" aria-label="重新加载打卡点">重新加载</view>
+  </view>
+
+  <view wx:if="{{!loading && !error && !filteredSpots.length}}" class="explore-empty">
     <lxm-empty-state
       type="spot"
       title="暂无打卡点"

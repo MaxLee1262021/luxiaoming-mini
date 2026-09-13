@@ -1,6 +1,5 @@
-// 城市列表：探索页「城市」切换。
-// 自托管后台 `getCities` RPC 就绪后返回真实城市（读后台 `cities` 集合）；
-// 未接后台 / 请求失败时由调用方回退本地兜底城市列表（见 pages/explore/explore.js 的 FALLBACK_CITIES）。
+// 城市列表：探索页城市切换。
+// 非演示模式只读取后台 cities 集合，不以本地城市替代真实配置。
 const { callCloud } = require('./client')
 
 function getCities(params = {}) {

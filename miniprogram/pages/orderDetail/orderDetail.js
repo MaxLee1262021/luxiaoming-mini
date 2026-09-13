@@ -15,13 +15,15 @@ Page({
     error: '',
     loading: true,
     isDemo: false,
-    paymentSubmitting: false
+    paymentSubmitting: false,
+    paymentStatus: 'not_created',
+    paymentMessage: ''
   },
 
   onLoad(options = {}) {
     const source = app.captureSource ? app.captureSource(options) : {}
     this.setData({
-      id: options.id || options.orderNo || '',
+      id: options.id || options.orderId || options.orderNo || '',
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || ''
     })
@@ -58,11 +60,14 @@ Page({
   },
 
   applyOrder(order = {}, isDemo = false) {
+    const pending = order.paymentPending || Number(order.pendingPaymentAmount || 0) > 0 || order.paymentStatus === 'pending'
     this.setData({
       order,
-      statusDesc: getOrderStatusDesc(order.status),
+      statusDesc: getOrderStatusDesc(order.workflowStage || order.status),
       error: '',
-      isDemo
+      isDemo,
+      paymentStatus: order.paymentStatus || (pending ? 'pending' : 'not_created'),
+      paymentMessage: pending ? (this.data.paymentMessage || '支付单已生成，等待客服/财务确认到账。') : ''
     })
   },
 
@@ -106,7 +111,7 @@ Page({
   },
 
   async createPayment(e) {
-    const phase = e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.phase
+    const phase = (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.phase) || this.data.order.paymentPhase
     const order = this.data.order || {}
     if (!phase || !order._id || this.data.paymentSubmitting) return
     const amount = phase === 'deposit' ? Number(order.depositDue || 0) : Number(order.finalDue || 0)
@@ -122,18 +127,49 @@ Page({
         idempotencyKey = `mini-${phase}-${order._id}-${Date.now()}`
         wx.setStorageSync(storageKey, idempotencyKey)
       }
-      const result = await orderApi.createPayment({ orderId: order._id, phase, amount, idempotencyKey })
+      const result = await orderApi.createPayment({ orderId: order._id || order.id, phase, amount, idempotencyKey })
       if (!result || !result.success) {
+        wx.removeStorageSync(storageKey)
         wx.showToast({ title: (result && result.error) || '支付单创建失败，请联系客服', icon: 'none' })
         return
       }
-      wx.showToast({ title: '支付单已生成，请联系客服完成支付', icon: 'none', duration: 2600 })
-      this.loadOrder()
+      const payment = result.data || result
+      this.setData({
+        paymentStatus: payment.status || 'pending',
+        paymentMessage: payment.status === 'confirmed' ? '支付已确认到账。' : '支付单已生成，当前版本暂不唤起微信支付，请联系客服完成线下收款并由财务确认。'
+      })
+      wx.showToast({ title: payment.status === 'confirmed' ? '支付已确认' : '支付单已生成', icon: 'none', duration: 2600 })
+      await this.loadOrder()
     } catch (err) {
       console.error('create payment failed', err)
-      wx.showToast({ title: '支付服务暂不可用，请联系客服', icon: 'none' })
+      wx.removeStorageSync(`lxm_payment_intent_${order._id}_${phase}`)
+      wx.showToast({ title: (err && err.message) || '支付服务暂不可用，请联系客服', icon: 'none' })
     } finally {
       this.setData({ paymentSubmitting: false })
+    }
+  },
+
+  handlePaymentTap(e) {
+    if (this.data.paymentStatus === 'pending') return this.refreshPaymentStatus()
+    return this.createPayment(e)
+  },
+
+  async refreshPaymentStatus() {
+    const order = this.data.order || {}
+    const candidate = order.paymentPhase || order.paymentStage
+    const phase = candidate === 'deposit' || candidate === 'final'
+      ? candidate
+      : (Number(order.pendingFinalAmount || 0) > 0 || order.workflowStage === 'awaiting_final_payment' ? 'final' : 'deposit')
+    if (!order._id || !phase) return
+    try {
+      const result = await orderApi.getPaymentStatus({ orderId: order._id, phase })
+      if (result && result.success) {
+        const payment = result.data || result
+        this.setData({ paymentStatus: payment.status || 'not_created', paymentMessage: payment.status === 'pending' ? '支付单处理中，到账后由客服/财务确认。' : '' })
+        await this.loadOrder()
+      }
+    } catch (err) {
+      wx.showToast({ title: '支付状态暂时无法查询，请稍后重试', icon: 'none' })
     }
   },
 

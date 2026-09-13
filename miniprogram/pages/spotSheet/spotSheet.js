@@ -3,7 +3,9 @@ const demoData = require('../../utils/demoData')
 const spotApi = require('../../api/spot')
 const bookingApi = require('../../api/booking')
 const peripheralApi = require('../../api/peripheral')
+const guideApi = require('../../api/guide')
 const spotFilter = require('../../service/spotFilter')
+const { isExplicitDemoMode } = require('../../config/env')
 const { buildUrlWithSource } = require('../../utils/query')
 const { isVideo, isVideoSingle, isPublicProduct, normalizePackage } = require('../../utils/product')
 
@@ -53,24 +55,31 @@ Page({
     const spotRequest = spotApi.getSpots({ shopId: this.data.shopId, limit: 100 }).catch(error => ({ error }))
     const bookingRequest = bookingApi.getBookingData({ shopId: this.data.shopId }).catch(error => ({ error }))
     const peripheralRequest = peripheralApi.getPeripherals({}).catch(error => ({ error }))
-    const [spotResult, bookingResult, peripheralResult] = await Promise.all([spotRequest, bookingRequest, peripheralRequest])
+    const guideRequest = guideApi.getGuides({}).catch(error => ({ error }))
+    const [spotResult, bookingResult, peripheralResult, guideResult] = await Promise.all([spotRequest, bookingRequest, peripheralRequest, guideRequest])
     try {
       const hasRealSpots = !!(spotResult && spotResult.success && Array.isArray(spotResult.data))
+      const useDemoSpots = !hasRealSpots && isExplicitDemoMode()
       const list = hasRealSpots
         ? spotResult.data.map(item => spotFilter.normalizeSpot(item))
-        : demoData.spots.map(item => spotFilter.normalizeSpot(item))
+        : (useDemoSpots ? demoData.spots.map(item => spotFilter.normalizeSpot(item)) : [])
       const hasRealCatalog = !!(bookingResult && bookingResult.success)
-      const useDemoCatalog = !hasRealSpots && !hasRealCatalog && !(peripheralResult && peripheralResult.success)
-      this.applyCatalog(bookingResult, peripheralResult, useDemoCatalog, () => this.applySpotList(list))
+      const useDemoCatalog = isExplicitDemoMode() && !hasRealSpots && !hasRealCatalog && !(peripheralResult && peripheralResult.success)
+      const loadError = hasRealSpots ? '' : '打卡点数据加载失败，请返回探索页重试'
+      this.applyCatalog(bookingResult, peripheralResult, guideResult, useDemoCatalog, () => this.applySpotList(list, loadError))
     } catch (err) {
       console.error('spotSheet loadSpots error', err)
-      this.applyCatalog(null, null, true, () => this.applySpotList(demoData.spots.map(item => spotFilter.normalizeSpot(item))))
+      const useDemo = isExplicitDemoMode()
+      this.applyCatalog(null, null, null, useDemo, () => this.applySpotList(
+        useDemo ? demoData.spots.map(item => spotFilter.normalizeSpot(item)) : [],
+        useDemo ? '' : '打卡点数据加载失败，请返回探索页重试'
+      ))
     } finally {
       this.setData({ loading: false })
     }
   },
 
-  applyCatalog(bookingResult, peripheralResult, useDemoFallback = false, done) {
+  applyCatalog(bookingResult, peripheralResult, guideResult, useDemoFallback = false, done) {
     const bookingData = bookingResult && bookingResult.success ? (bookingResult.data || {}) : {}
     const rawPackages = bookingData.allPackages || bookingData.packages || bookingData.hotPackages || []
     const rawSeries = bookingData.allSeries || bookingData.series || []
@@ -84,7 +93,7 @@ Page({
           allAlbums: demoData.albums || [],
           allPackages: [...(demoData.packages || []), ...(demoData.videoProducts || [])],
           peripherals: demoData.peripherals || [],
-          guides: demoData.guides || []
+          guides: Array.isArray(guideResult) && guideResult.length ? guideResult : (demoData.guides || [])
         }
       : {
           allSeries: Array.isArray(rawSeries) ? rawSeries : [],
@@ -96,7 +105,9 @@ Page({
               })
             : [],
           peripherals: Array.isArray(peripheralData) ? peripheralData.filter(isPublicProduct) : [],
-          guides: Array.isArray(bookingData.guides) ? bookingData.guides.filter(isPublicProduct) : []
+          guides: Array.isArray(guideResult)
+            ? guideResult.filter(isPublicProduct)
+            : (Array.isArray(bookingData.guides) ? bookingData.guides.filter(isPublicProduct) : [])
         }
     this.setData({ catalog: source, catalogReady: !!(bookingResult && bookingResult.success) }, done)
   },
@@ -106,12 +117,13 @@ Page({
     this.applySpotList(list)
   },
 
-  applySpotList(list = []) {
+  applySpotList(list = [], failureMessage = '') {
     const normalized = (list || []).filter(Boolean)
-    const spot = normalized.find(item => item._id === this.data.id)
+    const requestedId = String(this.data.id || '')
+    const spot = normalized.find(item => String(item._id || item.id || '') === requestedId)
     this.setData({ _spotList: normalized }, () => {
       if (!spot) {
-        this.setData({ error: '打卡点不存在', loading: false })
+        this.setData({ error: failureMessage || '打卡点不存在', loading: false })
         return
       }
       this.applySpot(spot)
@@ -142,9 +154,12 @@ Page({
   },
 
   resolveSpotGuides(spot = {}) {
-    const spotId = spot._id
+    const spotId = String(spot._id || '')
     const guides = (this.data.catalog && this.data.catalog.guides) || []
-    return guides.filter(g => g.spotId === spotId || (Array.isArray(g.spotIds) && g.spotIds.includes(spotId)))
+    return guides.filter(guide => {
+      const ids = Array.isArray(guide.spotIds) ? guide.spotIds.map(String) : []
+      return String(guide.spotId || '') === spotId || ids.includes(spotId)
+    })
   },
 
   onPackageTap(e) {
@@ -167,7 +182,7 @@ Page({
   },
 
   resolveSpotProducts(spot = {}) {
-    const spotId = spot._id
+    const spotId = String(spot._id || spot.id || '')
     const catalog = this.data.catalog || {}
     const series = catalog.allSeries || []
     const albums = catalog.allAlbums || []
@@ -188,8 +203,12 @@ Page({
     }))
     const videos = products.filter(item => isVideo(item) && belongsToSpot(item))
     const peripherals = (catalog.peripherals || []).filter(item => {
-      if (!spotId || !item.spotId || item.mode === '全城通用') return true
-      return item.spotId === spotId || (Array.isArray(item.spotIds) && item.spotIds.includes(spotId))
+      const relatedSpotIds = [
+        ...(Array.isArray(item.spotIds) ? item.spotIds : []),
+        item.spotId
+      ].filter(value => value !== undefined && value !== null && String(value).trim()).map(String)
+      const isGlobal = !relatedSpotIds.length || item.mode === '全城通用'
+      return !spotId || isGlobal || relatedSpotIds.includes(spotId)
     }).slice(0, 10)
     const photoPackages = products.filter(item => !isVideo(item) && !isVideoSingle(item) && belongsToSpot(item))
     const unique = list => list.filter((item, index, rows) => {
@@ -254,7 +273,7 @@ Page({
   // 相关推荐：同页内直接切换展示，避免反复压栈
   onRecTap(e) {
     const id = e.currentTarget.dataset.id
-    const spot = (this.data._spotList || []).find(s => s._id === id)
+    const spot = (this.data._spotList || []).find(s => String(s._id || s.id || '') === String(id || ''))
     if (!spot) return
     this.setData({ id })
     this.applySpot(spot)

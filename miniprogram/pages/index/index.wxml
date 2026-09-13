@@ -56,14 +56,14 @@
     <swiper class="banner-swiper" indicator-dots="{{false}}" autoplay="{{bannerAutoplay}}" interval="4000" circular bindchange="onBannerChange" current="{{bannerIndex}}">
       <block wx:for="{{banners}}" wx:key="_id">
         <swiper-item>
-          <view class="banner-click-area">
-            <video wx:if="{{item.type === 'video'}}" class="banner-video" src="{{item.url}}" poster="{{item.cover || '/images/placeholder.png'}}" object-fit="cover" muted loop autoplay="{{index === bannerIndex}}" controls="{{false}}" show-center-play-btn="{{false}}" bindtap="goBanner" data-index="{{index}}" bindplay="onVideoPlay" bindpause="onVideoPause" id="video-{{index}}"></video>
-            <image wx:else class="banner-img" src="{{item.url || '/images/placeholder.png'}}" mode="aspectFill" lazy-load bindtap="goBanner" data-index="{{index}}" />
+          <view class="banner-click-area" bindtap="goBanner" data-index="{{index}}">
+            <video wx:if="{{item.type === 'video'}}" class="banner-video" src="{{item.url}}" poster="{{item.cover || '/images/placeholder.png'}}" object-fit="cover" muted loop autoplay="{{index === bannerIndex}}" controls="{{false}}" show-center-play-btn="{{false}}" catchtap="goBanner" data-index="{{index}}" bindplay="onVideoPlay" bindpause="onVideoPause" id="video-{{index}}"></video>
+            <image wx:else class="banner-img" src="{{item.url || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
           </view>
         </swiper-item>
       </block>
     </swiper>
-    <view class="banner-copy">
+    <view class="banner-copy" bindtap="goBanner" data-index="{{bannerIndex}}">
       <text class="banner-kicker">鹿小鸣城市旅拍</text>
       <text class="banner-title">把长沙拍成你的旅行封面</text>
     </view>
@@ -71,6 +71,22 @@
       <view wx:for="{{banners}}" wx:key="_id" class="banner-dot {{index === bannerIndex ? 'active' : ''}}"></view>
     </view>
   </view>
+
+  <!-- 首页快捷入口：后台可配置，点击统一走 goQuickNav。 -->
+  <scroll-view wx:if="{{quickNav.length}}" class="quick-nav" scroll-x show-scrollbar="{{false}}">
+    <view
+      wx:for="{{quickNav}}"
+      wx:key="index"
+      class="quick-nav-item"
+      data-index="{{index}}"
+      data-target-type="{{item.targetType}}"
+      data-target-id="{{item.targetId || item.id}}"
+      bindtap="goQuickNav"
+    >
+      <view class="quick-nav-icon">{{item.icon || '·'}}</view>
+      <text class="quick-nav-label">{{item.label || item.name}}</text>
+    </view>
+  </scroll-view>
 
   <view class="feature-zone lxm-panel" wx:if="{{moduleConfig.features.visible !== false}}">
     <view class="section-header">
@@ -150,7 +166,15 @@
       </view>
       <scroll-view wx:if="{{filteredAlbums.length}}" class="strip-scroll" scroll-x show-scrollbar="{{false}}">
         <block wx:for="{{filteredAlbums}}" wx:key="albumId">
-          <lxm-album-card mode="compact" item="{{item}}" bind:tap="goBookingAlbum" />
+          <lxm-album-card
+            mode="compact"
+            item="{{item}}"
+            data-id="{{item.albumId || item._id}}"
+            data-album-id="{{item.albumId || item._id}}"
+            data-series-id="{{item.seriesId}}"
+            data-spot-id="{{item.spotId}}"
+            bind:tap="goBookingAlbum"
+          />
         </block>
       </scroll-view>
       <view wx:else class="strip-empty">{{activeSpotName ? '该打卡点下暂无照片留影' : '新的照片留影正在整理中'}}</view>
@@ -164,7 +188,15 @@
       />
       <scroll-view class="video-product-scroll" scroll-x show-scrollbar="{{false}}" wx:if="{{filteredVideos.length}}">
         <block wx:for="{{filteredVideos}}" wx:key="_id">
-          <lxm-video-card item="{{item}}" mode="product" variant="{{item.videoCardVariant}}" bind:tap="goVideoProduct" />
+          <lxm-video-card
+            item="{{item}}"
+            mode="product"
+            variant="{{item.videoCardVariant}}"
+            data-id="{{item._id}}"
+            data-product-id="{{item._id}}"
+            data-spot-id="{{item.spotId}}"
+            bind:tap="goVideoProduct"
+          />
         </block>
       </scroll-view>
       <view wx:else class="strip-empty">{{activeSpotName ? '该打卡点下暂无视频摄像' : '新的视频摄像正在整理中'}}</view>
@@ -180,7 +212,13 @@
       <scroll-view class="package-scroll" scroll-x show-scrollbar="{{false}}" wx:if="{{filteredPackages.length}}">
         <block wx:for="{{filteredPackages}}" wx:key="_id">
           <view class="pkg-scroll-item">
-            <lxm-package-card item="{{item}}" bind:tap="goPackage" />
+            <lxm-package-card
+              item="{{item}}"
+              data-id="{{item._id}}"
+              data-package-id="{{item._id}}"
+              data-spot-id="{{item.spotId}}"
+              bind:tap="goPackage"
+            />
           </view>
         </block>
       </scroll-view>

@@ -92,6 +92,54 @@
   font-weight: 900;
 }
 
+.amount-card .info-row {
+  margin-bottom: 10rpx;
+}
+
+.payment-pending-card {
+  border: 2rpx solid var(--lxm-c-gold);
+}
+
+.timeline-card {
+  padding-bottom: 12rpx;
+}
+
+.timeline-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16rpx;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid var(--lxm-c-gray-300);
+}
+
+.timeline-row:last-child {
+  border-bottom: 0;
+}
+
+.timeline-dot {
+  width: 14rpx;
+  height: 14rpx;
+  margin-top: 8rpx;
+  border-radius: 50%;
+  background: var(--lxm-c-red);
+  flex: 0 0 auto;
+}
+
+.timeline-copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 4rpx;
+  color: var(--lxm-c-gray-800);
+  font-size: var(--lxm-fz-sm);
+  line-height: 1.45;
+}
+
+.timeline-time {
+  color: var(--lxm-c-gray-600);
+  font-size: var(--lxm-fz-2xs);
+}
+
 .order-header {
   margin-left: -24rpx;
   margin-right: -24rpx;
@@ -200,7 +248,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 86rpx;
+  width: 70rpx;
 }
 
 .step-dot {
@@ -225,7 +273,7 @@
 
 .step-label {
   color: var(--lxm-c-gray-650);
-  font-size: var(--lxm-fz-2xs);
+  font-size: 20rpx;
   white-space: nowrap;
 }
 

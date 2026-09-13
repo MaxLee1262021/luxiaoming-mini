@@ -31,23 +31,22 @@ Component({
     onViewPolicy() {
       wx.navigateTo({ url: '/pages/privacy/privacy' })
     },
-    _resolve(allow) {
+    _resolve(result) {
       const app = getApp()
       const resolve = app.globalData._privacyResolve
-      const event = app.globalData._privacyEvent
       app.globalData._privacyNeed = false
       app.globalData._privacyResolve = null
-      app.globalData._privacyEvent = null
+      app.globalData._privacyEventInfo = null
       this.hide()
       if (typeof resolve === 'function') {
-        resolve({ event, allow })
+        resolve(result)
       }
     },
     onAgree() {
-      this._resolve(true)
+      this._resolve({ event: 'agree', buttonId: 'privacy-agree' })
     },
     onDecline() {
-      this._resolve(false)
+      this._resolve({ event: 'disagree' })
     }
   }
 })

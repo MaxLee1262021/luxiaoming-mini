@@ -12,7 +12,7 @@
     </scroll-view>
     <view class="privacy-actions">
       <button class="privacy-btn decline" bindtap="onDecline">暂不使用</button>
-      <button class="privacy-btn agree" bindtap="onAgree">同意并继续</button>
+      <button id="privacy-agree" class="privacy-btn agree" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onAgree">同意并继续</button>
     </view>
   </view>
 </view>

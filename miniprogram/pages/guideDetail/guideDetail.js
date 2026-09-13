@@ -3,6 +3,7 @@ const guideApi = require('../../api/guide')
 const demoData = require('../../utils/demoData')
 const { buildUrlWithSource } = require('../../utils/query')
 const { normalizePackage, isVideoSingle } = require('../../utils/product')
+const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
   data: {
@@ -30,7 +31,7 @@ Page({
         this.setData({ loading: false, error: '攻略不存在' })
         return
       }
-      const relatedSpot = this.resolveSpot(guide.spotId)
+      const relatedSpot = this.resolveSpot(guide.spotId, guide.spotName)
       const target = this.resolveTarget(guide.targetPackageId)
       this.setData({ guide, relatedSpot, target, loading: false })
     } catch (err) {
@@ -40,14 +41,14 @@ Page({
   },
 
   // 解析关联打卡点（用于"看打卡点"跳转）
-  resolveSpot(spotId = '') {
-    const spot = (demoData.spots || []).find(s => s._id === spotId) || {}
-    return { id: spot._id || spotId, name: spot.name || '', cover: spot.cover || spot.image || '' }
+  resolveSpot(spotId = '', spotName = '') {
+    return { id: spotId, name: spotName || '', cover: '' }
   },
 
   // 解析"预约同款"目标：在 demo 商品里按 targetPackageId 找类型，拼出正确的详情页路径
   resolveTarget(targetPackageId = '') {
     if (!targetPackageId) return null
+    if (!isExplicitDemoMode()) return null
     const allPackages = [...(demoData.packages || []), ...(demoData.videoProducts || [])]
     const pkg = allPackages.find(p => p._id === targetPackageId)
     if (!pkg) return null

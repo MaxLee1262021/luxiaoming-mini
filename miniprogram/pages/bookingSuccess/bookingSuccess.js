@@ -33,6 +33,10 @@ Page({
     contactWechat: '',
     message: '',
     bookingMode: 'consult',
+    statusText: '待支付订金',
+    workflowStage: 'awaiting_deposit',
+    depositDue: 0,
+    finalDue: 0,
     loading: false
   },
 
@@ -42,21 +46,27 @@ Page({
 
     this.setData({
       orderNo: options.orderNo || '',
+      orderId: options.orderId || '',
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || '',
       ...decodedOptions,
       bookingMode: options.bookingMode || 'consult'
     })
 
-    if (options.orderNo) this.loadOrderDetail(options.orderNo)
+    if (options.orderNo || options.orderId) this.loadOrderDetail(options.orderNo, options.orderId)
   },
 
-  async loadOrderDetail(orderNo) {
+  async loadOrderDetail(orderNo, orderId = '') {
     this.setData({ loading: true })
     try {
-      const res = await orderApi.getOrderDetail({ orderNo })
+      const res = await orderApi.getOrderDetail(orderId ? { orderId } : { orderNo })
       if (res && res.success && res.data) {
-        this.setData(this.pickSuccessOrderFields(normalizeOrder(res.data || {})))
+        const normalized = normalizeOrder(res.data || {})
+        this.setData({
+          orderNo: normalized.orderNo || orderNo || this.data.orderNo,
+          orderId: normalized._id || orderId || this.data.orderId,
+          ...this.pickSuccessOrderFields(normalized)
+        })
       }
     } catch (err) {
       console.error('bookingSuccess loadOrderDetail failed', err)
@@ -67,7 +77,8 @@ Page({
 
   pickSuccessOrderFields(order = {}) {
     return {
-      orderId: order._id || '',
+      orderId: order._id || order.id || '',
+      orderNo: order.orderNo || this.data.orderNo || '',
       packageName: decodeQueryValue(order.packageName) || '预约项目',
       packagePrice: order.packagePrice || 0,
       spotName: decodeQueryValue(order.spotName) || '客服确认中',
@@ -78,7 +89,11 @@ Page({
       contactPhone: decodeQueryValue(order.contactPhone),
       contactWechat: decodeQueryValue(order.contactWechat),
       message: decodeQueryValue(order.message),
-      bookingMode: order.bookingMode || 'consult'
+      bookingMode: order.bookingMode || 'consult',
+      statusText: order.statusText || order.customerStatus || '待支付订金',
+      workflowStage: order.workflowStage || 'awaiting_deposit',
+      depositDue: Number(order.depositDue || 0),
+      finalDue: Number(order.finalDue || 0)
     }
   },
 
@@ -115,6 +130,12 @@ Page({
 
   goMyOrders() {
     wx.navigateTo({ url: this.buildUrl('/pages/myOrders/myOrders') })
+  },
+
+  goOrderDetail() {
+    const id = this.data.orderId || this.data.orderNo
+    if (!id) return this.goMyOrders()
+    wx.navigateTo({ url: this.buildUrl('/pages/orderDetail/orderDetail', { id }) })
   },
 
   goBookingAgain() {
