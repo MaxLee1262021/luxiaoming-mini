@@ -22,6 +22,7 @@
     "pages/privacy/privacy"
   ],
   "usingComponents": {
+    "lxm-file-picker": "/components/lxm-file-picker/lxm-file-picker",
     "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal",
     "lxm-icon": "/components/lxm-icon/lxm-icon",
     "lxm-nav-bar": "/components/lxm-nav-bar/lxm-nav-bar",

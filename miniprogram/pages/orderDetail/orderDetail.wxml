@@ -8,10 +8,11 @@
     <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
   </view>
 
-  <view class="state-page" wx:elif="{{error}}">
-    <view class="state-title">{{error}}</view>
-    <view class="state-desc">可返回"我的订单"重新进入，或联系客服协助查询。</view>
-    <button class="state-btn" bindtap="retry">重新加载</button>
+    <view class="state-page" wx:elif="{{error}}">
+      <view class="state-title">{{error}}</view>
+      <view class="state-desc">可返回"我的订单"重新进入，或联系客服协助查询。</view>
+      <button class="state-btn" bindtap="retry">重新加载</button>
+      <button class="state-btn state-contact-btn" bindtap="contactService">联系客服</button>
   </view>
 
   <view class="order-detail-page" wx:else>
@@ -29,7 +30,7 @@
       <view class="status-tag status-{{order.status}}">{{order.statusText}}</view>
     </view>
 
-    <view class="progress-section" wx:if="{{order.status !== 'canceled' && !order.isAfterSale}}">
+    <view class="progress-section" wx:if="{{order.workflowStage !== 'cancelled' && !order.isAfterSale}}">
       <view class="progress-bar">
         <view class="progress-step {{order.statusIndex >= 0 ? 'active' : ''}}">
           <view class="step-dot">1</view>
@@ -70,20 +71,26 @@
     </view>
 
     <view class="info-card">
-      <view class="card-title">拍摄信息</view>
+      <view class="card-title">{{order.snapshotLabel}}</view>
       <view class="info-row"><text>旅拍套餐</text><text class="highlight">{{order.packageName}} ¥{{order.packagePrice}}</text></view>
       <view class="info-row" wx:if="{{order.spotName}}"><text>打卡点</text><text>{{order.spotName}}</text></view>
       <view class="info-row" wx:if="{{order.seriesName}}"><text>拍摄风格</text><text>{{order.seriesName}}</text></view>
-      <view class="info-row"><text>时间</text><text>{{order.date || '客服确认后沟通'}} {{order.timePeriod}}</text></view>
+      <view class="info-row"><text>{{order.scheduleLabel}}</text><text>{{order.date || '待客服确认'}} {{order.timePeriod}}</text></view>
+      <view class="snapshot-hint">{{order.scheduleHint}}</view>
       <view class="info-row"><text>类型</text><text>{{order.type === 'video' ? '视频摄像' : '照片留影'}}</text></view>
     </view>
 
     <view class="info-card amount-card">
-      <view class="card-title">订单金额</view>
-      <view class="info-row"><text>确认总价</text><text class="highlight">¥{{order.totalAmount || order.packagePrice || 0}}</text></view>
-      <view class="info-row"><text>已确认定金</text><text>¥{{order.depositPaid || 0}}</text></view>
-      <view class="info-row"><text>已确认尾款</text><text>¥{{order.finalPaid || 0}}</text></view>
-      <view class="info-row"><text>待收金额</text><text class="highlight">¥{{order.dueAmount || 0}}</text></view>
+      <view class="card-title">{{order.hasConfirmedSnapshot ? '确认金额' : '预约金额参考'}}</view>
+      <view class="info-row"><text>{{order.hasConfirmedSnapshot ? '确认总价' : '当前预计金额'}}</text><text class="highlight">¥{{order.totalAmount || order.packagePrice || 0}}</text></view>
+      <block wx:if="{{order.hasConfirmedSnapshot}}">
+        <view class="info-row"><text>定金应收</text><text>¥{{order.depositDue || 0}}</text></view>
+        <view class="info-row"><text>已确认定金</text><text>¥{{order.depositPaid || 0}}</text></view>
+        <view class="info-row"><text>尾款应收</text><text>¥{{order.finalDue || 0}}</text></view>
+        <view class="info-row"><text>已确认尾款</text><text>¥{{order.finalPaid || 0}}</text></view>
+        <view class="info-row"><text>待收金额</text><text class="highlight">¥{{order.dueAmount || 0}}</text></view>
+      </block>
+      <view class="snapshot-hint" wx:else>客服确认服务内容、档期和成交金额后，会在这里展示定金与尾款安排。</view>
     </view>
 
     <view class="info-card">
@@ -98,18 +105,20 @@
       <view class="info-content">{{order.message}}</view>
     </view>
 
-    <view class="payment-card" wx:if="{{order.canPay || order.paymentPhase === 'deposit' || order.paymentPhase === 'final'}}">
-      <view class="card-title">待支付</view>
+    <view class="payment-card" wx:if="{{order.canPay}}">
+      <view class="card-title">收款核对</view>
       <view class="payment-row" wx:if="{{(order.paymentPhase || 'deposit') === 'deposit'}}"><text>本次应付订金</text><text class="payment-amount">¥{{order.depositDue}}</text></view>
       <view class="payment-row" wx:if="{{order.paymentPhase === 'final'}}"><text>本次应付尾款</text><text class="payment-amount">¥{{order.finalDue}}</text></view>
-      <view class="payment-hint">{{paymentMessage || '当前仅生成微信支付接入占位单，不会唤起微信支付；到账后以客服/财务核对结果为准。'}}</view>
-      <button class="payment-btn" loading="{{paymentSubmitting}}" disabled="{{paymentSubmitting}}" bindtap="handlePaymentTap" data-phase="{{order.paymentPhase || (order.workflowStage === 'awaiting_deposit' ? 'deposit' : 'final')}}">{{paymentStatus === 'pending' ? '查询支付状态' : '生成支付单'}}</button>
+      <view class="payment-hint">{{paymentMessage || '当前版本仅生成待核对收款申请，不提供微信支付；到账以财务确认结果为准。'}}</view>
+      <button class="payment-btn" loading="{{paymentSubmitting}}" disabled="{{paymentSubmitting}}" bindtap="handlePaymentTap" data-phase="{{order.paymentPhase}}">{{paymentStatus === 'pending' ? '查询核对状态' : '生成收款核对单'}}</button>
+      <view class="test-payment-hint" wx:if="{{order.canRunTestPayment}}">仅测试环境：此操作会调用测试支付服务，不会发起微信支付。</view>
+      <button class="test-payment-btn" wx:if="{{order.canRunTestPayment}}" loading="{{testPaymentSubmitting}}" disabled="{{testPaymentSubmitting}}" bindtap="runTestPayment">测试支付（仅测试环境）</button>
     </view>
 
     <view class="payment-card payment-pending-card" wx:if="{{paymentStatus === 'pending' && order.workflowStage !== 'awaiting_deposit' && order.workflowStage !== 'awaiting_final_payment'}}">
       <view class="card-title">支付处理中</view>
-      <view class="payment-hint">支付单已生成，等待客服/财务确认到账。</view>
-      <button class="payment-btn" loading="{{paymentSubmitting}}" bindtap="refreshPaymentStatus">查询支付状态</button>
+      <view class="payment-hint">收款核对单已生成，等待客服/财务确认到账。</view>
+      <button class="payment-btn" loading="{{paymentSubmitting}}" bindtap="refreshPaymentStatus">查询核对状态</button>
     </view>
 
     <view class="info-card timeline-card" wx:if="{{order.statusLogs && order.statusLogs.length}}">
@@ -120,15 +129,67 @@
       </view>
     </view>
 
-    <view class="deliver-card" wx:if="{{order.workflowStage === 'delivered' || order.workflowStage === 'completed' || order.status === 'delivered' || order.status === 'completed' || order.deliveryRecord}}">
+    <view class="deliver-card" wx:if="{{order.deliveryVisible}}">
       <view class="card-title">成片交付</view>
-      <view class="deliver-desc">成片与精修由鹿小鸣摄影团队完成后，会通过企业微信直接发给你，不在小程序内下载。</view>
+      <view class="deliver-desc">已发布的成片可预览并保存到相册。</view>
+      <view class="delivered-file" wx:for="{{deliveryFiles}}" wx:key="id">
+        <view class="delivered-file-copy"><text class="file-kind">{{item.type === 'video' ? '视频' : '照片'}}</text><text>{{item.name}}</text></view>
+        <view class="delivered-file-actions">
+          <button size="mini" bindtap="previewOrderFile" data-index="{{index}}">预览</button>
+          <button size="mini" bindtap="saveOrderFile" data-index="{{index}}" disabled="{{!!fileBusyId}}">保存到相册</button>
+        </view>
+      </view>
+      <view class="deliver-desc" wx:if="{{!deliveryFiles.length}}">本单暂无线上成片，请联系客服获取交付信息。</view>
+      <view class="file-download-progress" wx:if="{{fileBusyId}}"><text>下载中 {{fileProgress}}%</text><button size="mini" bindtap="cancelFileDownload">取消下载</button></view>
       <button class="deliver-btn" bindtap="contactService">去企业微信联系客服</button>
     </view>
+
+    <view class="info-card" wx:if="{{order.canCancel}}">
+      <view class="card-title">取消预约</view>
+      <view class="deliver-desc">{{order.cancelRule || '当前预约尚未进入服务确认或收款核对阶段，可提交取消申请。'}}</view>
+      <button class="cancel-order-btn" bindtap="openCancel">取消本次预约</button>
+    </view>
+
+    <view class="info-card" wx:if="{{!isDemo}}">
+      <view class="card-title">售后服务</view>
+      <view class="deliver-desc" wx:if="{{!order.canCancel && order.cancelReason}}">{{order.cancelReason}}</view>
+      <view class="deliver-desc" wx:if="{{!order.canCancel && !order.cancelReason && order.canAfterSale}}">当前阶段不支持自助取消；可提交售后申请，或联系客户服务处理。</view>
+      <view class="deliver-desc" wx:if="{{afterSaleRecordsLoading}}">正在加载售后记录…</view>
+      <view wx:if="{{afterSaleRecordsError}}"><text class="file-action-error">{{afterSaleRecordsError}}</text><button size="mini" bindtap="loadAfterSales">重新加载</button></view>
+      <view class="after-sale-record" wx:for="{{afterSaleRecords}}" wx:key="id" wx:for-item="ticket" wx:for-index="ticketIndex">
+        <view class="info-row"><text>{{ticket.type}}</text><text>{{ticket.customerVisibleStatus || ticket.status}}</text></view>
+        <view class="deliver-desc">{{ticket.reason}}</view>
+        <view class="deliver-desc">{{ticket.createdAt}}</view>
+        <button class="evidence-preview" size="mini" wx:for="{{ticket.attachments}}" wx:key="id" bindtap="previewOrderFile" data-ticket="{{ticketIndex}}" data-index="{{index}}">查看凭证 {{index + 1}}</button>
+      </view>
+      <button wx:if="{{canRequestAfterSale}}" class="deliver-btn" bindtap="openAfterSale">申请售后</button>
+    </view>
+    <view class="file-action-error" wx:if="{{fileActionError}}">{{fileActionError}}</view>
 
     <view class="footer-action">
       <button class="contact-btn" bindtap="contactService">去企业微信联系客服</button>
       <button class="booking-btn" bindtap="goBookingAgain">再约一单</button>
+    </view>
+  </view>
+  <view wx:if="{{afterSaleVisible}}" class="after-sale-mask" catchtap="closeAfterSale">
+    <view class="after-sale-panel" catchtap="stopPanelTap">
+      <view class="after-sale-hd"><text class="after-sale-title">申请售后</text><button size="mini" disabled="{{afterSaleSubmitting}}" bindtap="closeAfterSale">关闭</button></view>
+      <scroll-view scroll-y class="after-sale-form-scroll">
+        <picker range="{{afterSaleTypes}}" value="{{afterSaleTypeIndex}}" bindchange="onAfterSaleType" disabled="{{afterSaleSubmitting}}"><view class="after-sale-type">售后类型：{{afterSaleTypes[afterSaleTypeIndex]}}　›</view></picker>
+        <textarea class="after-sale-textarea" value="{{afterSaleReason}}" maxlength="2000" placeholder="请说明遇到的问题（至少 5 个字）" disabled="{{afterSaleSubmitting}}" bindinput="onAfterSaleReason" />
+        <lxm-file-picker order-id="{{order._id}}" disabled="{{afterSaleSubmitting}}" bind:change="onAfterSaleFiles" />
+        <view class="file-action-error" wx:if="{{afterSaleError}}">{{afterSaleError}}</view>
+      </scroll-view>
+      <view class="after-sale-actions"><button class="after-sale-cancel" disabled="{{afterSaleSubmitting}}" bindtap="closeAfterSale">取消</button><button class="after-sale-submit" loading="{{afterSaleSubmitting}}" disabled="{{afterSalePending || afterSaleSubmitting}}" bindtap="submitAfterSale">提交申请</button></view>
+    </view>
+  </view>
+  <view wx:if="{{cancelVisible}}" class="after-sale-mask" catchtap="closeCancel">
+    <view class="after-sale-panel" catchtap="stopPanelTap">
+      <view class="after-sale-hd"><text class="after-sale-title">取消预约</text><button size="mini" disabled="{{cancelSubmitting}}" bindtap="closeCancel">关闭</button></view>
+      <view class="after-sale-subtitle">提交后会取消本次预约申请。服务确认或收款核对开始后，请改用售后服务。</view>
+      <textarea class="after-sale-textarea" value="{{cancelFormReason}}" maxlength="500" placeholder="请填写取消原因（至少 2 个字）" disabled="{{cancelSubmitting}}" bindinput="onCancelReason" />
+      <view class="file-action-error" wx:if="{{cancelError}}">{{cancelError}}</view>
+      <view class="after-sale-actions"><button class="after-sale-cancel" disabled="{{cancelSubmitting}}" bindtap="closeCancel">暂不取消</button><button class="cancel-order-submit" loading="{{cancelSubmitting}}" disabled="{{cancelSubmitting}}" bindtap="submitCancel">确认取消预约</button></view>
     </view>
   </view>
 </view>

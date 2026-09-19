@@ -1,0 +1,14 @@
+<view class="file-picker">
+  <view class="file-hint">凭证图片（{{items.length}}/9），每张不超过 20 MB</view>
+  <view class="file-item" wx:for="{{items}}" wx:key="key">
+    <image class="file-thumb" src="{{item.path}}" mode="aspectFill" bindtap="preview" data-path="{{item.path}}" />
+    <view class="file-copy">
+      <text wx:if="{{item.status === 'uploading'}}">{{item.progress === 100 ? '正在确认上传…' : ('上传中 ' + item.progress + '%')}}</text>
+      <text wx:elif="{{item.status === 'done'}}">上传完成</text>
+      <text wx:else class="file-error">{{item.error}}</text>
+      <button wx:if="{{item.status === 'failed'}}" size="mini" disabled="{{disabled}}" bindtap="retry" data-key="{{item.key}}">重试</button>
+    </view>
+    <button class="file-remove" size="mini" disabled="{{disabled}}" bindtap="remove" data-key="{{item.key}}">{{item.status === 'uploading' ? '取消' : '移除'}}</button>
+  </view>
+  <button wx:if="{{items.length < 9}}" class="file-add" loading="{{selecting}}" disabled="{{disabled || selecting}}" bindtap="choose">添加凭证图片</button>
+</view>

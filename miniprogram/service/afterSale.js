@@ -15,7 +15,7 @@ function validateAfterSaleReason(value = '') {
 
 function buildAfterSalePayload(order = {}, reason = '') {
   return {
-    orderId: order._id || '',
+    orderId: order._id || order.id || '',
     orderNo: order.orderNo || '',
     packageName: order.packageName || '',
     reason: normalizeReason(reason)

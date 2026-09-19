@@ -1,12 +1,14 @@
 const app = getApp()
-const demoData = require('../../utils/demoData')
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
 const { normalizeOrder, getOrderStatusDesc } = require('../../utils/order')
-const { isExplicitDemoMode } = require('../../config/env')
+const orderFiles = require('../../service/orderFileActions')
+const { normalizeFile } = require('../../service/mediaFiles')
 
 Page({
+  ...orderFiles.actions,
   data: {
+    ...orderFiles.data,
     id: '',
     shopId: '',
     scene: '',
@@ -17,7 +19,12 @@ Page({
     isDemo: false,
     paymentSubmitting: false,
     paymentStatus: 'not_created',
-    paymentMessage: ''
+    paymentMessage: '',
+    testPaymentSubmitting: false,
+    cancelVisible: false,
+    cancelFormReason: '',
+    cancelSubmitting: false,
+    cancelError: ''
   },
 
   onLoad(options = {}) {
@@ -31,6 +38,8 @@ Page({
   },
 
 
+  onUnload() { this.cancelFileDownload() },
+
   async loadOrder() {
     if (!this.data.id) {
       this.setData({ loading: false, error: '缺少订单信息' })
@@ -40,11 +49,9 @@ Page({
     try {
       const isOrderNo = /^(LXM|LS)/.test(this.data.id)
       const res = await orderApi.getOrderDetail(isOrderNo ? { orderNo: this.data.id } : { orderId: this.data.id })
-      // 仅云函数调用失败才用演示订单兜底；
-      // 调用成功但无数据（订单不存在）时显示错误态，不展示假订单
+      // Never replace a failed customer-order request with a sample order.
       if (!res || !res.success) {
-        if (isExplicitDemoMode()) this.applyDemoOrder()
-        else this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
+        this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
       } else if (res.data) {
         this.applyOrder(normalizeOrder(res.data), false)
       } else {
@@ -52,8 +59,7 @@ Page({
       }
     } catch (err) {
       console.error('getOrderDetail error', err)
-      if (isExplicitDemoMode()) this.applyDemoOrder()
-      else this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
+      this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
     } finally {
       this.setData({ loading: false })
     }
@@ -63,17 +69,14 @@ Page({
     const pending = order.paymentPending || Number(order.pendingPaymentAmount || 0) > 0 || order.paymentStatus === 'pending'
     this.setData({
       order,
+      deliveryFiles: (order.deliverFiles || []).map(normalizeFile),
       statusDesc: getOrderStatusDesc(order.workflowStage || order.status),
       error: '',
       isDemo,
       paymentStatus: order.paymentStatus || (pending ? 'pending' : 'not_created'),
-      paymentMessage: pending ? (this.data.paymentMessage || '支付单已生成，等待客服/财务确认到账。') : ''
+      paymentMessage: pending ? (this.data.paymentMessage || '收款核对单已生成，等待客服/财务确认到账。') : ''
     })
-  },
-
-  applyDemoOrder() {
-    const demoOrder = demoData.orders.find(item => item._id === this.data.id || item.orderNo === this.data.id) || demoData.orders[0]
-    this.applyOrder(normalizeOrder(demoOrder), true)
+    if (!isDemo) this.loadAfterSales()
   },
 
   copyOrderNo() {
@@ -114,6 +117,10 @@ Page({
     const phase = (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.phase) || this.data.order.paymentPhase
     const order = this.data.order || {}
     if (!phase || !order._id || this.data.paymentSubmitting) return
+    if (!order.canPay || phase !== order.paymentPhase) {
+      wx.showToast({ title: '当前阶段不能创建支付核对单', icon: 'none' })
+      return
+    }
     const amount = phase === 'deposit' ? Number(order.depositDue || 0) : Number(order.finalDue || 0)
     if (!(amount > 0)) {
       wx.showToast({ title: '当前没有待支付金额', icon: 'none' })
@@ -136,9 +143,9 @@ Page({
       const payment = result.data || result
       this.setData({
         paymentStatus: payment.status || 'pending',
-        paymentMessage: payment.status === 'confirmed' ? '支付已确认到账。' : '支付单已生成，当前版本暂不唤起微信支付，请联系客服完成线下收款并由财务确认。'
+        paymentMessage: payment.status === 'confirmed' ? '支付已由财务确认到账。' : '待核对收款申请已生成，请按客服指引完成线下收款，到账后由财务确认。'
       })
-      wx.showToast({ title: payment.status === 'confirmed' ? '支付已确认' : '支付单已生成', icon: 'none', duration: 2600 })
+      wx.showToast({ title: payment.status === 'confirmed' ? '到账已确认' : '核对单已生成', icon: 'none', duration: 2600 })
       await this.loadOrder()
     } catch (err) {
       console.error('create payment failed', err)
@@ -152,6 +159,71 @@ Page({
   handlePaymentTap(e) {
     if (this.data.paymentStatus === 'pending') return this.refreshPaymentStatus()
     return this.createPayment(e)
+  },
+
+  async runTestPayment() {
+    const order = this.data.order || {}
+    const phase = order.paymentPhase
+    if (!order.canRunTestPayment || !order._id || !phase || this.data.testPaymentSubmitting) return
+    this.setData({ testPaymentSubmitting: true })
+    try {
+      const storageKey = `lxm_test_payment_${order._id}_${phase}`
+      let idempotencyKey = wx.getStorageSync(storageKey)
+      if (!idempotencyKey) {
+        idempotencyKey = `mini-test-${phase}-${order._id}-${Date.now()}`
+        wx.setStorageSync(storageKey, idempotencyKey)
+      }
+      const result = await orderApi.testPayment({ orderId: order._id, phase, idempotencyKey })
+      if (!result || !result.success) throw new Error((result && (result.error || result.message)) || '测试支付失败')
+      wx.showToast({ title: '测试支付已确认', icon: 'success' })
+      await this.loadOrder()
+    } catch (err) {
+      console.error('test payment failed', err)
+      wx.showToast({ title: (err && err.message) || '测试支付失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ testPaymentSubmitting: false })
+    }
+  },
+
+  openCancel() {
+    if (!this.data.order.canCancel || this.data.cancelSubmitting) return
+    this.setData({ cancelVisible: true, cancelFormReason: '', cancelError: '' })
+  },
+
+  closeCancel() {
+    if (this.data.cancelSubmitting) return
+    this.setData({ cancelVisible: false, cancelError: '' })
+  },
+
+  onCancelReason(e) { this.setData({ cancelFormReason: e.detail.value }) },
+
+  async submitCancel() {
+    const order = this.data.order || {}
+    const reason = String(this.data.cancelFormReason || '').trim()
+    if (this.data.cancelSubmitting || !order.canCancel) return
+    if (reason.length < 2) {
+      this.setData({ cancelError: '请填写至少 2 个字的取消原因' })
+      return
+    }
+    this.setData({ cancelSubmitting: true, cancelError: '' })
+    try {
+      const storageKey = `lxm_cancel_order_${order._id}`
+      let idempotencyKey = wx.getStorageSync(storageKey)
+      if (!idempotencyKey) {
+        idempotencyKey = `mini-cancel-${order._id}-${Date.now()}`
+        wx.setStorageSync(storageKey, idempotencyKey)
+      }
+      const result = await orderApi.cancelOrder({ orderId: order._id, reason, idempotencyKey })
+      if (!result || !result.success) throw new Error((result && (result.error || result.message)) || '取消预约失败')
+      this.setData({ cancelVisible: false, cancelFormReason: '' })
+      wx.showToast({ title: '预约已取消', icon: 'success' })
+      await this.loadOrder()
+    } catch (err) {
+      console.error('cancel order failed', err)
+      this.setData({ cancelError: (err && err.message) || '取消预约失败，请重试' })
+    } finally {
+      this.setData({ cancelSubmitting: false })
+    }
   },
 
   async refreshPaymentStatus() {

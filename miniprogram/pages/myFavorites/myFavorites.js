@@ -1,4 +1,5 @@
 const favorite = require('../../utils/favorite')
+const { refreshFavoriteMedia } = require('../../service/favoriteMedia')
 
 Page({
   data: {
@@ -15,8 +16,14 @@ Page({
     this.loadList()
   },
 
-  loadList() {
-    const list = (favorite.list() || []).map(item => ({
+  async loadList() {
+    this.showList(favorite.list())
+    const list = await refreshFavoriteMedia()
+    this.showList(list)
+  },
+
+  showList(items) {
+    const list = (items || []).map(item => ({
       ...item,
       priceText: item.price != null && item.price !== '' ? '¥' + item.price : ''
     }))

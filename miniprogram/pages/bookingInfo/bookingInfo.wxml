@@ -100,7 +100,13 @@
 
     <view class="card">
       <view class="card-title">拍摄安排</view>
-      <view class="schedule-hint">具体拍摄时间、地点和摄影师由客服在订金确认后与你线下沟通确定。</view>
+      <picker mode="date" value="{{date}}" start="{{minDate}}" bindchange="onDateChange">
+        <view class="picker-value {{date ? '' : 'picker-placeholder'}}">{{date || '请选择期望拍摄日期'}}</view>
+      </picker>
+      <picker range="{{timeOptions}}" value="{{timeIndex}}" bindchange="onTimeChange">
+        <view class="picker-value {{time ? '' : 'picker-placeholder'}}">{{time || '请选择期望拍摄时段'}}</view>
+      </picker>
+      <view class="schedule-hint">以上是你的期望安排。客服确认档期、地点、服务内容和价格后，订单才会进入定金核对阶段。</view>
     </view>
 
     <view class="card">
@@ -127,7 +133,7 @@
           <text class="mode-name">咨询预约</text>
           <view class="mode-check"><lxm-icon type="check" size="22" color="white"></lxm-icon></view>
         </view>
-        <view class="mode-desc">提交后会生成订单和定金支付单。当前版本暂不唤起微信收银台，客服会与你确认拍摄安排并核对到账。</view>
+        <view class="mode-desc">提交后先生成预约申请。客服确认拍摄安排和金额后才会生成定金核对单；当前版本不提供微信支付。</view>
       </view>
     </view>
 

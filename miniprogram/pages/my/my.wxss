@@ -3,18 +3,21 @@
 
 .my-page {
   min-height: 100vh;
-  padding: 0 24rpx calc(40rpx + env(safe-area-inset-bottom));
+  /* Reserve the fixed custom tab bar so the final service rows can scroll fully into view. */
+  padding: 0 24rpx calc(152rpx + env(safe-area-inset-bottom));
   background: var(--lxm-c-bg);
   color: var(--lxm-c-ink);
 }
 
 .user-section {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
-  padding-top: 122rpx;
+  /* The profile row starts below the native capsule, so it can use the full width. */
+  padding-top: calc(var(--nav-top, 26px) + 80rpx);
   padding-bottom: 30rpx;
   padding-left: 24rpx;
-  padding-right: var(--capsule-safe-right, 104px);
+  padding-right: 24rpx;
   margin: 0 -24rpx 22rpx;
   border-radius: 0 0 30rpx 30rpx;
   background:
@@ -23,40 +26,75 @@
   box-shadow: 0 16rpx 34rpx rgba(64,39,26,0.14);
 }
 
-.user-avatar-wrap { flex-shrink: 0; margin-right: 20rpx; }
+.user-avatar-wrap { flex: 0 0 120rpx; width: 120rpx; margin-right: 24rpx; }
+.avatar-select {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 120rpx;
+  min-width: 120rpx;
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  line-height: 1;
+}
+.avatar-select::after { border: 0; }
+.avatar-edit {
+  display: block;
+  width: 120rpx;
+  margin-top: 10rpx;
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  text-align: center;
+  white-space: nowrap;
+}
+.avatar-status { display: flex; align-items: center; gap: 20rpx; padding: 16rpx; font-size: var(--lxm-fz-sm); }
+.avatar-status text { flex: 1; }
 
 .user-avatar {
-  width: 104rpx;
-  height: 104rpx;
+  display: block;
+  width: 112rpx;
+  height: 112rpx;
+  box-sizing: border-box;
   border-radius: 50%;
   background: var(--lxm-c-gray-400);
   border: 4rpx solid rgba(255,255,255,0.32);
 }
 
-.user-detail { flex: 1; min-width: 0; }
+.user-detail { flex: 1 1 0; min-width: 0; }
 
 .user-name-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
+  min-width: 0;
+  gap: 8rpx 12rpx;
   margin-bottom: 8rpx;
 }
 
 .user-nickname {
-  max-width: 330rpx;
-  margin-right: 12rpx;
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
   color: var(--lxm-c-cream);
   font-size: var(--lxm-fz-lg);
   font-weight: var(--lxm-fw-bold);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  word-break: break-all;
+  white-space: normal;
 }
 
 .user-role-tag {
+  flex: 0 0 auto;
   padding: 5rpx 13rpx;
   border-radius: var(--lxm-r-pill);
   font-size: var(--lxm-fz-xs);
   font-weight: var(--lxm-fw-bold);
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 /* 角色标签：统一为品牌暖色系，去除原本的蓝/紫等非品牌色 */
@@ -68,9 +106,11 @@
 .role-shop { background: var(--lxm-c-gold); color: var(--lxm-c-red-ink); }
 
 .user-signature {
+  display: block;
   color: rgba(255,247,239,0.72);
   font-size: var(--lxm-fz-sm);
   line-height: 1.45;
+  word-break: break-all;
 }
 
 .auth-panel {
@@ -285,17 +325,26 @@
 
 .order-status-row {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 6rpx;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  column-gap: 0;
+  row-gap: 20rpx;
 }
 
 .order-status-item {
+  grid-column: span 3;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   min-width: 0;
-  padding: 2rpx 0;
+  min-height: 128rpx;
+  padding: 6rpx 0;
+  box-sizing: border-box;
+}
+
+/* Four evenly sized statuses on the first row, then three balanced statuses below. */
+.order-status-item:nth-child(n + 5) {
+  grid-column: span 4;
 }
 
 /* 无障碍：视觉不变，透明热区高度扩至 88rpx（WCAG 2.5.5） */
@@ -344,12 +393,16 @@
   color: var(--lxm-c-muted-2);
   font-size: var(--lxm-fz-xs);
   font-weight: var(--lxm-fw-bold);
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .status-num {
   margin-top: 4rpx;
   color: var(--lxm-c-muted-2);
   font-size: var(--lxm-fz-xs);
+  line-height: 1.3;
+  white-space: nowrap;
 }
 
 .section-title-text {

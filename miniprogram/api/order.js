@@ -20,10 +20,19 @@ function getPaymentStatus(params = {}) {
   return callCloud('getPaymentStatus', params)
 }
 
+function testPayment(params = {}) { return callCloud('testPayment', params) }
+function cancelOrder(params = {}) { return callCloud('cancelOrder', params) }
+function submitAfterSale(params) { return callCloud('submitAfterSale', params) }
+function getMyAfterSales(params) { return callCloud('getMyAfterSales', params) }
+
 module.exports = {
   getMyOrders,
   getOrderDetail,
   getOrderStatusCount,
   createPayment,
-  getPaymentStatus
+  getPaymentStatus,
+  testPayment,
+  cancelOrder,
+  submitAfterSale,
+  getMyAfterSales
 }

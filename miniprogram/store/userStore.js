@@ -57,11 +57,19 @@ function syncUserProfile() {
       return saveUser({
         openid: data.openid,
         phone: data.phone || getBoundPhone(),
-        userInfo: data.userInfo || getDisplayUserInfo()
+        userInfo: data.userInfo ? { ...getDisplayUserInfo(), ...data.userInfo } : getDisplayUserInfo(),
+        ...(data.avatarFileId ? { avatarFileId: data.avatarFileId } : {})
       })
     })
     .finally(() => { profileSyncPromise = null })
   return profileSyncPromise
+}
+
+async function updateAvatar(avatarFileId) {
+  const res = await userApi.updateMyProfile({ avatarFileId })
+  const data = res && res.data
+  if (!data || !data.userInfo) throw new Error('头像保存失败，请重试')
+  return saveUser({ ...data, userInfo: { ...getDisplayUserInfo(), ...data.userInfo } })
 }
 
 module.exports = {
@@ -73,5 +81,6 @@ module.exports = {
   hasBoundPhone,
   isAuthed,
   saveUser,
-  syncUserProfile
+  syncUserProfile,
+  updateAvatar
 }

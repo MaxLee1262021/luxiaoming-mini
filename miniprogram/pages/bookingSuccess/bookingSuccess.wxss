@@ -110,6 +110,13 @@
   word-break: break-all;
 }
 
+.sync-hint {
+  margin: 8rpx 0 16rpx;
+  color: var(--lxm-c-gray-650);
+  font-size: var(--lxm-fz-xs);
+  line-height: 1.5;
+}
+
 .order-no {
   color: var(--lxm-c-red-ink);
   font-size: var(--lxm-fz-md);

@@ -3,7 +3,10 @@
   <lxm-toast id="lxmToast" />
   <view class="user-section">
     <view class="user-avatar-wrap">
-      <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/placeholder.png'}}" mode="aspectFill" />
+      <button class="avatar-select" open-type="chooseAvatar" bindchooseavatar="onChooseAvatar" disabled="{{avatarUploading}}">
+        <image class="user-avatar" src="{{userInfo.avatarUrl || '/images/placeholder.png'}}" mode="aspectFill" binderror="refreshAvatar" />
+        <text class="avatar-edit">更换头像</text>
+      </button>
     </view>
     <view class="user-detail">
       <view class="user-name-row">
@@ -12,6 +15,12 @@
       </view>
       <text class="user-signature">{{authReady ? (phone ? ('联系电话 ' + phone) : '已登录，可查看订单') : '授权后查看订单、预约和客服服务'}}</text>
     </view>
+  </view>
+
+  <view class="avatar-status" wx:if="{{avatarUploading || avatarError}}">
+    <text>{{avatarUploading ? ('正在保存头像 ' + avatarProgress + '%') : avatarError}}</text>
+    <button wx:if="{{avatarUploading}}" size="mini" disabled="{{avatarSaving}}" bindtap="cancelAvatarUpload">取消上传</button>
+    <button wx:else size="mini" bindtap="uploadAvatar">重试</button>
   </view>
 
   <view class="auth-panel" wx:if="{{!authReady}}">

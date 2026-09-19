@@ -1,9 +1,7 @@
 const app = getApp()
-const demoData = require('../../utils/demoData')
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
 const { normalizeOrder, normalizeCustomerStatus } = require('../../utils/order')
-const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
   data: {
@@ -58,56 +56,34 @@ Page({
         page: this.data.page,
         pageSize: this.data.pageSize
       })
-      // 仅当云函数调用失败（未部署/网络异常）才用演示数据兜底；
-      // 调用成功但返回空（真实用户确实无订单）时展示真实空列表，绝不显示假订单
+      // A failed order request must remain an error state. Do not show local
+      // sample orders that could be mistaken for persisted customer orders.
       if (!res || !res.success) {
-        if (isExplicitDemoMode()) this.applyOrders(this.getDemoOrders(), reset, true)
-        else {
-          if (reset) this.setData({ orders: [] })
-          this.setData({ error: '订单暂时无法加载，请重试' })
-        }
+        if (reset) this.setData({ orders: [] })
+        this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
       } else {
-        this.applyOrders(res.data || [], reset, false)
+        this.applyOrders(res.data || [], reset)
         this.setData({ error: '' })
       }
     } catch (err) {
       console.error('getMyOrders error', err)
-      if (isExplicitDemoMode()) this.applyOrders(this.getDemoOrders(), reset, true)
-      else {
-        if (reset) this.setData({ orders: [] })
-        this.setData({ error: '订单暂时无法加载，请重试' })
-      }
+      if (reset) this.setData({ orders: [] })
+      this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
     } finally {
       this.setData({ loading: false, refreshing: false })
     }
   },
 
-  getDemoOrders() {
-    if (!this.data.currentStatus) return demoData.orders
-    if (this.data.currentStatus === 'deposit') {
-      return demoData.orders.filter(item => item.status === 'deposit_pending' || item.workflowStage === 'awaiting_deposit')
-    }
-    if (this.data.currentStatus === 'final') {
-      return demoData.orders.filter(item => item.status === 'final_pending' || item.workflowStage === 'awaiting_final_payment')
-    }
-    if (this.data.currentStatus === 'confirmed') {
-      return demoData.orders.filter(item => ['confirmed', 'deposit_paid', 'assigned'].includes(normalizeCustomerStatus(item.status)))
-    }
-    return demoData.orders.filter(item => normalizeCustomerStatus(item.status) === this.data.currentStatus)
-  },
-
-  applyOrders(data = [], reset = true, isDemo = false) {
+  applyOrders(data = [], reset = true) {
     const list = data
       .map(item => normalizeOrder(item))
       .filter(item => this.matchCurrentStatus(item))
     this.setData({
       orders: reset ? list : [...this.data.orders, ...list],
-      hasMore: !isDemo && list.length >= this.data.pageSize,
+      hasMore: list.length >= this.data.pageSize,
       page: this.data.page + 1,
-      isDemo
+      isDemo: false
     })
-    if (isDemo && reset) {
-    }
   },
 
   matchCurrentStatus(order = {}) {
@@ -115,13 +91,13 @@ Page({
     if (!currentStatus) return true
     const stage = order.workflowStage
     const stageGroups = {
-      pending: ['awaiting_dispatch'],
+      pending: ['awaiting_confirmation'],
       deposit: ['awaiting_deposit'],
-      confirmed: ['awaiting_shoot'],
+      confirmed: ['awaiting_dispatch', 'awaiting_shoot'],
       shooting: ['shooting'],
-      editing: ['selection_pending'],
+      editing: ['selection_pending', 'awaiting_delivery'],
       final: ['awaiting_final_payment'],
-      completed: ['paid', 'delivered']
+      completed: ['paid', 'delivered', 'completed']
     }
     if (currentStatus === 'final' && stage === 'delivered' && order.paymentPhase === 'final' && order.finalPaymentStatus !== 'confirmed') return true
     if (stage && stageGroups[currentStatus]) return stageGroups[currentStatus].includes(stage)
@@ -133,7 +109,7 @@ Page({
       shooting: ['shooting'],
       editing: ['editing', 'final_pending'],
       final: ['awaiting_final_payment'],
-      completed: ['completed', 'delivered']
+      completed: ['paid', 'completed', 'delivered']
     }
     return (groups[currentStatus] || [currentStatus]).includes(status)
   },

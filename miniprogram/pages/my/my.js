@@ -6,9 +6,15 @@ const userStore = require('../../store/userStore')
 const footprintService = require('../../service/footprint')
 const { buildUrlWithSource } = require('../../utils/query')
 const favorite = require('../../utils/favorite')
+const avatarActions = require('../../service/avatarActions')
 
 Page({
+  ...avatarActions,
   data: {
+    avatarUploading: false,
+    avatarSaving: false,
+    avatarProgress: 0,
+    avatarError: '',
     shopId: '',
     scene: '',
     userInfo: {},
@@ -44,6 +50,8 @@ Page({
     this.captureSource(options)
     this.refreshUserState()
   },
+
+  onUnload() { this.cancelAvatarUpload() },
 
   onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {

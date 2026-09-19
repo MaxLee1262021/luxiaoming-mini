@@ -98,6 +98,11 @@ function count() {
   return safeGet().length
 }
 
+function updateCovers(rows) {
+  const covers = new Map(rows.map(item => [String(item.id), item.cover]))
+  safeSet(safeGet().map(item => covers.has(String(item.id)) ? { ...item, cover: covers.get(String(item.id)) } : item))
+}
+
 module.exports = {
   STORAGE_KEY,
   has,
@@ -105,5 +110,6 @@ module.exports = {
   remove,
   toggle,
   list,
-  count
+  count,
+  updateCovers
 }

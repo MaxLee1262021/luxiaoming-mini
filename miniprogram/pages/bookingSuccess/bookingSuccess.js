@@ -33,11 +33,12 @@ Page({
     contactWechat: '',
     message: '',
     bookingMode: 'consult',
-    statusText: '待支付订金',
-    workflowStage: 'awaiting_deposit',
+    statusText: '待客服联系确认',
+    workflowStage: 'awaiting_confirmation',
     depositDue: 0,
     finalDue: 0,
-    loading: false
+    loading: false,
+    loadError: ''
   },
 
   onLoad(options = {}) {
@@ -50,7 +51,8 @@ Page({
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || '',
       ...decodedOptions,
-      bookingMode: options.bookingMode || 'consult'
+      bookingMode: options.bookingMode || 'consult',
+      workflowStage: options.workflowStage || 'awaiting_confirmation'
     })
 
     if (options.orderNo || options.orderId) this.loadOrderDetail(options.orderNo, options.orderId)
@@ -67,9 +69,12 @@ Page({
           orderId: normalized._id || orderId || this.data.orderId,
           ...this.pickSuccessOrderFields(normalized)
         })
+      } else {
+        this.setData({ loadError: '订单详情暂未同步，可在“我的订单”中稍后刷新。' })
       }
     } catch (err) {
       console.error('bookingSuccess loadOrderDetail failed', err)
+      this.setData({ loadError: '订单详情暂未同步，可在“我的订单”中稍后刷新。' })
     } finally {
       this.setData({ loading: false })
     }
@@ -90,8 +95,8 @@ Page({
       contactWechat: decodeQueryValue(order.contactWechat),
       message: decodeQueryValue(order.message),
       bookingMode: order.bookingMode || 'consult',
-      statusText: order.statusText || order.customerStatus || '待支付订金',
-      workflowStage: order.workflowStage || 'awaiting_deposit',
+      statusText: order.statusText || order.customerStatus || '待客服联系确认',
+      workflowStage: order.workflowStage || 'awaiting_confirmation',
       depositDue: Number(order.depositDue || 0),
       finalDue: Number(order.finalDue || 0)
     }

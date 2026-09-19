@@ -1,5 +1,5 @@
 <view class="peripherals-page">
-  <lxm-nav-bar showBack="{{false}}" theme="light" placeholder="{{true}}" />
+  <lxm-nav-bar showBack="{{true}}" theme="light" placeholder="{{true}}" />
   <lxm-privacy-modal />
 
   <view class="lxm-skeleton-wrap" wx:if="{{loading}}">

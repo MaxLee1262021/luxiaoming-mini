@@ -1,0 +1,9 @@
+.file-hint { font-size: var(--lxm-fz-sm); color: var(--lxm-c-muted); margin-bottom: 16rpx; }
+.file-item { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0; }
+.file-thumb { width: 96rpx; height: 96rpx; border-radius: 12rpx; flex-shrink: 0; }
+.file-copy { flex: 1; font-size: var(--lxm-fz-sm); min-width: 0; }
+.file-copy text { display: block; }
+.file-copy button { margin-top: 8rpx; }
+.file-error { color: var(--lxm-c-red-ink); }
+.file-remove { flex-shrink: 0; }
+.file-add { margin: 16rpx 0; font-size: var(--lxm-fz-sm); background: var(--lxm-c-bg); color: var(--lxm-c-ink); }

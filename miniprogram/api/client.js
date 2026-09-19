@@ -25,6 +25,7 @@ function getOpenid() { return _openid }
 function clearSession() {
   _openid = ''
   _token = ''
+  _loginPromise = null
   try {
     wx.removeStorageSync('lxm_openid')
     wx.removeStorageSync('lxm_public_token')
@@ -96,7 +97,7 @@ function callRaw(name, data, { clearOnUnauthorized = true } = {}) {
         if (result && result.success === false) {
           return reject(new Error(result.message || result.error || (name + ' 请求失败')))
         }
-        resolve(result)
+        resolve(normalizeMediaUrls(result))
       },
       fail: (err) => reject(new Error((err && err.errMsg) || '网络请求失败'))
     })
@@ -116,4 +117,48 @@ async function callCloud(name, data = {}) {
 // 主动登录（app onLaunch 调一次即可，后续请求自动复用 openid）。
 function login() { return ensureLogin() }
 
-module.exports = { callCloud, login, getOpenid, PUBLIC_BROWSING_RPCS }
+// Only server media routes are expanded. Local mini-program images and page
+// navigation paths must retain their existing meanings.
+function normalizeMediaUrls(value) {
+  if (typeof value === 'string') {
+    if (/^\/(?:api\/media|uploads)\//.test(value)) {
+      const origin = API_BASE.match(/^https?:\/\/[^/]+/i)
+      return origin ? origin[0] + value : value
+    }
+    return value
+  }
+  if (Array.isArray(value)) return value.map(normalizeMediaUrls)
+  if (value && typeof value === 'object') {
+    return Object.keys(value).reduce((out, key) => {
+      out[key] = normalizeMediaUrls(value[key])
+      return out
+    }, {})
+  }
+  return value
+}
+
+async function requestAuthenticated(path, data = {}, method = 'POST') {
+  if (!/^\/files(?:\/|$)/.test(path)) throw new Error('文件接口路径无效')
+  await ensureLogin()
+  if (API_ERROR) throw new Error(API_ERROR)
+  return new Promise((resolve, reject) => {
+    wx.request({
+      url: API_BASE + path,
+      method,
+      header: { 'Content-Type': 'application/json', Authorization: `Bearer ${_token}` },
+      data,
+      success(res) {
+        const body = res.data || {}
+        if (res.statusCode < 200 || res.statusCode >= 300 || body.ok === false || body.success === false) {
+          if (res.statusCode === 401) clearSession()
+          const error = new Error(body.error || body.message || '文件请求失败')
+          error.statusCode = res.statusCode
+          reject(error)
+        } else resolve(normalizeMediaUrls(body.data || body))
+      },
+      fail(err) { reject(new Error(err.errMsg || '文件服务暂不可用')) }
+    })
+  })
+}
+
+module.exports = { callCloud, login, getOpenid, PUBLIC_BROWSING_RPCS, requestAuthenticated, normalizeMediaUrls }

@@ -92,6 +92,49 @@
   font-weight: 900;
 }
 
+.state-contact-btn {
+  margin-left: 16rpx;
+  background: var(--lxm-c-surface);
+  border: 2rpx solid var(--lxm-c-gray-450);
+  color: var(--lxm-c-red-ink);
+}
+
+.test-payment-hint {
+  margin-top: 18rpx;
+  color: var(--lxm-c-gold-deep);
+  font-size: var(--lxm-fz-xs);
+  line-height: 1.55;
+}
+
+.test-payment-btn,
+.cancel-order-btn,
+.cancel-order-submit {
+  margin-top: 14rpx;
+  border-radius: 999rpx;
+  font-size: var(--lxm-fz-sm);
+  font-weight: 900;
+}
+
+.test-payment-btn {
+  background: var(--lxm-c-gold-soft);
+  color: var(--lxm-c-red-ink);
+  border: 2rpx solid var(--lxm-c-gold);
+}
+
+.cancel-order-btn {
+  background: var(--lxm-c-surface);
+  color: var(--lxm-c-red-ink);
+  border: 2rpx solid var(--lxm-c-gray-450);
+}
+
+.cancel-order-submit {
+  flex: 1;
+  height: 88rpx;
+  line-height: 88rpx;
+  background: var(--lxm-c-red-ink);
+  color: var(--lxm-c-cream);
+}
+
 .amount-card .info-row {
   margin-bottom: 10rpx;
 }
@@ -339,6 +382,13 @@
   font-weight: 900;
 }
 
+.snapshot-hint {
+  margin: -4rpx 0 16rpx;
+  color: var(--lxm-c-gray-650);
+  font-size: var(--lxm-fz-xs);
+  line-height: 1.55;
+}
+
 .info-content {
   color: var(--lxm-c-gray-800);
   font-size: var(--lxm-fz-base);
@@ -518,4 +568,15 @@
 }
 
 .after-sale-cancel { background: var(--lxm-c-gray-200); color: var(--lxm-c-gray-750); }
+.after-sale-form-scroll { max-height: 62vh; }
+.after-sale-type { padding: 16rpx 0 24rpx; font-size: var(--lxm-fz-sm); }
+.delivered-file { border-top: 1rpx solid var(--lxm-c-gray-200); padding: 20rpx 0; }
+.delivered-file-copy { display: flex; gap: 16rpx; font-size: var(--lxm-fz-sm); word-break: break-all; }
+.file-kind { color: var(--lxm-c-muted); flex-shrink: 0; }
+.delivered-file-actions { display: flex; justify-content: flex-end; gap: 12rpx; margin-top: 12rpx; }
+.delivered-file-actions button { margin: 0; }
+.file-download-progress { display: flex; align-items: center; justify-content: space-between; font-size: var(--lxm-fz-sm); padding: 16rpx 0; }
+.file-action-error { color: var(--lxm-c-red-ink); font-size: var(--lxm-fz-sm); padding: 12rpx 0; }
+.after-sale-record { padding: 16rpx 0; border-bottom: 1rpx solid var(--lxm-c-gray-200); }
+.evidence-preview { margin: 8rpx 12rpx 8rpx 0; }
 .after-sale-submit { background: var(--lxm-gradient-primary); color: var(--lxm-c-surface); box-shadow: var(--lxm-shadow-red); }
