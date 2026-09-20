@@ -24,7 +24,7 @@ Page({
     authReady: false,
     authLoading: false,
     phone: '',
-    orderCounts: { pending: 0, deposit: 0, confirmed: 0, shooting: 0, editing: 0, final: 0, completed: 0 },
+    orderCounts: { pending_payment: 0, awaiting_photographer: 0, shot: 0, paid: 0, delivered: 0 },
     footprint: footprintService.getEmptyFootprint({ authReady: false }),
     navTopPx: 26,
     capsuleSafeRightPx: 104,
@@ -141,7 +141,7 @@ Page({
 
   async loadOrderStatusCount() {
     if (!userStore.isAuthed()) {
-      this.setData({ orderCounts: { pending: 0, deposit: 0, confirmed: 0, shooting: 0, editing: 0, final: 0, completed: 0 } })
+      this.setData({ orderCounts: { pending_payment: 0, awaiting_photographer: 0, shot: 0, paid: 0, delivered: 0 } })
       return
     }
     try {
@@ -160,11 +160,10 @@ Page({
   applyDemoOrderCounts() {
     this.setData({
       orderCounts: this.normalizeOrderCounts({
-        pending: demoData.orders.filter(item => item.status === 'pending').length,
-        confirmed: demoData.orders.filter(item => ['confirmed', 'deposit_paid', 'assigned'].includes(item.status)).length,
-        shooting: demoData.orders.filter(item => item.status === 'shooting').length,
-        editing: demoData.orders.filter(item => item.status === 'editing').length,
-        final: demoData.orders.filter(item => item.status === 'final_pending' || item.workflowStage === 'awaiting_final_payment').length,
+        pending: demoData.orders.filter(item => ['pending', 'new', 'deposit_pending'].includes(item.status)).length,
+        confirmed: demoData.orders.filter(item => ['confirmed', 'deposit_paid', 'assigned', 'shooting'].includes(item.status)).length,
+        editing: demoData.orders.filter(item => ['editing', 'final_pending'].includes(item.status)).length,
+        paid: demoData.orders.filter(item => item.status === 'paid').length,
         completed: demoData.orders.filter(item => ['delivered', 'completed'].includes(item.status)).length
       })
     })
@@ -203,15 +202,17 @@ Page({
   },
 
   normalizeOrderCounts(counts = {}) {
-    return {
-      pending: counts.pending || 0,
-      deposit: counts.deposit || counts.awaiting_deposit || counts.deposit_pending || 0,
-      confirmed: (counts.confirmed || 0) + (counts.deposit_paid || 0) + (counts.assigned || 0),
-      shooting: counts.shooting || 0,
-      editing: counts.editing || 0,
-      final: counts.final || counts.awaiting_final_payment || 0,
-      completed: (counts.completed || 0) + (counts.delivered || 0)
-    }
+    const business = counts.businessStatus || {}
+    const pendingPayment = Number(business.pending_payment ?? counts.pending_payment ?? 0)
+      || Number(counts.pending || 0) + Number(counts.deposit || counts.awaiting_deposit || counts.deposit_pending || 0)
+    const awaitingPhotographer = Number(business.awaiting_photographer ?? counts.awaiting_photographer ?? 0)
+      || Number(counts.confirmed || 0) + Number(counts.deposit_paid || 0) + Number(counts.assigned || 0) + Number(counts.shooting || 0)
+    const shot = Number(business.shot ?? counts.shot ?? 0)
+      || Number(counts.editing || 0) + Number(counts.final || counts.awaiting_final_payment || 0)
+    const paid = Number(business.paid ?? counts.paid ?? 0)
+    const delivered = Number(business.delivered ?? counts.delivered ?? 0)
+      || Number(counts.completed || 0) + Number(counts.delivered || 0)
+    return { pending_payment: pendingPayment, awaiting_photographer: awaitingPhotographer, shot, paid, delivered }
   },
 
   goToOrders(e) {

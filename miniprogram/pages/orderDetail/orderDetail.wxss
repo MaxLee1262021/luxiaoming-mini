@@ -143,6 +143,10 @@
   border: 2rpx solid var(--lxm-c-gold);
 }
 
+.selection-hint-card {
+  border: 2rpx solid var(--lxm-c-gold);
+}
+
 .timeline-card {
   padding-bottom: 12rpx;
 }
@@ -279,6 +283,11 @@
 .status-completed { background: var(--lxm-c-ink); color: var(--lxm-c-cream); }
 .status-canceled,
 .status-cancelled { background: var(--lxm-c-error-soft); color: var(--lxm-c-red-ink); }
+.status-pending_payment { background: var(--lxm-c-gold-soft-3); color: var(--lxm-c-gold-deep); }
+.status-awaiting_photographer { background: var(--lxm-c-gray-150); color: var(--lxm-c-red-ink); }
+.status-shot { background: var(--lxm-c-gold-soft); color: var(--lxm-c-gold-deep); }
+.status-paid { background: var(--lxm-c-ink); color: var(--lxm-c-cream); }
+.status-delivered { background: var(--lxm-c-red-ink); color: var(--lxm-c-cream); }
 
 .progress-section { padding: 30rpx 20rpx; }
 

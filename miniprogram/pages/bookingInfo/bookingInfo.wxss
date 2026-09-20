@@ -282,8 +282,7 @@ page {
   border-radius: inherit;
 }
 
-.picker-value { height: 84rpx; background: var(--lxm-c-gray-150); border-radius: var(--lxm-r-sm); padding: 0 18rpx; line-height: 84rpx; margin-bottom: 16rpx; font-size: var(--lxm-fz-md); color: var(--lxm-c-ink); }
-.picker-placeholder { color: var(--lxm-c-muted-2); }
+.schedule-manual { padding: 22rpx 20rpx; border-radius: var(--lxm-r-sm); background: var(--lxm-c-gray-150); color: var(--lxm-c-ink); font-size: var(--lxm-fz-md); font-weight: 900; line-height: 1.45; }
 .schedule-hint { color: var(--lxm-c-gray-700); font-size: var(--lxm-fz-sm); line-height: 1.6; }
 .textarea { width: 100%; height: 150rpx; background: var(--lxm-c-gray-150); border-radius: var(--lxm-r-sm); padding: 18rpx; font-size: var(--lxm-fz-md); box-sizing: border-box; color: var(--lxm-c-ink); }
 

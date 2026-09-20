@@ -27,39 +27,34 @@
         <text class="order-no">{{order.orderNo || order._id}}</text>
         <text class="copy-text">复制</text>
       </view>
-      <view class="status-tag status-{{order.status}}">{{order.statusText}}</view>
+      <view class="status-tag status-{{order.customerStatusKey || order.status}}">{{order.statusText}}</view>
     </view>
 
-    <view class="progress-section" wx:if="{{order.workflowStage !== 'cancelled' && !order.isAfterSale}}">
+    <view class="progress-section" wx:if="{{order.customerStatusKey !== 'cancelled' && order.workflowStage !== 'cancelled' && !order.isAfterSale}}">
       <view class="progress-bar">
         <view class="progress-step {{order.statusIndex >= 0 ? 'active' : ''}}">
           <view class="step-dot">1</view>
-          <text class="step-label">定金</text>
+          <text class="step-label">待支付</text>
         </view>
         <view class="progress-line {{order.statusIndex >= 1 ? 'active' : ''}}"></view>
         <view class="progress-step {{order.statusIndex >= 1 ? 'active' : ''}}">
           <view class="step-dot">2</view>
-          <text class="step-label">安排</text>
+          <text class="step-label">摄影师</text>
         </view>
         <view class="progress-line {{order.statusIndex >= 2 ? 'active' : ''}}"></view>
         <view class="progress-step {{order.statusIndex >= 2 ? 'active' : ''}}">
           <view class="step-dot">3</view>
-          <text class="step-label">拍摄中</text>
+          <text class="step-label">已拍摄</text>
         </view>
         <view class="progress-line {{order.statusIndex >= 3 ? 'active' : ''}}"></view>
         <view class="progress-step {{order.statusIndex >= 3 ? 'active' : ''}}">
           <view class="step-dot">4</view>
-          <text class="step-label">选片</text>
+          <text class="step-label">已支付</text>
         </view>
         <view class="progress-line {{order.statusIndex >= 4 ? 'active' : ''}}"></view>
-        <view class="progress-step {{order.statusIndex >= 4 ? 'active' : ''}}">
-          <view class="step-dot">5</view>
-          <text class="step-label">尾款</text>
-        </view>
-        <view class="progress-line {{order.statusIndex >= 5 ? 'active' : ''}}"></view>
-        <view class="progress-step {{order.statusIndex >= 5 ? 'active done' : ''}}">
+        <view class="progress-step {{order.statusIndex >= 4 ? 'active done' : ''}}">
           <view class="step-dot"><lxm-icon type="check" size="24" color="gold"></lxm-icon></view>
-          <text class="step-label">交付</text>
+          <text class="step-label">已交付</text>
         </view>
       </view>
       <view class="progress-desc">{{statusDesc}}</view>
@@ -75,22 +70,23 @@
       <view class="info-row"><text>旅拍套餐</text><text class="highlight">{{order.packageName}} ¥{{order.packagePrice}}</text></view>
       <view class="info-row" wx:if="{{order.spotName}}"><text>打卡点</text><text>{{order.spotName}}</text></view>
       <view class="info-row" wx:if="{{order.seriesName}}"><text>拍摄风格</text><text>{{order.seriesName}}</text></view>
-      <view class="info-row"><text>{{order.scheduleLabel}}</text><text>{{order.date || '待客服确认'}} {{order.timePeriod}}</text></view>
+      <view class="info-row"><text>{{order.scheduleLabel}}</text><text>{{order.date || '客服/摄影师确认中'}} {{order.timePeriod}}</text></view>
       <view class="snapshot-hint">{{order.scheduleHint}}</view>
       <view class="info-row"><text>类型</text><text>{{order.type === 'video' ? '视频摄像' : '照片留影'}}</text></view>
     </view>
 
     <view class="info-card amount-card">
-      <view class="card-title">{{order.hasConfirmedSnapshot ? '确认金额' : '预约金额参考'}}</view>
+      <view class="card-title">{{order.hasConfirmedSnapshot ? '确认金额' : '预约金额'}}</view>
       <view class="info-row"><text>{{order.hasConfirmedSnapshot ? '确认总价' : '当前预计金额'}}</text><text class="highlight">¥{{order.totalAmount || order.packagePrice || 0}}</text></view>
-      <block wx:if="{{order.hasConfirmedSnapshot}}">
+      <block wx:if="{{order.hasConfirmedSnapshot || order.depositDue > 0}}">
         <view class="info-row"><text>定金应收</text><text>¥{{order.depositDue || 0}}</text></view>
         <view class="info-row"><text>已确认定金</text><text>¥{{order.depositPaid || 0}}</text></view>
-        <view class="info-row"><text>尾款应收</text><text>¥{{order.finalDue || 0}}</text></view>
-        <view class="info-row"><text>已确认尾款</text><text>¥{{order.finalPaid || 0}}</text></view>
-        <view class="info-row"><text>待收金额</text><text class="highlight">¥{{order.dueAmount || 0}}</text></view>
+        <view class="snapshot-hint" wx:if="{{order.depositPaid > 0}}">{{order.depositRefundHint}}</view>
+        <view class="info-row" wx:if="{{order.hasConfirmedSnapshot || order.selectionConfirmed || order.finalDue > 0}}"><text>尾款应收</text><text>¥{{order.finalDue || 0}}</text></view>
+        <view class="info-row" wx:if="{{order.hasConfirmedSnapshot || order.selectionConfirmed || order.finalPaid > 0}}"><text>已确认尾款</text><text>¥{{order.finalPaid || 0}}</text></view>
+        <view class="info-row" wx:if="{{order.hasConfirmedSnapshot || order.selectionConfirmed}}"><text>待收金额</text><text class="highlight">¥{{order.dueAmount || 0}}</text></view>
       </block>
-      <view class="snapshot-hint" wx:else>客服确认服务内容、档期和成交金额后，会在这里展示定金与尾款安排。</view>
+      <view class="snapshot-hint" wx:else>客服确认服务内容和成交金额后，会在这里展示订金与尾款安排。</view>
     </view>
 
     <view class="info-card">
@@ -113,6 +109,11 @@
       <button class="payment-btn" loading="{{paymentSubmitting}}" disabled="{{paymentSubmitting}}" bindtap="handlePaymentTap" data-phase="{{order.paymentPhase}}">{{paymentStatus === 'pending' ? '查询核对状态' : '生成收款核对单'}}</button>
       <view class="test-payment-hint" wx:if="{{order.canRunTestPayment}}">仅测试环境：此操作会调用测试支付服务，不会发起微信支付。</view>
       <button class="test-payment-btn" wx:if="{{order.canRunTestPayment}}" loading="{{testPaymentSubmitting}}" disabled="{{testPaymentSubmitting}}" bindtap="runTestPayment">测试支付（仅测试环境）</button>
+    </view>
+
+    <view class="info-card selection-hint-card" wx:if="{{order.customerStatusKey === 'shot' && !order.canPay}}">
+      <view class="card-title">线下选片</view>
+      <view class="deliver-desc">选片由客服/摄影师与您在线下确认，无需在小程序操作。确认后会在这里开放尾款。</view>
     </view>
 
     <view class="payment-card payment-pending-card" wx:if="{{paymentStatus === 'pending' && order.workflowStage !== 'awaiting_deposit' && order.workflowStage !== 'awaiting_final_payment'}}">

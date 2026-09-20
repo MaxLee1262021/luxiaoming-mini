@@ -331,7 +331,7 @@
 }
 
 .order-status-item {
-  grid-column: span 3;
+  grid-column: span 4;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -342,11 +342,7 @@
   box-sizing: border-box;
 }
 
-/* Four evenly sized statuses on the first row, then three balanced statuses below. */
-.order-status-item:nth-child(n + 5) {
-  grid-column: span 4;
-}
-
+/* Five business states render as three items on the first row and two below. */
 /* 无障碍：视觉不变，透明热区高度扩至 88rpx（WCAG 2.5.5） */
 .order-status-item::after {
   content: '';

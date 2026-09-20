@@ -70,7 +70,7 @@ Page({
     this.setData({
       order,
       deliveryFiles: (order.deliverFiles || []).map(normalizeFile),
-      statusDesc: getOrderStatusDesc(order.workflowStage || order.status),
+      statusDesc: getOrderStatusDesc(order.customerStatusKey || order.workflowStage || order.status, order),
       error: '',
       isDemo,
       paymentStatus: order.paymentStatus || (pending ? 'pending' : 'not_created'),

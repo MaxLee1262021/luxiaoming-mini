@@ -100,13 +100,8 @@
 
     <view class="card">
       <view class="card-title">拍摄安排</view>
-      <picker mode="date" value="{{date}}" start="{{minDate}}" bindchange="onDateChange">
-        <view class="picker-value {{date ? '' : 'picker-placeholder'}}">{{date || '请选择期望拍摄日期'}}</view>
-      </picker>
-      <picker range="{{timeOptions}}" value="{{timeIndex}}" bindchange="onTimeChange">
-        <view class="picker-value {{time ? '' : 'picker-placeholder'}}">{{time || '请选择期望拍摄时段'}}</view>
-      </picker>
-      <view class="schedule-hint">以上是你的期望安排。客服确认档期、地点、服务内容和价格后，订单才会进入定金核对阶段。</view>
+      <view class="schedule-manual">具体拍摄时间由客服、摄影师与您沟通后人工确认</view>
+      <view class="schedule-hint">提交预约后请保持手机畅通。确认时间、地点、服务内容和价格后，客服会通知您支付订金。</view>
     </view>
 
     <view class="card">

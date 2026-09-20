@@ -12,14 +12,6 @@ const { getPageModuleConfig, isPageModuleVisible } = require('../../service/site
 const analytics = require('../../utils/analytics')
 const { isExplicitDemoMode } = require('../../config/env')
 
-function getLocalDate() {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, '0')
-  const day = String(now.getDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
-}
-
 Page({
   data: {
     shopId: '',
@@ -29,11 +21,6 @@ Page({
     boundPhone: '',
     contactPhones: [],
     phoneMode: 'wechat',
-    date: '',
-    time: '',
-    minDate: getLocalDate(),
-    timeIndex: 0,
-    timeOptions: ['上午 09:00-12:00', '下午 13:00-17:00', '晚上 18:00-21:00', '全天均可（客服确认）'],
     message: '',
     participantCount: 1,
     agreed: false,
@@ -513,13 +500,6 @@ Page({
   },
 
   onNameInput(e) { this.setData({ name: e.detail.value }) },
-
-  onDateChange(e) { this.setData({ date: e.detail.value }) },
-
-  onTimeChange(e) {
-    const timeIndex = Number(e.detail.value) || 0
-    this.setData({ timeIndex, time: this.data.timeOptions[timeIndex] || '' })
-  },
 
   onPhoneInput(e) {
     const phone = e.detail.value

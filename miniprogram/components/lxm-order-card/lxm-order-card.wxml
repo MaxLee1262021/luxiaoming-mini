@@ -1,6 +1,6 @@
 <view class="order-card" hover-class="lxm-card-lift" bindtap="emitDetail">
   <view class="order-hd">
-    <view class="status-tag status-{{item.status}}">
+    <view class="status-tag status-{{item.customerStatusKey || item.status}}">
       <view class="status-dot-inner"></view>
       <text>{{item.statusText}}</text>
     </view>
@@ -13,10 +13,10 @@
   <view class="order-spot" wx:if="{{item.spotName || item.seriesName}}">
     {{item.spotName}}{{item.spotName && item.seriesName ? ' · ' : ''}}{{item.seriesName}}
   </view>
-  <view class="order-time">{{item.date || '拍摄时间待客服确认'}} {{item.timePeriod}}</view>
+  <view class="order-time">{{item.date || '拍摄时间待客服/摄影师确认'}} {{item.timePeriod}}</view>
   <view class="order-type">{{item.type === 'video' ? '视频摄像' : '照片留影'}}</view>
-  <view class="order-payment" wx:if="{{item.workflowStage === 'awaiting_deposit' && item.depositDue > 0}}">待付定金 ¥{{item.depositDue}}</view>
-  <view class="order-payment" wx:elif="{{item.workflowStage === 'awaiting_final_payment' && item.finalDue > 0}}">待付尾款 ¥{{item.finalDue}}</view>
+  <view class="order-payment" wx:if="{{item.canPayDeposit && item.depositDue > 0}}">待付订金 ¥{{item.depositDue}}</view>
+  <view class="order-payment" wx:elif="{{item.canPayFinal && item.finalDue > 0}}">待付尾款 ¥{{item.finalDue}}</view>
 
   <view class="btn-row">
     <view class="detail-btn" catchtap="emitDetail">查看详情</view>

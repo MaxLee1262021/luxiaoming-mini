@@ -35,9 +35,9 @@
       <text class="info-label">拍摄风格</text>
       <text class="info-value">{{seriesName}}</text>
     </view>
-    <view class="info-row" wx:if="{{date || timePeriod}}">
+    <view class="info-row">
       <text class="info-label">拍摄时间</text>
-      <text class="info-value">{{date}} {{timePeriod}}</text>
+      <text class="info-value">客服/摄影师沟通确认</text>
     </view>
     <view class="info-row" wx:if="{{contactName}}">
       <text class="info-label">联系人</text>
@@ -72,7 +72,7 @@
   <view class="tips-card">
     <view class="tips-title">温馨提示</view>
     <view class="tips-content">
-      预约提交后请保持手机畅通。鹿小鸣客服会通过企业微信主动联系你确认期望档期、服务内容和成交金额；确认后才会开放定金核对。改期、补充需求和成片交付均可在企业微信沟通。
+      预约提交后请保持手机畅通。鹿小鸣客服会通过企业微信主动联系你确认具体拍摄时间、服务内容和成交金额；确认后才会开放订金支付。选片在线下完成，确认后再支付尾款。
     </view>
   </view>
 </view>

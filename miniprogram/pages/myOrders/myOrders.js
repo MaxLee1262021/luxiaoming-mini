@@ -1,7 +1,7 @@
 const app = getApp()
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
-const { normalizeOrder, normalizeCustomerStatus } = require('../../utils/order')
+const { normalizeOrder, normalizeCustomerStatus, BUSINESS_STATUS } = require('../../utils/order')
 
 Page({
   data: {
@@ -10,13 +10,11 @@ Page({
     currentStatus: '',
     tabs: [
       { key: '', text: '全部' },
-      { key: 'pending', text: '待确认' },
-      { key: 'deposit', text: '待付定金' },
-      { key: 'confirmed', text: '已确认' },
-      { key: 'shooting', text: '拍摄中' },
-      { key: 'editing', text: '修片中' },
-      { key: 'final', text: '待付尾款' },
-      { key: 'completed', text: '交付/完成' }
+      { key: BUSINESS_STATUS.PENDING_PAYMENT, text: '待支付' },
+      { key: BUSINESS_STATUS.AWAITING_PHOTOGRAPHER, text: '待安排摄影师' },
+      { key: BUSINESS_STATUS.SHOT, text: '已拍摄' },
+      { key: BUSINESS_STATUS.PAID, text: '已支付' },
+      { key: BUSINESS_STATUS.DELIVERED, text: '已交付' }
     ],
     orders: [],
     page: 1,
@@ -51,11 +49,12 @@ Page({
 
     this.setData({ loading: true })
     try {
-      const res = await orderApi.getMyOrders({
-        status: this.data.currentStatus || undefined,
+      const query = {
         page: this.data.page,
         pageSize: this.data.pageSize
-      })
+      }
+      if (this.data.currentStatus) query.businessStatus = this.data.currentStatus
+      const res = await orderApi.getMyOrders(query)
       // A failed order request must remain an error state. Do not show local
       // sample orders that could be mistaken for persisted customer orders.
       if (!res || !res.success) {
@@ -89,18 +88,31 @@ Page({
   matchCurrentStatus(order = {}) {
     const currentStatus = this.data.currentStatus
     if (!currentStatus) return true
+    const canonicalAliases = {
+      pending: BUSINESS_STATUS.PENDING_PAYMENT,
+      deposit: BUSINESS_STATUS.PENDING_PAYMENT,
+      confirmed: BUSINESS_STATUS.AWAITING_PHOTOGRAPHER,
+      shooting: BUSINESS_STATUS.AWAITING_PHOTOGRAPHER,
+      editing: BUSINESS_STATUS.SHOT,
+      final: BUSINESS_STATUS.SHOT,
+      completed: BUSINESS_STATUS.DELIVERED
+    }
+    const expected = canonicalAliases[currentStatus] || currentStatus
+    if (order.customerStatusKey) {
+      // Keep old deep links such as `status=completed` useful while the
+      // visible tabs use the stricter five-state vocabulary.
+      if (currentStatus === 'completed' && order.customerStatusKey === BUSINESS_STATUS.PAID) return true
+      return order.customerStatusKey === expected
+    }
     const stage = order.workflowStage
     const stageGroups = {
-      pending: ['awaiting_confirmation'],
-      deposit: ['awaiting_deposit'],
-      confirmed: ['awaiting_dispatch', 'awaiting_shoot'],
-      shooting: ['shooting'],
-      editing: ['selection_pending', 'awaiting_delivery'],
-      final: ['awaiting_final_payment'],
-      completed: ['paid', 'delivered', 'completed']
+      [BUSINESS_STATUS.PENDING_PAYMENT]: ['awaiting_confirmation', 'awaiting_deposit'],
+      [BUSINESS_STATUS.AWAITING_PHOTOGRAPHER]: ['awaiting_dispatch', 'awaiting_shoot', 'shooting'],
+      [BUSINESS_STATUS.SHOT]: ['selection_pending', 'awaiting_delivery', 'awaiting_final_payment'],
+      [BUSINESS_STATUS.PAID]: ['paid'],
+      [BUSINESS_STATUS.DELIVERED]: currentStatus === 'completed' ? ['paid', 'delivered', 'completed'] : ['delivered', 'completed']
     }
-    if (currentStatus === 'final' && stage === 'delivered' && order.paymentPhase === 'final' && order.finalPaymentStatus !== 'confirmed') return true
-    if (stage && stageGroups[currentStatus]) return stageGroups[currentStatus].includes(stage)
+    if (stage && stageGroups[expected]) return stageGroups[expected].includes(stage)
     const status = normalizeCustomerStatus(order.status)
     const groups = {
       pending: ['pending', 'new', 'contacted'],

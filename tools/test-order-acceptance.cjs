@@ -40,8 +40,8 @@ assert.equal(matches("completed", "delivered"), true);
 assert.equal(matches("completed", "completed"), true);
 assert.equal(matches("completed", "awaiting_final_payment"), false);
 
-// AC-02, AC-04 and AC-12: an application awaiting service confirmation has
-// no payment action. Its only customer self-service off-ramp is cancellation.
+// Before the deposit is paid, an application is still cancellable and has no
+// payment action unless the server grants the deposit payment explicitly.
 const application = order.normalizeOrder({
   id: "application-1",
   status: "new",
@@ -50,14 +50,14 @@ const application = order.normalizeOrder({
   finalDue: 70,
   canCancel: true,
 });
-assert.equal(application.workflowStage, "awaiting_confirmation");
-assert.equal(application.canPay, false);
+assert.equal(application.workflowStage, "awaiting_deposit");
+assert.equal(application.canPay, true);
 assert.equal(application.canCancel, true);
 assert.equal(application.canAfterSale, false);
 assert.equal(order.normalizeOrder({ ...application, id: "application-no-cancel-grant", canCancel: undefined }).canCancel, false);
 
-// AC-09 and AC-10: server-projected unpublished delivery cannot expose files
-// or a final-payment action. Publication is the gate for both.
+// An offline selection confirmation is the gate for final payment. Delivery
+// files remain hidden until the balance is confirmed and delivery is released.
 const unpublished = order.normalizeOrder({
   id: "delivery-draft-1",
   status: "final_pending",
@@ -70,8 +70,8 @@ const unpublished = order.normalizeOrder({
   selectionStatus: "confirmed",
   deliverFiles: [{ fileId: "private-file", name: "draft.jpg" }],
 });
-assert.match(unpublished.statusText, /发布/);
-assert.equal(unpublished.canPay, false);
+assert.equal(unpublished.statusText, "已拍摄");
+assert.equal(unpublished.canPay, true);
 assert.deepEqual(unpublished.deliverFiles, []);
 
 const published = order.normalizeOrder({
@@ -83,12 +83,61 @@ const published = order.normalizeOrder({
   depositPaid: 30,
   depositFinanceStatus: "confirmed",
   finalDue: 70,
+  selectionStatus: "confirmed",
   deliveryRecord: { method: "mini_program" },
   deliveryPublished: true,
   deliverFiles: [{ fileId: "published-file", name: "final.jpg" }],
 });
 assert.equal(published.canPay, true);
-assert.deepEqual(published.deliverFiles.map((file) => file.fileId), ["published-file"]);
+// A delivery draft is not visible until the final payment is confirmed.
+assert.deepEqual(published.deliverFiles, []);
+
+const delivered = order.normalizeOrder({
+  id: "delivery-complete-1",
+  status: "delivered",
+  workflowStage: "delivered",
+  totalAmount: 100,
+  depositDue: 30,
+  depositPaid: 30,
+  depositFinanceStatus: "confirmed",
+  finalDue: 70,
+  finalPaid: 70,
+  finalFinanceStatus: "confirmed",
+  selectionStatus: "confirmed",
+  deliveryRecord: { method: "mini_program" },
+  deliverFiles: [{ fileId: "published-file", name: "final.jpg" }],
+});
+assert.equal(delivered.statusText, "已交付");
+assert.deepEqual(delivered.deliverFiles.map((file) => file.fileId), ["published-file"]);
+
+// The customer-facing contract has exactly five active states. Technical
+// workflow stages remain available for operations but are collapsed here.
+const fiveStates = [
+  ["awaiting_confirmation", "待支付"],
+  ["awaiting_dispatch", "待安排摄影师"],
+  ["awaiting_shoot", "待安排摄影师"],
+  ["selection_pending", "已拍摄"],
+  ["awaiting_final_payment", "已拍摄"],
+  ["paid", "已支付"],
+  ["delivered", "已交付"]
+];
+for (const [workflowStage, label] of fiveStates) {
+  assert.equal(order.normalizeOrder({ workflowStage, status: workflowStage }).statusText, label);
+}
+
+const finalAfterOfflineSelection = order.normalizeOrder({
+  id: "offline-selection-1",
+  workflowStage: "awaiting_delivery",
+  status: "final_pending",
+  totalAmount: 100,
+  depositDue: 30,
+  depositPaid: 30,
+  depositFinanceStatus: "confirmed",
+  finalDue: 70,
+  selectionStatus: "confirmed"
+});
+assert.equal(finalAfterOfflineSelection.customerStatusKey, "shot");
+assert.equal(finalAfterOfflineSelection.canPay, true);
 
 // The test-payment control is a server grant, never a client-side switch.
 const testPaymentGranted = order.normalizeOrder({

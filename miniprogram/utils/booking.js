@@ -24,9 +24,6 @@ function sumItemsPrice(items = []) {
 function validateBookingForm(data = {}) {
   if (!String(data.name || '').trim()) return { valid: false, message: '请输入姓名' }
   if (!isValidPhone(data.phone)) return { valid: false, message: '手机号格式错误' }
-  if (!String(data.date || '').trim()) return { valid: false, message: '请选择期望拍摄日期' }
-  if (isPastDate(data.date)) return { valid: false, message: '期望拍摄日期不能早于今天' }
-  if (!String(data.time || '').trim()) return { valid: false, message: '请选择期望拍摄时段' }
   if (!data.agreed) return { valid: false, message: '请同意预约须知' }
   const items = data.items || []
   if (!items.length) return { valid: false, message: '请至少添加一个拍摄项目' }
@@ -40,19 +37,16 @@ function buildBookingPayload(data = {}) {
   const contactPhones = [data.phone, ...(data.contactPhones || [])]
     .map(phone => String(phone || '').trim())
     .filter((phone, index, list) => phone && list.indexOf(phone) === index)
+  // The customer does not choose a shooting slot in the mini program. The
+  // service team and photographer confirm the actual time after the request
+  // is created, so legacy date/time fields must not leak stale picker values
+  // into a new booking.
   return {
     shopId: data.shopId || '',
     scene: data.scene || '',
     name: String(data.name || '').trim(),
     phone: String(data.phone || '').trim(),
     contactPhones,
-    date: data.date || '',
-    time: data.time || '',
-    // Keep the legacy date/time fields for the current RPC while naming the
-    // intent explicitly for the confirmation snapshot contract.
-    expectedDate: data.date || '',
-    expectedTimePeriod: data.time || '',
-    timePeriod: data.time || '',
     message: data.message || '',
     items,
     totalPrice: sumItemsPrice(items),

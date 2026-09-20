@@ -54,40 +54,30 @@
       <text class="card-title">订单状态</text>
     </view>
     <view class="order-status-row">
-      <view class="order-status-item" bindtap="goToOrders" data-status="pending">
+      <view class="order-status-item" bindtap="goToOrders" data-status="pending_payment">
         <view class="status-icon-wrap pending-bg"><view class="status-mark"></view></view>
-        <text class="status-name">待安排</text>
-        <text class="status-num">{{orderCounts.pending || 0}}单</text>
+        <text class="status-name">待支付</text>
+        <text class="status-num">{{orderCounts.pending_payment || 0}}单</text>
       </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="deposit">
-        <view class="status-icon-wrap pending-bg"><view class="status-mark"></view></view>
-        <text class="status-name">待付定金</text>
-        <text class="status-num">{{orderCounts.deposit || 0}}单</text>
-      </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="confirmed">
+      <view class="order-status-item" bindtap="goToOrders" data-status="awaiting_photographer">
         <view class="status-icon-wrap confirmed-bg"><view class="status-mark"></view></view>
-        <text class="status-name">已安排</text>
-        <text class="status-num">{{orderCounts.confirmed || 0}}单</text>
+        <text class="status-name">待安排摄影师</text>
+        <text class="status-num">{{orderCounts.awaiting_photographer || 0}}单</text>
       </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="shooting">
-        <view class="status-icon-wrap shooting-bg"><view class="status-mark"></view></view>
-        <text class="status-name">拍摄中</text>
-        <text class="status-num">{{orderCounts.shooting || 0}}单</text>
-      </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="editing">
+      <view class="order-status-item" bindtap="goToOrders" data-status="shot">
         <view class="status-icon-wrap editing-bg"><view class="status-mark"></view></view>
-        <text class="status-name">待选片</text>
-        <text class="status-num">{{orderCounts.editing || 0}}单</text>
+        <text class="status-name">已拍摄</text>
+        <text class="status-num">{{orderCounts.shot || 0}}单</text>
       </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="final">
+      <view class="order-status-item" bindtap="goToOrders" data-status="paid">
         <view class="status-icon-wrap editing-bg"><view class="status-mark"></view></view>
-        <text class="status-name">待付尾款</text>
-        <text class="status-num">{{orderCounts.final || 0}}单</text>
+        <text class="status-name">已支付</text>
+        <text class="status-num">{{orderCounts.paid || 0}}单</text>
       </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="completed">
+      <view class="order-status-item" bindtap="goToOrders" data-status="delivered">
         <view class="status-icon-wrap completed-bg"><view class="status-mark"></view></view>
         <text class="status-name">已交付</text>
-        <text class="status-num">{{orderCounts.completed || 0}}单</text>
+        <text class="status-num">{{orderCounts.delivered || 0}}单</text>
       </view>
     </view>
   </view>
