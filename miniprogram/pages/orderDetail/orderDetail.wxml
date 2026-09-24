@@ -102,11 +102,11 @@
     </view>
 
     <view class="payment-card" wx:if="{{order.canPay}}">
-      <view class="card-title">收款核对</view>
+      <view class="card-title">{{order.paymentSimulationEnabled ? '模拟支付' : '微信支付'}}</view>
       <view class="payment-row" wx:if="{{(order.paymentPhase || 'deposit') === 'deposit'}}"><text>本次应付订金</text><text class="payment-amount">¥{{order.depositDue}}</text></view>
       <view class="payment-row" wx:if="{{order.paymentPhase === 'final'}}"><text>本次应付尾款</text><text class="payment-amount">¥{{order.finalDue}}</text></view>
-      <view class="payment-hint">{{paymentMessage || '当前版本仅生成待核对收款申请，不提供微信支付；到账以财务确认结果为准。'}}</view>
-      <button class="payment-btn" loading="{{paymentSubmitting}}" disabled="{{paymentSubmitting}}" bindtap="handlePaymentTap" data-phase="{{order.paymentPhase}}">{{paymentStatus === 'pending' ? '查询核对状态' : '生成收款核对单'}}</button>
+      <view class="payment-hint">{{paymentMessage || (order.paymentSimulationEnabled ? '当前为审核期模拟支付，点击后会自动确认到账。' : '确认金额后可在微信内完成支付，支付结果将由服务端确认。')}}</view>
+      <button class="payment-btn" loading="{{paymentSubmitting}}" disabled="{{paymentSubmitting}}" bindtap="handlePaymentTap" data-phase="{{order.paymentPhase}}">{{order.paymentSimulationEnabled ? '模拟支付' : (paymentStatus === 'pending' ? '继续微信支付' : '微信支付')}}</button>
       <view class="test-payment-hint" wx:if="{{order.canRunTestPayment}}">仅测试环境：此操作会调用测试支付服务，不会发起微信支付。</view>
       <button class="test-payment-btn" wx:if="{{order.canRunTestPayment}}" loading="{{testPaymentSubmitting}}" disabled="{{testPaymentSubmitting}}" bindtap="runTestPayment">测试支付（仅测试环境）</button>
     </view>
@@ -118,8 +118,9 @@
 
     <view class="payment-card payment-pending-card" wx:if="{{paymentStatus === 'pending' && order.workflowStage !== 'awaiting_deposit' && order.workflowStage !== 'awaiting_final_payment'}}">
       <view class="card-title">支付处理中</view>
-      <view class="payment-hint">收款核对单已生成，等待客服/财务确认到账。</view>
-      <button class="payment-btn" loading="{{paymentSubmitting}}" bindtap="refreshPaymentStatus">查询核对状态</button>
+      <view class="payment-hint">{{order.paymentSimulationEnabled ? '模拟支付结果正在确认，可继续点击完成回填。' : '微信支付结果正在确认，可继续支付或刷新状态。'}}</view>
+      <button wx:if="{{order.paymentSimulationEnabled}}" class="payment-btn" loading="{{paymentSubmitting}}" bindtap="handlePaymentTap">模拟支付</button>
+      <button wx:else class="payment-btn" loading="{{paymentSubmitting}}" bindtap="continueWechatPayment">继续微信支付</button>
     </view>
 
     <view class="info-card timeline-card" wx:if="{{order.statusLogs && order.statusLogs.length}}">
@@ -147,14 +148,14 @@
 
     <view class="info-card" wx:if="{{order.canCancel}}">
       <view class="card-title">取消预约</view>
-      <view class="deliver-desc">{{order.cancelRule || '当前预约尚未进入服务确认或收款核对阶段，可提交取消申请。'}}</view>
+      <view class="deliver-desc">{{order.cancelRuleText || '当前预约尚未进入服务确认或收款核对阶段，可提交取消申请。'}}</view>
       <button class="cancel-order-btn" bindtap="openCancel">取消本次预约</button>
     </view>
 
     <view class="info-card" wx:if="{{!isDemo}}">
       <view class="card-title">售后服务</view>
-      <view class="deliver-desc" wx:if="{{!order.canCancel && order.cancelReason}}">{{order.cancelReason}}</view>
-      <view class="deliver-desc" wx:if="{{!order.canCancel && !order.cancelReason && order.canAfterSale}}">当前阶段不支持自助取消；可提交售后申请，或联系客户服务处理。</view>
+      <view class="deliver-desc" wx:if="{{!order.canCancel && order.cancelReasonText}}">{{order.cancelReasonText}}</view>
+      <view class="deliver-desc" wx:if="{{!order.canCancel && !order.cancelReasonText && order.canAfterSale}}">当前阶段不支持自助取消；可提交售后申请，或联系客户服务处理。</view>
       <view class="deliver-desc" wx:if="{{afterSaleRecordsLoading}}">正在加载售后记录…</view>
       <view wx:if="{{afterSaleRecordsError}}"><text class="file-action-error">{{afterSaleRecordsError}}</text><button size="mini" bindtap="loadAfterSales">重新加载</button></view>
       <view class="after-sale-record" wx:for="{{afterSaleRecords}}" wx:key="id" wx:for-item="ticket" wx:for-index="ticketIndex">

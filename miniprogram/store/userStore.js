@@ -1,20 +1,29 @@
 const userApi = require('../api/user')
+const { isLoggedOut, clearLogoutMarker } = require('../api/client')
 
 const USER_KEY = 'lxm_user_profile'
 let profileSyncPromise = null
+let userStateVersion = 0
 
 function getUser() {
+  if (isLoggedOut()) return {}
   return wx.getStorageSync(USER_KEY) || {}
 }
 
 function saveUser(user = {}) {
   const nextUser = { ...getUser(), ...user }
+  // The mini program uses a fixed brand avatar/name. Do not persist or
+  // rehydrate legacy WeChat profile fields from older sessions.
+  delete nextUser.userInfo
+  delete nextUser.avatarFileId
+  delete nextUser.avatarUrl
   wx.setStorageSync(USER_KEY, nextUser)
-  wx.setStorageSync('userInfo', nextUser.userInfo || nextUser)
+  wx.setStorageSync('userInfo', nextUser)
   return nextUser
 }
 
 function isAuthed() {
+  if (isLoggedOut()) return false
   const user = getUser()
   let hasToken = false
   try { hasToken = !!wx.getStorageSync('lxm_public_token') } catch (e) {}
@@ -34,42 +43,52 @@ function getLastContactPhone() {
 }
 
 function getDisplayUserInfo() {
-  const user = getUser()
-  return user.userInfo || user
+  return {}
 }
 
 async function bindPhoneByCode(code, extra = {}) {
+  const requestVersion = userStateVersion
   const res = await userApi.bindPhone({ code, ...extra })
+  // A logout that happened while WeChat was returning the authorization code
+  // wins over this stale response and must not restore the profile.
+  if (requestVersion !== userStateVersion) return {}
   const data = (res && res.data) || res || {}
+  clearLogoutMarker()
   return saveUser({
     ...data,
-    phone: data.phone || extra.phone || '',
-    userInfo: extra.userInfo || data.userInfo || getDisplayUserInfo()
+    phone: data.phone || extra.phone || ''
   })
 }
 
 function syncUserProfile() {
+  if (isLoggedOut()) return Promise.resolve({})
   if (profileSyncPromise) return profileSyncPromise
-  profileSyncPromise = userApi.getMyProfile()
+  const requestVersion = userStateVersion
+  const sync = userApi.getMyProfile()
     .then((res) => {
+      if (requestVersion !== userStateVersion || isLoggedOut()) return {}
       const data = (res && res.data) || res || {}
       if (!data.openid) return getUser()
       return saveUser({
         openid: data.openid,
-        phone: data.phone || getBoundPhone(),
-        userInfo: data.userInfo ? { ...getDisplayUserInfo(), ...data.userInfo } : getDisplayUserInfo(),
-        ...(data.avatarFileId ? { avatarFileId: data.avatarFileId } : {})
+        phone: data.phone || getBoundPhone()
       })
     })
-    .finally(() => { profileSyncPromise = null })
-  return profileSyncPromise
+  profileSyncPromise = sync
+  sync.then(
+    () => { if (profileSyncPromise === sync) profileSyncPromise = null },
+    () => { if (profileSyncPromise === sync) profileSyncPromise = null }
+  )
+  return sync
 }
 
-async function updateAvatar(avatarFileId) {
-  const res = await userApi.updateMyProfile({ avatarFileId })
-  const data = res && res.data
-  if (!data || !data.userInfo) throw new Error('头像保存失败，请重试')
-  return saveUser({ ...data, userInfo: { ...getDisplayUserInfo(), ...data.userInfo } })
+function clearUser() {
+  userStateVersion += 1
+  profileSyncPromise = null
+  try {
+    wx.removeStorageSync(USER_KEY)
+    wx.removeStorageSync('userInfo')
+  } catch (e) {}
 }
 
 module.exports = {
@@ -80,7 +99,8 @@ module.exports = {
   getUser,
   hasBoundPhone,
   isAuthed,
+  isLoggedOut,
   saveUser,
-  syncUserProfile,
-  updateAvatar
+  clearUser,
+  syncUserProfile
 }

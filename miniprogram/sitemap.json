@@ -3,7 +3,6 @@
   "rules": [
     { "action": "disallow", "page": "pages/my/my" },
     { "action": "disallow", "page": "pages/myOrders/myOrders" },
-    { "action": "disallow", "page": "pages/myFavorites/myFavorites" },
     { "action": "disallow", "page": "pages/orderDetail/orderDetail" },
     { "action": "disallow", "page": "pages/bookingInfo/bookingInfo" },
     { "action": "disallow", "page": "pages/bookingSuccess/bookingSuccess" },

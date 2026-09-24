@@ -39,6 +39,13 @@ assert.equal(matches("completed", "paid"), true);
 assert.equal(matches("completed", "delivered"), true);
 assert.equal(matches("completed", "completed"), true);
 assert.equal(matches("completed", "awaiting_final_payment"), false);
+assert.equal(matches("pending_payment", "awaiting_confirmation"), true);
+assert.equal(matches("awaiting_photographer", "awaiting_dispatch"), true);
+assert.equal(matches("shot", "selection_pending"), true);
+assert.equal(matches("paid", "paid"), true);
+assert.equal(matches("delivered", "delivered"), true);
+assert.equal(matches("after_sale", "paid", { isAfterSale: true }), true);
+assert.equal(matches("after_sale", "paid", { isAfterSale: false }), false);
 
 // Before the deposit is paid, an application is still cancellable and has no
 // payment action unless the server grants the deposit payment explicitly.
@@ -53,7 +60,17 @@ const application = order.normalizeOrder({
 assert.equal(application.workflowStage, "awaiting_deposit");
 assert.equal(application.canPay, true);
 assert.equal(application.canCancel, true);
+assert.equal(application.cancelRuleText, '');
 assert.equal(application.canAfterSale, false);
+const cancelRuleDisplay = order.normalizeOrder({
+  id: "cancel-rule-display-1",
+  status: "new",
+  workflowStage: "awaiting_deposit",
+  canCancel: true,
+  cancelRule: "before_service_confirmation_and_payment_intent"
+});
+assert.equal(cancelRuleDisplay.cancelRuleText, "服务确认或收款核对开始前，可提交取消申请。");
+assert.equal(cancelRuleDisplay.cancelRule, "before_service_confirmation_and_payment_intent");
 assert.equal(order.normalizeOrder({ ...application, id: "application-no-cancel-grant", canCancel: undefined }).canCancel, false);
 
 // An offline selection confirmation is the gate for final payment. Delivery
@@ -154,5 +171,11 @@ const testPaymentGranted = order.normalizeOrder({
 assert.equal(testPaymentGranted.canRunTestPayment, true);
 const testPaymentDenied = order.normalizeOrder({ ...testPaymentGranted, id: "test-payment-2", canRunTestPayment: false });
 assert.equal(testPaymentDenied.canRunTestPayment, false);
+
+const mockPaymentEnabled = order.normalizeOrder({ ...application, id: "mock-payment-1", paymentSimulationEnabled: true });
+assert.equal(mockPaymentEnabled.paymentSimulationEnabled, true);
+assert.equal(mockPaymentEnabled.paymentMode, "mock");
+const mockPaymentModeOnly = order.normalizeOrder({ ...application, id: "mock-payment-2", paymentMode: "mock" });
+assert.equal(mockPaymentModeOnly.paymentSimulationEnabled, true);
 
 process.stdout.write("Mini-program order acceptance checks passed.\n");

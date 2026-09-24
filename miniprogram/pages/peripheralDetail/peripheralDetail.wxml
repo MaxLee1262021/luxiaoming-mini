@@ -44,12 +44,6 @@
     </view>
 
     <view class="lxm-foot-bar">
-      <view class="lxm-foot-bar__side">
-        <button class="lxm-foot-btn {{collected ? 'is-active' : ''}}" bindtap="toggleCollect">
-          <lxm-icon type="star" size="40" color="{{collected ? 'red' : 'ink'}}"></lxm-icon>
-          <text class="lxm-foot-btn__txt">收藏</text>
-        </button>
-      </view>
       <button class="lxm-foot-btn__main" bindtap="contactService">加入预约</button>
     </view>
   </block>

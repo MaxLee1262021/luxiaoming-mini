@@ -1,6 +1,6 @@
 const filesApi = require('../api/files')
 
-const LIMITS = { avatar: 5 * 1024 * 1024, 'after-sale': 20 * 1024 * 1024 }
+const LIMITS = { 'after-sale': 20 * 1024 * 1024 }
 const MIME_TYPES = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp' }
 
 function cancelledError() {
@@ -35,7 +35,7 @@ async function imageMetadata(file, purpose) {
   const stat = await new Promise((resolve, reject) => wx.getFileInfo({ filePath: file.path, success: resolve,
     fail: () => reject(new Error('图片已失效，请重新选择')) }))
   const size = Number(stat.size)
-  if (!(size > 0) || size > LIMITS[purpose]) throw new Error(purpose === 'avatar' ? '头像需小于 5 MB' : '每张凭证需小于 20 MB')
+  if (!(size > 0) || size > LIMITS[purpose]) throw new Error('每张凭证需小于 20 MB')
   return { fileName: 'image.' + (ext === 'jpeg' ? 'jpg' : ext), mimeType: MIME_TYPES[ext], size }
 }
 

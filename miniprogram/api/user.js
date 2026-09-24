@@ -8,10 +8,7 @@ function getMyProfile() {
   return callCloud('getMyProfile')
 }
 
-function updateMyProfile(data) { return callCloud('updateMyProfile', data) }
-
 module.exports = {
   bindPhone,
-  getMyProfile,
-  updateMyProfile
+  getMyProfile
 }

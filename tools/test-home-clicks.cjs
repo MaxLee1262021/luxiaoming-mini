@@ -86,7 +86,9 @@ function lastNavigation() {
     await page.onLoad({});
     assert.equal(page.data.loading, false);
     assert.equal(page.data.activeSpotId, "spot-1");
-    assert.equal(page.data.quickNav.length, 6);
+    assert.equal(page.data.quickNav.length, 5);
+    assert.equal(page.data.quickNav.some(item => item.targetType === "all_spots"), false);
+    assert.equal(page.data.quickNav[0].targetType, "package_list");
     const { buildHomeViewData, getBannerTarget } = require(path.resolve(__dirname, "..", "miniprogram", "service", "homeData.js"));
     assert.deepEqual(buildHomeViewData({ quickNav: null }).quickNav, []);
     assert.equal(getBannerTarget({ targetType: "packageList" }).path, "/pages/search/search");
@@ -101,12 +103,18 @@ function lastNavigation() {
 
     page.goQuickNav({ currentTarget: { dataset: { index: 0, targetType: "all_spots" } } });
     assert.deepEqual(lastNavigation(), { method: "switchTab", url: "/pages/explore/explore" });
-    page.goQuickNav({ currentTarget: { dataset: { index: 1, targetType: "package_list" } } });
+    page.goQuickNav({ currentTarget: { dataset: { index: 0, targetType: "package_list" } } });
     assert.match(lastNavigation().url, /^\/pages\/search\/search(?:\?|$)/);
-    page.goQuickNav({ currentTarget: { dataset: { index: 5, targetType: "my" } } });
+    page.goQuickNav({ currentTarget: { dataset: { index: 4, targetType: "my" } } });
     assert.deepEqual(lastNavigation(), { method: "switchTab", url: "/pages/my/my" });
     page.goQuickNav({ currentTarget: { dataset: { targetType: "package" } } });
     assert.equal(toasts.at(-1).title, "该入口暂未配置");
+
+    const filteredQuickNav = buildHomeViewData({ quickNav: [
+      { targetType: "all_spots", label: "全部打卡点" },
+      { targetType: "package_list", label: "旅拍套餐" }
+    ] }).quickNav;
+    assert.deepEqual(filteredQuickNav.map(item => item.targetType), ["package_list"]);
 
     const router = require(path.resolve(__dirname, "..", "miniprogram", "utils", "router.js"));
     assert.equal(router.normalizeRouteKey("bookingAlbums"), "booking_albums");

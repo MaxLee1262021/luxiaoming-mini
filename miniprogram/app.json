@@ -8,7 +8,6 @@
     "pages/search/search",
     "pages/peripheralDetail/peripheralDetail",
     "pages/my/my",
-    "pages/myFavorites/myFavorites",
     "pages/photoCollection/photoCollection",
     "pages/photoPackageDetail/photoPackageDetail",
     "pages/bookingInfo/bookingInfo",

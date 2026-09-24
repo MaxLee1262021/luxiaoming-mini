@@ -63,9 +63,10 @@ function resolveSelectedPackage(data = {}, packageId = '') {
     currentPackage
   ].filter(Boolean)
   const photoPackages = allPackages.filter(item => !isVideo(item))
+  const requestedPackageId = packageId === undefined || packageId === null ? '' : String(packageId).trim()
 
-  return packageId
-    ? (photoPackages.find(item => item._id === packageId) || photoPackages[0] || null)
+  return requestedPackageId
+    ? (photoPackages.find(item => String(item._id) === requestedPackageId) || null)
     : (photoPackages.find(item => currentPackage && item._id === currentPackage._id) || photoPackages[0] || null)
 }
 
@@ -191,7 +192,7 @@ function buildPhotoPackageDetail(data = {}, options = {}) {
     ? photos.slice(0, 8)
     : (data.samples && data.samples.length ? data.samples : [{ _id: 'cover', url: selectedPackage && selectedPackage.cover || seriesInfo.cover || '/images/placeholder.png', type: 'image' }])
 
-  const packageSpots = resolvePackageSpots(selectedPackage, data)
+  const packageSpots = resolvePackageSpots(selectedPackage || {}, data)
   const spots = packageSpots.length ? packageSpots : (data.spots || [])
 
   return {
@@ -206,7 +207,7 @@ function buildPhotoPackageDetail(data = {}, options = {}) {
     albums,
     spots,
     selectedPackage,
-    packageBenefits: buildPackageBenefits(selectedPackage),
+    packageBenefits: buildPackageBenefits(selectedPackage || {}),
     includedItems: normalizeIncludedItems(selectedPackage && selectedPackage.includedItems, {
       videoProducts: data.videoProducts || demoData.videoProducts,
       albums: data.albums || demoData.albums,

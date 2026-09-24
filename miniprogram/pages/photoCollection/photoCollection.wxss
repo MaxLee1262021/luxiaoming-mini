@@ -1,7 +1,7 @@
 .photo-collection-page {
   background: var(--lxm-c-bg);
   min-height: 100vh;
-  padding-bottom: 140rpx;
+  padding-bottom: calc(140rpx + env(safe-area-inset-bottom));
 }
 
 .cover-swiper { height: 460rpx; }
@@ -76,6 +76,7 @@
   display: inline-flex;
   flex-direction: column;
   width: 190rpx;
+  min-height: 88rpx;
   margin-right: 16rpx;
   background: var(--lxm-c-surface);
   border-radius: 20rpx;
@@ -367,7 +368,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6rpx;
-  min-height: 64rpx;
+  min-height: 88rpx;
   padding: 0 24rpx;
   border-radius: 999rpx;
   background: var(--lxm-c-gray-150);

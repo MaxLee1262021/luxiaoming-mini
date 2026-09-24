@@ -165,7 +165,7 @@ Page({
       const user = await userStore.bindPhoneByCode(e.detail.code)
       this.setData({
         authReady: true,
-        userInfo: user.userInfo || this.data.userInfo,
+        userInfo: this.data.userInfo,
         boundPhone: user.phone || '',
         contactPhones: bookingPicker.mergeContactPhones(this.data.contactPhones, user.phone ? [user.phone] : []),
         phoneMode: 'wechat',
@@ -181,7 +181,7 @@ Page({
   },
 
   onDevBypass() {
-    userStore.saveUser({ phone: '13800000000', userInfo: { nickName: '测试用户' } })
+    userStore.saveUser({ phone: '13800000000' })
     this.refreshAuthState()
     wx.showToast({ title: '已进入测试模式', icon: 'none' })
   },

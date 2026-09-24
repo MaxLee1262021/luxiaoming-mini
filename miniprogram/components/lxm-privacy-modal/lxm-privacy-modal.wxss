@@ -1,3 +1,12 @@
+button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+  text-align: center;
+}
+
 .privacy-mask {
   position: fixed;
   left: 0;

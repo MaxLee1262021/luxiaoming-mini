@@ -126,31 +126,29 @@
 
     <!-- 照片单品详情：底部操作 -->
     <view class="lxm-foot-bar" wx:if="{{isAlbumDetail && currentCollection}}">
-      <view class="lxm-foot-bar__side">
-        <button class="lxm-foot-btn {{collected ? 'is-active' : ''}}" bindtap="toggleCollect">
-          <lxm-icon type="star" size="40" color="{{collected ? 'red' : 'ink'}}"></lxm-icon>
-          <text class="lxm-foot-btn__txt">收藏</text>
-        </button>
-      </view>
       <button class="lxm-foot-btn__main" bindtap="goBookingFromCollectionBottom">预约同款</button>
     </view>
 
     <block wx:if="{{!isAlbumDetail}}">
-    <view class="section-title">主推旅拍套餐</view>
-    <view wx:if="{{featuredPackage}}" class="featured-pkg-wrap">
-      <lxm-package-card layout="horizontal" cover-size="140" item="{{featuredPackage}}" bind:tap="goPackageDetail" />
-    </view>
-    <lxm-empty-state wx:else type="package" title="更多主推旅拍套餐整理中" />
-
-    <view class="section-title">旅拍套餐推荐</view>
-    <scroll-view scroll-x class="pkg-scroll" show-scrollbar="{{false}}" wx:if="{{spotPackages.length}}">
-      <block wx:for="{{spotPackages}}" wx:key="_id">
-        <view class="pkg-scroll-item">
-          <lxm-package-card layout="horizontal" cover-size="140" item="{{item}}" bind:tap="goPackageDetail" />
+    <block wx:if="{{hasPackageRecommendations}}">
+      <block wx:if="{{featuredPackage}}">
+        <view class="section-title">主推旅拍套餐</view>
+        <view class="featured-pkg-wrap">
+          <lxm-package-card layout="horizontal" cover-size="140" item="{{featuredPackage}}" bind:tap="goPackageDetail" />
         </view>
       </block>
-    </scroll-view>
-    <lxm-empty-state wx:else type="package" title="更多旅拍套餐整理中" />
+
+      <block wx:if="{{spotPackages.length}}">
+        <view class="section-title">旅拍套餐推荐</view>
+        <scroll-view scroll-x class="pkg-scroll" show-scrollbar="{{false}}">
+          <block wx:for="{{spotPackages}}" wx:key="_id">
+            <view class="pkg-scroll-item">
+              <lxm-package-card layout="horizontal" cover-size="140" item="{{item}}" bind:tap="goPackageDetail" />
+            </view>
+          </block>
+        </scroll-view>
+      </block>
+    </block>
 
     <view class="section-title">照片留影（{{collections.length}} 个）</view>
         <view class="collection-grid" wx:if="{{collections.length}}">

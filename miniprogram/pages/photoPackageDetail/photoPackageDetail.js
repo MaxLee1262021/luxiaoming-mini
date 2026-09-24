@@ -4,7 +4,6 @@ const seriesApi = require('../../api/series')
 const { buildUrlWithSource } = require('../../utils/query')
 const { buildPhotoPackageDetail } = require('../../service/packageDetail')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
-const favorite = require('../../utils/favorite')
 const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
@@ -33,8 +32,7 @@ Page({
       bookingRule: true
     },
     // 拍摄说明：优先使用数据（将来由后台/套餐字段覆盖），兜底用统一默认值
-    instructions: demoData.DEFAULT_SHOOTING_INSTRUCTIONS,
-    collected: false
+    instructions: demoData.DEFAULT_SHOOTING_INSTRUCTIONS
   },
 
   onLoad(options = {}) {
@@ -128,8 +126,7 @@ Page({
       includedItems,
       spots: detail.spots || [],
       packageStats,
-      error: '',
-      collected: selectedPackage && selectedPackage._id ? favorite.has(selectedPackage._id) : false
+      error: ''
     })
   },
 
@@ -218,27 +215,5 @@ Page({
       }
     })
   },
-
-  toggleCollect() {
-    const pkg = this.data.selectedPackage || {}
-    const id = pkg._id
-    if (!id) {
-      wx.showToast({ title: '该内容暂不支持收藏', icon: 'none' })
-      return
-    }
-    const next = favorite.toggle({
-      type: 'photo_package',
-      typeLabel: '旅拍套餐',
-      id,
-      title: pkg.name || '旅拍套餐',
-      cover: pkg.cover || '',
-      price: pkg.price || 0,
-      spot: pkg.spotName || '',
-      spotId: this.data.spotId || '',
-      url: '/pages/photoPackageDetail/photoPackageDetail?id=' + this.data.seriesId + '&packageId=' + id + '&spotId=' + (this.data.spotId || '')
-    })
-    this.setData({ collected: next })
-    wx.showToast({ title: next ? '已收藏' : '已取消收藏', icon: 'none' })
-  }
 
 })

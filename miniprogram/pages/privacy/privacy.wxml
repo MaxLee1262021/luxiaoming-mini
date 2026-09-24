@@ -1,5 +1,5 @@
 <view class="policy-page">
-  <lxm-nav-bar showBack="{{true}}" placeholder="{{true}}" />
+  <lxm-nav-bar title="隐私政策" showBack="{{true}}" placeholder="{{true}}" theme="light" />
 
   <view class="policy-section" wx:for="{{sections}}" wx:key="title">
     <view class="policy-h">{{item.title}}</view>

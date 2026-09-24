@@ -7,6 +7,7 @@ const { API_BASE, API_ERROR } = require('../config/env')
 let _openid = ''
 let _token = ''
 let _loginPromise = null
+const LOGGED_OUT_KEY = 'lxm_user_logged_out'
 
 // Browsing content is intentionally public on the server. Requiring a WeChat
 // session before these calls makes the storefront silently fall back to demo
@@ -22,6 +23,19 @@ const PUBLIC_BROWSING_RPCS = new Set([
 
 function getOpenid() { return _openid }
 
+function isLoggedOut() {
+  try {
+    const value = wx.getStorageSync(LOGGED_OUT_KEY)
+    return value === true || value === '1'
+  } catch (e) {
+    return false
+  }
+}
+
+function clearLogoutMarker() {
+  try { wx.removeStorageSync(LOGGED_OUT_KEY) } catch (e) {}
+}
+
 function clearSession() {
   _openid = ''
   _token = ''
@@ -30,6 +44,11 @@ function clearSession() {
     wx.removeStorageSync('lxm_openid')
     wx.removeStorageSync('lxm_public_token')
   } catch (e) {}
+}
+
+function logout() {
+  clearSession()
+  try { wx.setStorageSync(LOGGED_OUT_KEY, true) } catch (e) {}
 }
 
 // 确保已登录（返回 openid）。同一会话只登录一次，并发请求复用同一个 Promise。
@@ -110,6 +129,12 @@ function callRaw(name, data, { clearOnUnauthorized = true } = {}) {
 //   服务器返回 success===false 时 reject，调用方 catch 即可拿到 message。
 async function callCloud(name, data = {}) {
   const isPublicBrowse = PUBLIC_BROWSING_RPCS.has(name)
+  // The server has no revoke endpoint yet. Keep an explicit local logout from
+  // being silently undone by an automatic session refresh; phone binding is
+  // the intentional path that restores the customer session.
+  if (!isPublicBrowse && isLoggedOut() && name !== 'bindPhone') {
+    throw new Error('当前已退出登录，请先授权手机号')
+  }
   if (!isPublicBrowse) await ensureLogin()
   return await callRaw(name, data, { clearOnUnauthorized: !isPublicBrowse })
 }
@@ -139,6 +164,7 @@ function normalizeMediaUrls(value) {
 
 async function requestAuthenticated(path, data = {}, method = 'POST') {
   if (!/^\/files(?:\/|$)/.test(path)) throw new Error('文件接口路径无效')
+  if (isLoggedOut()) throw new Error('当前已退出登录，请先授权手机号')
   await ensureLogin()
   if (API_ERROR) throw new Error(API_ERROR)
   return new Promise((resolve, reject) => {
@@ -161,4 +187,14 @@ async function requestAuthenticated(path, data = {}, method = 'POST') {
   })
 }
 
-module.exports = { callCloud, login, getOpenid, PUBLIC_BROWSING_RPCS, requestAuthenticated, normalizeMediaUrls }
+module.exports = {
+  callCloud,
+  login,
+  logout,
+  getOpenid,
+  isLoggedOut,
+  clearLogoutMarker,
+  PUBLIC_BROWSING_RPCS,
+  requestAuthenticated,
+  normalizeMediaUrls
+}

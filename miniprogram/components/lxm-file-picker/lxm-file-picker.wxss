@@ -1,3 +1,13 @@
+button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+  text-align: center;
+}
+button[size="mini"] { display: inline-flex; }
+
 .file-hint { font-size: var(--lxm-fz-sm); color: var(--lxm-c-muted); margin-bottom: 16rpx; }
 .file-item { display: flex; align-items: center; gap: 16rpx; padding: 12rpx 0; }
 .file-thumb { width: 96rpx; height: 96rpx; border-radius: 12rpx; flex-shrink: 0; }

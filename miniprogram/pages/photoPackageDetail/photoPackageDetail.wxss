@@ -4,7 +4,7 @@ page {
 
 .page {
   min-height: 100vh;
-  padding-bottom: 132rpx;
+  padding-bottom: calc(132rpx + env(safe-area-inset-bottom));
   background: var(--lxm-c-bg);
   color: var(--lxm-c-ink);
 }
@@ -55,32 +55,10 @@ page {
   margin: 24rpx 22rpx 20rpx;
   padding: 30rpx;
   border-radius: 26rpx;
-  background: var(--lxm-c-ink, #2A211B);
-  color: var(--lxm-c-cream, #FFF7EF);
+  background: var(--lxm-c-ink);
+  color: var(--lxm-c-cream);
   overflow: hidden;
   box-shadow: 0 22rpx 46rpx rgba(64,39,26,0.22);
-}
-
-.package-card__decor {
-  position: absolute;
-  border-radius: 50%;
-  pointer-events: none;
-}
-
-.package-card__decor--tr {
-  top: -46rpx;
-  right: -46rpx;
-  width: 180rpx;
-  height: 180rpx;
-  background: rgba(238,44,44,0.16);
-}
-
-.package-card__decor--bl {
-  bottom: -60rpx;
-  left: -60rpx;
-  width: 160rpx;
-  height: 160rpx;
-  background: rgba(255,141,82,0.14);
 }
 
 .package-top {
@@ -95,7 +73,7 @@ page {
   padding: 7rpx 15rpx;
   border-radius: 999rpx;
   background: rgba(255,247,239,0.14);
-  color: var(--lxm-c-cream, #FFF7EF);
+  color: var(--lxm-c-cream);
   font-size: var(--lxm-fz-xs);
   font-weight: 900;
 }
@@ -104,13 +82,13 @@ page {
   padding: 7rpx 15rpx;
   border-radius: 999rpx;
   background: rgba(255,247,239,0.14);
-  color: var(--lxm-c-cream, #FFF7EF);
+  color: var(--lxm-c-cream);
   font-size: var(--lxm-fz-xs);
   font-weight: 900;
 }
 
 .sold-pill.is-hot-sale {
-  background: var(--lxm-c-red, #EE2C2C);
+  background: var(--lxm-c-red);
 }
 
 .package-title {
@@ -120,14 +98,14 @@ page {
   font-size: var(--lxm-fz-2xl);
   font-weight: 900;
   line-height: 1.25;
-  color: var(--lxm-c-cream, #FFF7EF);
+  color: var(--lxm-c-cream);
 }
 
 .package-description {
   position: relative;
   z-index: 1;
   margin-top: 14rpx;
-  color: var(--lxm-c-cream, #FFF7EF);
+  color: var(--lxm-c-cream);
   font-size: var(--lxm-fz-sm);
   line-height: 1.65;
   opacity: .82;
@@ -147,7 +125,7 @@ page {
   padding: 6rpx 12rpx;
   border-radius: 999rpx;
   background: rgba(255,247,239,.12);
-  color: var(--lxm-c-cream, #FFF7EF);
+  color: var(--lxm-c-cream);
   font-size: var(--lxm-fz-xs);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -172,7 +150,7 @@ page {
 
 .combo-metric__value {
   display: block;
-  color: var(--lxm-c-gold, #FFD36A);
+  color: var(--lxm-c-gold);
   font-size: var(--lxm-fz-xl);
   font-weight: 900;
   line-height: 1.1;
@@ -181,7 +159,7 @@ page {
 .combo-metric__label {
   display: block;
   margin-top: 8rpx;
-  color: var(--lxm-c-cream, #FFF7EF);
+  color: var(--lxm-c-cream);
   font-size: var(--lxm-fz-xs);
   font-weight: 900;
   opacity: .8;
@@ -205,20 +183,20 @@ page {
 }
 
 .combo-origin {
-  color: var(--lxm-c-cream, #FFF7EF);
+  color: var(--lxm-c-cream);
   font-size: var(--lxm-fz-sm);
   opacity: .65;
   text-decoration: line-through;
 }
 
 .combo-sale {
-  color: var(--lxm-c-gold, #FFD36A);
+  color: var(--lxm-c-gold);
   font-size: var(--lxm-fz-3xl);
   font-weight: 900;
 }
 
 .combo-tail {
-  color: var(--lxm-c-cream, #FFF7EF);
+  color: var(--lxm-c-cream);
   font-size: var(--lxm-fz-sm);
   opacity: .75;
 }
@@ -282,7 +260,7 @@ page {
 }
 
 .benefit-label { color: var(--lxm-c-gray-700); flex-shrink: 0; }
-.benefit-value { color: var(--lxm-c-ink); font-weight: 800; text-align: right; word-break: break-word; }
+.benefit-value { color: var(--lxm-c-ink); font-weight: var(--lxm-fw-medium); text-align: right; word-break: break-word; }
 
 
 .section-badge {
@@ -311,7 +289,7 @@ page {
   display: inline-flex;
   align-items: center;
   gap: 6rpx;
-  min-height: 64rpx;
+  min-height: 88rpx;
   padding: 0 24rpx;
   border-radius: 999rpx;
   background: var(--lxm-c-gray-150);
@@ -362,6 +340,7 @@ page {
   display: flex;
   align-items: center;
   gap: 18rpx;
+  min-height: 88rpx;
   padding: 20rpx;
   border-radius: 20rpx;
   background: var(--lxm-c-surface);
@@ -376,15 +355,15 @@ page {
 }
 
 .item-card__dot--album {
-  background: var(--lxm-c-red, #EE2C2C);
+  background: var(--lxm-c-red);
 }
 
 .item-card__dot--video {
-  background: var(--lxm-c-orange, #FF8D52);
+  background: var(--lxm-c-orange);
 }
 
 .item-card__dot--peripheral {
-  background: var(--lxm-c-gold, #FFD36A);
+  background: var(--lxm-c-gold);
 }
 
 .item-card__main {

@@ -63,10 +63,7 @@ const client = require('../miniprogram/api/client');
 const upload = require('../miniprogram/service/fileUpload');
 const media = require('../miniprogram/service/mediaFiles');
 const orderApi = require('../miniprogram/api/order');
-const userApi = require('../miniprogram/api/user');
-const userStore = require('../miniprogram/store/userStore');
 const orderFiles = require('../miniprogram/service/orderFileActions');
-const favorite = require('../miniprogram/utils/favorite');
 
 function page(extra = {}) {
   return { ...orderFiles.actions, data: { ...orderFiles.data, order: { _id: 'order-own', canAfterSale: true }, ...extra },
@@ -101,8 +98,8 @@ async function test(name, run) {
     assert.equal(intent.data.size, 1200);
   });
   await test('actual file size and format reject invalid images before reserving storage', async () => {
-    state.size = 5 * 1024 * 1024 + 1;
-    await assert.rejects(upload.uploadImage({ path: '/tmp/image.png', size: 1 }, { purpose: 'avatar' }).promise, /5 MB/);
+    state.size = 20 * 1024 * 1024 + 1;
+    await assert.rejects(upload.uploadImage({ path: '/tmp/image.png', size: 1 }, { purpose: 'after-sale' }).promise, /20 MB/);
     state.size = 100;
     state.imageType = 'gif';
     await assert.rejects(upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'after-sale' }).promise, /JPG/);
@@ -111,7 +108,7 @@ async function test(name, run) {
   });
   await test('cancel aborts transfer and prevents complete', async () => {
     state.stallUpload = true;
-    const job = upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'avatar' });
+    const job = upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'after-sale' });
     const failure = assert.rejects(job.promise, error => error.cancelled === true);
     await new Promise(setImmediate);
     job.cancel();
@@ -121,15 +118,15 @@ async function test(name, run) {
   await test('failed completion can retry without sending the object twice', async () => {
     state.completeFailures = 1;
     const checkpoint = {};
-    await assert.rejects(upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'avatar', checkpoint }).promise, /确认/);
+    await assert.rejects(upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'after-sale', checkpoint }).promise, /确认/);
     assert.equal(checkpoint.uploaded, true);
-    await upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'avatar', checkpoint }).promise;
+    await upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'after-sale', checkpoint }).promise;
     assert.equal(uploads.length, 1);
     assert.equal(requests.filter(item => item.url.endsWith('/complete')).length, 2);
   });
   await test('OSS rejects do not mark files complete', async () => {
     state.uploadStatus = 403;
-    await assert.rejects(upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'avatar' }).promise, /上传失败/);
+    await assert.rejects(upload.uploadImage({ path: '/tmp/image.png' }, { purpose: 'after-sale' }).promise, /上传失败/);
     assert.equal(requests.some(item => item.url.endsWith('/complete')), false);
   });
   await test('expired app session is cleared and retry authenticates again', async () => {
@@ -199,17 +196,6 @@ async function test(name, run) {
     assert.equal(instance.data.canRequestAfterSale, false);
     assert.equal(instance.data.afterSaleRecords[0].attachments[0].fileId, 'evidence');
   });
-  await test('avatar save persists only the confirmed profile and preserves old avatar on failure', async () => {
-    userStore.saveUser({ openid: 'owner', userInfo: { avatarUrl: 'https://images.example.invalid/old.png' } });
-    userApi.updateMyProfile = async () => { throw new Error('保存失败'); };
-    await assert.rejects(userStore.updateAvatar('new-avatar'), /保存失败/);
-    assert.equal(userStore.getDisplayUserInfo().avatarUrl, 'https://images.example.invalid/old.png');
-    userApi.updateMyProfile = async data => ({ success: true, data: { openid: 'owner', userInfo: { avatarUrl: 'https://images.example.invalid/new.png' }, avatarFileId: data.avatarFileId } });
-    await userStore.updateAvatar('new-avatar');
-    assert.equal(userStore.getDisplayUserInfo().avatarUrl, 'https://images.example.invalid/new.png');
-    assert.equal(storage.get('userInfo').avatarUrl, 'https://images.example.invalid/new.png');
-    assert.equal(userStore.getUser().avatarFileId, 'new-avatar');
-  });
   await test('evidence picker caps selection at nine and stays pending until failed items are retried or removed', async () => {
     const originalChoose = upload.chooseImages;
     const originalUpload = upload.uploadImage;
@@ -245,18 +231,6 @@ async function test(name, run) {
       upload.chooseImages = originalChoose;
       upload.uploadImage = originalUpload;
     }
-  });
-  await test('favorites refresh by entity and never resurrect items deleted while fetching', async () => {
-    storage.set(favorite.STORAGE_KEY, [{ id: 'album-1', type: 'photo_single', cover: '/uploads/old.png' }, { id: 'album-2', type: 'photo_single', cover: '/uploads/deleted.png' }]);
-    let release;
-    require('../miniprogram/api/spot').getBookingData = () => new Promise(resolve => { release = resolve; });
-    const { refreshFavoriteMedia } = require('../miniprogram/service/favoriteMedia');
-    const operation = refreshFavoriteMedia();
-    favorite.remove('album-2');
-    release({ success: true, data: { albums: [{ _id: 'album-1', cover: '/api/media/current' }, { _id: 'album-2', cover: '/api/media/deleted' }] } });
-    const result = await operation;
-    assert.equal(result.length, 1);
-    assert.equal(result[0].cover, 'http://localhost:5192/api/media/current');
   });
   process.stdout.write('File upload and customer delivery workflow checks passed.\n');
 })().catch(error => { console.error(error); process.exitCode = 1; });

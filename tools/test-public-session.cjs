@@ -21,6 +21,10 @@ global.wx = {
       options.success({ statusCode: 200, data: { success: true, data: { openid: "synthetic-openid", phone: "13900139000" } } });
       return;
     }
+    if (options.url.endsWith("/rpc/bindPhone")) {
+      options.success({ statusCode: 200, data: { success: true, data: { openid: "synthetic-openid", phone: "13900139000" } } });
+      return;
+    }
     options.success({ statusCode: 200, data: { success: true, data: [] } });
   },
 };
@@ -29,7 +33,7 @@ const clientPath = path.resolve(__dirname, "..", "miniprogram", "api", "client.j
 const userStorePath = path.resolve(__dirname, "..", "miniprogram", "store", "userStore.js");
 delete require.cache[clientPath];
 delete require.cache[userStorePath];
-const { callCloud, getOpenid } = require(clientPath);
+const { callCloud, getOpenid, logout, requestAuthenticated } = require(clientPath);
 const userStore = require(userStorePath);
 
 (async () => {
@@ -46,6 +50,24 @@ const userStore = require(userStorePath);
   assert.equal(requests.length, 3);
   assert.match(requests[2].url, /\/rpc\/getMyProfile$/);
   assert.equal(requests[2].header.Authorization, "Bearer synthetic-public-token");
+
+  logout();
+  userStore.clearUser();
+  assert.equal(getOpenid(), "");
+  assert.equal(storage.has("lxm_openid"), false);
+  assert.equal(storage.has("lxm_public_token"), false);
+  assert.equal(storage.has("lxm_user_profile"), false);
+  assert.equal(storage.has("userInfo"), false);
+  assert.equal(userStore.isLoggedOut(), true);
+  assert.equal(userStore.isAuthed(), false);
+  assert.equal(userStore.getBoundPhone(), "");
+  await assert.rejects(() => callCloud("getMyOrders", {}), /当前已退出登录/);
+  await assert.rejects(() => requestAuthenticated("/files/signed", {}), /当前已退出登录/);
+
+  const restored = await userStore.bindPhoneByCode("restored-code");
+  assert.equal(restored.phone, "13900139000");
+  assert.equal(userStore.isLoggedOut(), false);
+  assert.equal(userStore.isAuthed(), true);
   process.stdout.write("Public session token test passed.\n");
 })().catch((error) => {
   console.error(error);

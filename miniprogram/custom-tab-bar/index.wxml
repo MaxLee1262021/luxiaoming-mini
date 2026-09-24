@@ -6,7 +6,7 @@
     data-index="{{index}}"
     bindtap="switchTab"
   >
-    <lxm-icon type="{{item.icon}}" size="22" color="white"></lxm-icon>
+    <lxm-icon type="{{item.icon}}" size="22" color="{{selected === index ? 'red' : 'muted'}}"></lxm-icon>
     <view class="tab-label">{{item.text}}</view>
   </view>
 </view>

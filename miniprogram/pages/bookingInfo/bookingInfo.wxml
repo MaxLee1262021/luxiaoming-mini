@@ -128,7 +128,7 @@
           <text class="mode-name">咨询预约</text>
           <view class="mode-check"><lxm-icon type="check" size="22" color="white"></lxm-icon></view>
         </view>
-        <view class="mode-desc">提交后先生成预约申请。客服确认拍摄安排和金额后才会生成定金核对单；当前版本不提供微信支付。</view>
+        <view class="mode-desc">提交后先生成预约申请。客服确认拍摄安排和金额后，会在订单详情中开放定金微信支付。</view>
       </view>
     </view>
 

@@ -30,7 +30,7 @@
 
 /* ---------- 状态栏占位 ---------- */
 .lnb__statusbar {
-  height: calc(var(--nav-top, 26px) * 1px);
+  height: var(--nav-top, 26px);
   min-height: 20px;
 }
 
@@ -40,14 +40,14 @@
   display: flex;
   align-items: center;
   padding: 6rpx 24rpx 22rpx;
-  padding-right: calc(var(--capsule-safe-right, 104px) * 1px);
+  padding-right: var(--capsule-safe-right, 104px);
 }
 
 /* ---------- 标题（仅当 title 属性传入时渲染，其他页面无影响） ---------- */
 .lnb__title {
   position: absolute;
   left: 96rpx;
-  right: 0;
+  right: var(--capsule-safe-right, 104px);
   text-align: center;
   font-size: 32rpx;
   font-weight: var(--lxm-fw-semibold);

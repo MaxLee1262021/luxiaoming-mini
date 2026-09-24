@@ -2,7 +2,6 @@ const app = getApp()
 const demoData = require('../../utils/demoData')
 const peripheralApi = require('../../api/peripheral')
 const { backOrSwitchTab } = require('../../utils/navigation')
-const favorite = require('../../utils/favorite')
 Page({
   data: {
     id: '',
@@ -10,8 +9,7 @@ Page({
     scene: '',
     loading: true,
     error: '',
-    item: {},
-    collected: false
+    item: {}
   },
 
   onLoad(options) {
@@ -58,8 +56,7 @@ Page({
         cover: item.cover || item.coverUrl || item.image || '/images/placeholder.png',
         images: item.images && item.images.length ? item.images : [item.cover || item.coverUrl || item.image || '/images/placeholder.png']
       },
-      error: '',
-      collected: item && item._id ? favorite.has(item._id) : false
+      error: ''
     })
   },
 
@@ -81,28 +78,6 @@ Page({
         wx.showToast({ title: '请联系客服咨询', icon: 'none' })
       }
     })
-  },
-
-  toggleCollect() {
-    const item = this.data.item || {}
-    const id = item._id
-    if (!id) {
-      wx.showToast({ title: '该内容暂不支持收藏', icon: 'none' })
-      return
-    }
-    const next = favorite.toggle({
-      type: 'peripheral',
-      typeLabel: '影像周边',
-      id,
-      title: item.name || '影像周边',
-      cover: item.cover || '',
-      price: item.price || 0,
-      spot: item.spotName || '',
-      spotId: item.spotId || '',
-      url: '/pages/peripheralDetail/peripheralDetail?id=' + id
-    })
-    this.setData({ collected: next })
-    wx.showToast({ title: next ? '已收藏' : '已取消收藏', icon: 'none' })
   },
 
   goBack() {

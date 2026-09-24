@@ -1,3 +1,12 @@
+button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+  text-align: center;
+}
+
 /* 短视频卡片统一组件：与详情页「相关推荐」大图卡片同款
    单品 = 奶油底红字标签；套餐 = 品牌橙填充标签 */
 .video-card {

@@ -137,7 +137,7 @@
   color: var(--lxm-c-red);
   font-size: var(--lxm-fz-2xl);
   font-weight: 700;
-  font-family: var(--lxm-font-brand, serif);
+  font-family: inherit;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -242,7 +242,7 @@
 .sheet-dot.on {
   width: 22rpx;
   border-radius: 999rpx;
-  background: linear-gradient(135deg, var(--lxm-c-red, #EE2C2C) 0%, var(--lxm-c-orange, #FF8D52) 100%);
+  background: var(--lxm-gradient-primary);
 }
 
 .album-scroll {
@@ -387,6 +387,7 @@
   display: inline-flex;
   flex-direction: column;
   width: 200rpx;
+  min-height: 88rpx;
   margin-right: 16rpx;
   padding: 22rpx 20rpx;
   border-radius: 20rpx;

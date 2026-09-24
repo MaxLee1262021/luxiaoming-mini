@@ -18,6 +18,16 @@ const PIN_ICON_DEFAULT = '/images/map-pin-default.png'
 const PIN_ICON_ACTIVE = '/images/map-pin-active.png'
 const HOT_SEARCH_KEYWORDS = ['橘子洲', '杜甫江阁', 'IFS国金中心', '太平老街', '黄兴路', '岳麓山', '谢子龙']
 
+function mapPointOf(item = {}) {
+  if (item.latitude === undefined || item.latitude === null || String(item.latitude).trim() === ''
+    || item.longitude === undefined || item.longitude === null || String(item.longitude).trim() === '') return null
+  const latitude = Number(item.latitude)
+  const longitude = Number(item.longitude)
+  if (!Number.isFinite(latitude) || latitude < -90 || latitude > 90
+    || !Number.isFinite(longitude) || longitude < -180 || longitude > 180) return null
+  return { latitude, longitude }
+}
+
 // 演示城市只在显式 demo 模式使用。正常开发、体验和正式环境只展示后台 cities 集合。
 const FALLBACK_CITIES = [
   { name: '长沙', value: '长沙', count: 7 },
@@ -67,7 +77,10 @@ Page({
     mapLatitude: CHANGSHA_CENTER.latitude,
     mapLongitude: CHANGSHA_CENTER.longitude,
     mapScale: DEFAULT_SCALE,
-    includePoints: [],
+    // Keep this unset until there are at least two valid points. The Windows
+    // map renderer calls fitBounds for an empty array and then reads `lat` from
+    // an undefined point.
+    includePoints: null,
 
     statusBarHeight: 20,
     safeBottom: 0,
@@ -97,7 +110,14 @@ Page({
       scene: options.scene || source.scene || ''
     })
     this.requestedCity = String(options.cityId || options.city || '').trim()
-    this.mapCtx = wx.createMapContext('exploreMap')
+    try {
+      this.mapCtx = typeof wx !== 'undefined' && typeof wx.createMapContext === 'function'
+        ? wx.createMapContext('exploreMap')
+        : null
+    } catch (err) {
+      this.mapCtx = null
+      console.warn('explore create map context failed', err)
+    }
     // 晕动敏感：系统开启「减少动态效果」时暂停横幅自动轮播（属装饰性循环动效）
     try {
       const settings = wx.getSystemSetting ? wx.getSystemSetting() : {}
@@ -346,14 +366,18 @@ Page({
     const sorted = this.sortFilteredSpots(filtered, sortType)
 
     const activeId = this.data.selectedSpot && this.data.selectedSpot._id
-    const mappableSpots = sorted.filter(hasCoordinates)
+    const mappableSpots = sorted
+      .map(item => ({ item, point: mapPointOf(item) }))
+      .filter(entry => entry.point)
     const markers = mappableSpots.map((item, index) => {
-      const active = item._id === activeId
-      const name = item.name || ''
+      const spot = item.item
+      const point = item.point
+      const active = spot._id === activeId
+      const name = spot.name || ''
       return {
         id: index,
-        latitude: item.latitude,
-        longitude: item.longitude,
+        latitude: point.latitude,
+        longitude: point.longitude,
         iconPath: active ? PIN_ICON_ACTIVE : PIN_ICON_DEFAULT,
         width: active ? 52 : 44,
         height: active ? 77 : 65,
@@ -375,11 +399,11 @@ Page({
       }
     })
 
-    const center = this.computeCenter(mappableSpots, city)
+    const center = this.computeCenter(mappableSpots.map(entry => entry.point), city)
     const scale = mappableSpots.length === 1 ? 16 : (effectiveDistrict ? 14 : DEFAULT_SCALE)
     const includePoints = mappableSpots.length > 1
-      ? mappableSpots.map(item => ({ latitude: item.latitude, longitude: item.longitude }))
-      : []
+      ? mappableSpots.map(entry => entry.point)
+      : null
 
     const districtCount = effectiveDistrict
       ? (districtOptions.find(d => d.value === effectiveDistrict) || {}).count || sorted.length
@@ -691,8 +715,16 @@ Page({
   },
 
   locateMe() {
-    if (this.mapCtx && this.mapCtx.moveToLocation) {
-      this.mapCtx.moveToLocation()
+    const mapCtx = this.mapCtx
+    if (!mapCtx || typeof mapCtx.moveToLocation !== 'function') {
+      wx.showToast({ title: '地图暂未就绪，请稍后再试', icon: 'none' })
+      return
+    }
+    try {
+      mapCtx.moveToLocation()
+    } catch (err) {
+      console.warn('explore move to location failed', err)
+      wx.showToast({ title: '定位失败，请稍后再试', icon: 'none' })
     }
   },
 

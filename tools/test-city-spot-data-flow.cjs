@@ -95,6 +95,7 @@ function createPage() {
   await page.loadSpots();
   assert.deepEqual(page.data.filteredSpots.map((item) => item._id), ["spot-cs"]);
   assert.equal(page.data.markers.length, 1);
+  assert.equal(page.data.includePoints, null, "map bounds must stay unset for a single point");
   assert.deepEqual(
     { latitude: page.data.markers[0].latitude, longitude: page.data.markers[0].longitude },
     { latitude: 28.1863, longitude: 112.9498 }
@@ -119,8 +120,19 @@ function createPage() {
   page.applyFilters();
   assert.equal(page.data.filteredSpots.length, 2);
   assert.equal(page.data.markers.length, 1);
+  assert.equal(page.data.includePoints, null, "invalid coordinates must not enter map bounds");
   page.onMarkerTap({ detail: { markerId: 0 } });
   assert.match(lastNavigation.url, /id=spot-mappable/);
+
+  page.setData({
+    spots: [
+      { _id: "spot-a", name: "A", cityId: "city-changsha", city: "长沙", latitude: 28.2, longitude: 112.96 },
+      { _id: "spot-b", name: "B", cityId: "city-changsha", city: "长沙", latitude: "28.21", longitude: "112.97" }
+    ]
+  });
+  page.applyFilters();
+  assert.equal(page.data.includePoints.length, 2);
+  assert.ok(page.data.includePoints.every((point) => Number.isFinite(point.latitude) && Number.isFinite(point.longitude)));
 
   await page.loadExploreBanners();
   assert.deepEqual(page.data.exploreBanners, []);

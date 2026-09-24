@@ -3,8 +3,49 @@ const demoData = require('../../utils/demoData')
 const collectionApi = require('../../api/collection')
 const { buildUrlWithSource } = require('../../utils/query')
 const { isVideoSingle } = require('../../service/videoProductDetail')
-const favorite = require('../../utils/favorite')
 const { isExplicitDemoMode } = require('../../config/env')
+
+function getPackageId(record = {}) {
+  if (!record || typeof record !== 'object') return ''
+  const value = [record._id, record.id, record.packageId, record.productId]
+    .find(item => item !== undefined && item !== null && String(item).trim() !== '')
+  return value === undefined ? '' : String(value).trim()
+}
+
+function normalizePackageRecord(record = {}) {
+  const packageId = getPackageId(record)
+  if (!packageId) return null
+  return {
+    ...record,
+    _id: packageId,
+    id: packageId,
+    packageId
+  }
+}
+
+function normalizePackageCatalog(list = []) {
+  const seenIds = new Set()
+  return (Array.isArray(list) ? list : []).reduce((catalog, record) => {
+    const normalized = normalizePackageRecord(record)
+    if (!normalized || seenIds.has(normalized._id)) return catalog
+    seenIds.add(normalized._id)
+    catalog.push(normalized)
+    return catalog
+  }, [])
+}
+
+function resolveCatalogPackages(recommendations = [], catalog = [], excludedIds = []) {
+  const catalogById = new Map((catalog || []).map(item => [item._id, item]))
+  const usedIds = new Set(excludedIds || [])
+  return (Array.isArray(recommendations) ? recommendations : []).reduce((resolved, record) => {
+    const packageId = getPackageId(record)
+    const catalogPackage = catalogById.get(packageId)
+    if (!catalogPackage || usedIds.has(packageId)) return resolved
+    usedIds.add(packageId)
+    resolved.push(catalogPackage)
+    return resolved
+  }, [])
+}
 
 Page({
   data: {
@@ -16,6 +57,7 @@ Page({
     featuredPackages: [],
     featuredPackage: null,
     spotPackages: [],
+    hasPackageRecommendations: false,
     videos: [],
     peripherals: [],
     collections: [],
@@ -29,8 +71,7 @@ Page({
     spots: [],
     loading: true,
     error: '',
-    degraded: false, // 照片留影数据拉取失败、正在展示预览数据时置 true（降级提示条）
-    collected: false
+    degraded: false // 照片留影数据拉取失败、正在展示预览数据时置 true（降级提示条）
   },
 
   onLoad(options = {}) {
@@ -96,9 +137,24 @@ Page({
       albumId: this.data.pendingAlbumId,
       spotId: this.data.currentSpotId || data.currentSpotId || ''
     }) : {}
-    const packages = (data.packages && data.packages.length) ? data.packages : (fallback.packages || [])
-    const featuredPackages = (data.featuredPackages && data.featuredPackages.length) ? data.featuredPackages : (fallback.featuredPackages || [])
-    const spotPackages = (data.spotPackages && data.spotPackages.length) ? data.spotPackages : (fallback.spotPackages || packages)
+    const rawPackages = Array.isArray(data.packages) && data.packages.length
+      ? data.packages
+      : (Array.isArray(fallback.packages) ? fallback.packages : [])
+    const packages = normalizePackageCatalog(rawPackages)
+    const rawFeaturedPackages = Array.isArray(data.featuredPackages) && data.featuredPackages.length
+      ? data.featuredPackages
+      : (Array.isArray(fallback.featuredPackages) ? fallback.featuredPackages : [])
+    const featuredPackages = resolveCatalogPackages(rawFeaturedPackages, packages)
+    const featuredPackage = featuredPackages[0] || null
+    const rawSpotPackages = Array.isArray(data.spotPackages) && data.spotPackages.length
+      ? data.spotPackages
+      : (Array.isArray(fallback.spotPackages) ? fallback.spotPackages : packages)
+    const spotPackages = resolveCatalogPackages(
+      rawSpotPackages,
+      packages,
+      featuredPackage ? [featuredPackage._id] : []
+    )
+    const hasPackageRecommendations = !!(featuredPackage || spotPackages.length)
     const currentSpotId = this.data.currentSpotId || data.currentSpotId || (data.currentCollection && data.currentCollection.spotId) || fallback.currentSpotId || ''
     const filterVideosBySpot = (list = []) => {
       if (!currentSpotId) return list
@@ -125,7 +181,6 @@ Page({
       fallback.currentCollection ||
       null
     const isAlbumDetail = !!(pending && detailCollection)
-    const collectionFavId = isAlbumDetail ? this.getCollectionKey(detailCollection) : ''
     // 拍摄说明：album 数据优先（shootingNotes 字符串拆成数组），没数据时用统一默认值兜底
     const shootingNotesRaw = detailCollection ? (detailCollection.shootingNotes || '') : ''
     const fromData = shootingNotesRaw
@@ -149,8 +204,9 @@ Page({
       photos: data.photos || [],
       packages,
       featuredPackages,
-      featuredPackage: featuredPackages.length ? featuredPackages[0] : null,
+      featuredPackage,
       spotPackages,
+      hasPackageRecommendations,
       videos,
       peripherals: data.peripherals || [],
       collections,
@@ -161,7 +217,6 @@ Page({
       relatedCollections,
       instructions,
       activeCollectionId: activeCollection ? activeCollection.collectionKey : (focusCollection ? focusCollection.collectionKey : (collections[0] ? collections[0].collectionKey : '')),
-      collected: collectionFavId ? favorite.has(collectionFavId) : false,
       loading: false
     })
     if (!isAlbumDetail && focusCollection) this.scrollToFocusedCollection(focusCollection.collectionKey)
@@ -252,24 +307,20 @@ Page({
   },
 
   goPackageDetail(e) {
-    const packageId = e.detail.id
-    const packages = [
-      this.data.featuredPackage,
-      ...(this.data.featuredPackages || []),
-      ...(this.data.packages || []),
-      ...(this.data.spotPackages || [])
-    ].filter(Boolean)
-    const pkg = packages.find(item => item._id === packageId) || {}
-    const seriesId = pkg.seriesId || this.data.series._id
-    if (!packageId) {
+    const detail = (e && e.detail) || {}
+    const dataset = (e && e.currentTarget && e.currentTarget.dataset) || {}
+    const packageId = getPackageId(detail) || getPackageId(dataset)
+    const pkg = (this.data.packages || []).find(item => getPackageId(item) === packageId)
+    if (!packageId || !pkg) {
       wx.showToast({ title: '旅拍套餐不存在', icon: 'none' })
       return
     }
+    const seriesId = pkg.seriesId || this.data.series._id
     wx.navigateTo({
       url: this.buildUrl('/pages/photoPackageDetail/photoPackageDetail', {
         id: seriesId,
-        packageId,
-        productId: packageId,
+        packageId: pkg._id,
+        productId: pkg._id,
         spotId: pkg.spotId
       })
     })
@@ -318,28 +369,6 @@ Page({
         wx.showToast({ title: '请联系客服咨询', icon: 'none' })
       }
     })
-  },
-
-  toggleCollect() {
-    const c = this.data.currentCollection || {}
-    const id = this.getCollectionKey(c)
-    if (!id) {
-      wx.showToast({ title: '该内容暂不支持收藏', icon: 'none' })
-      return
-    }
-    const next = favorite.toggle({
-      type: 'photo_single',
-      typeLabel: '照片留影',
-      id,
-      title: c.name || c.seriesName || '照片留影',
-      cover: c.coverImage || c.cover || '',
-      price: c.price || 0,
-      spot: c.spotName || '长沙',
-      spotId: c.spotId || '',
-      url: '/pages/photoCollection/photoCollection?seriesId=' + (c.seriesId || this.data.series._id || '') + '&albumId=' + (c._id || c.albumId || '') + '&spotId=' + (c.spotId || this.data.currentSpotId || '')
-    })
-    this.setData({ collected: next })
-    wx.showToast({ title: next ? '已收藏' : '已取消收藏', icon: 'none' })
   },
 
 })

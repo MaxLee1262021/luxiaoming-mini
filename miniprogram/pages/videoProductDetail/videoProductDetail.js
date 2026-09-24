@@ -5,7 +5,6 @@ const spotApi = require('../../api/spot')
 const { buildUrlWithSource } = require('../../utils/query')
 const { buildVideoProductDetail } = require('../../service/videoProductDetail')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
-const favorite = require('../../utils/favorite')
 const { isExplicitDemoMode } = require('../../config/env')
 
 Page({
@@ -25,7 +24,6 @@ Page({
     packageBenefits: [],
     // 拍摄说明：优先使用数据（将来由后台/商品字段覆盖），兜底用统一默认值
     instructions: demoData.DEFAULT_SHOOTING_INSTRUCTIONS,
-    collected: false,
     pageConfig: {},
     moduleVisible: {
       video: true,
@@ -140,8 +138,7 @@ Page({
       recommendations: detail.recommendations,
       videoFields: detail.videoFields,
       packageBenefits: detail.packageBenefits,
-      error: '',
-      collected: detail.product && detail.product._id ? favorite.has(detail.product._id) : false
+      error: ''
     })
   },
 
@@ -212,28 +209,6 @@ Page({
         wx.showToast({ title: '请联系客服咨询', icon: 'none' })
       }
     })
-  },
-
-  toggleCollect() {
-    const product = this.data.product || {}
-    const id = product._id
-    if (!id) {
-      wx.showToast({ title: '该内容暂不支持收藏', icon: 'none' })
-      return
-    }
-    const next = favorite.toggle({
-      type: 'video_single',
-      typeLabel: '视频摄像',
-      id,
-      title: product.name || '视频摄像',
-      cover: product.cover || '',
-      price: product.price || 0,
-      spot: product.spotName || '',
-      spotId: product.spotId || this.data.spotId || '',
-      url: '/pages/videoProductDetail/videoProductDetail?productId=' + id + '&spotId=' + (product.spotId || this.data.spotId || '')
-    })
-    this.setData({ collected: next })
-    wx.showToast({ title: next ? '已收藏' : '已取消收藏', icon: 'none' })
   },
 
 })

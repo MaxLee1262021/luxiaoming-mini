@@ -64,5 +64,6 @@
     "tabSize": 2
   },
   "srcMiniprogramRoot": "miniprogram/",
-  "projectArchitecture": "multiPlatform"
+  "projectArchitecture": "multiPlatform",
+  "isGameTourist": false
 }

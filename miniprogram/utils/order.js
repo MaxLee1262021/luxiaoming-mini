@@ -21,6 +21,20 @@ const WORKFLOW_STAGES = {
   CANCELLED: 'cancelled'
 }
 
+const CANCEL_RULE_TEXT = Object.freeze({
+  before_service_confirmation_and_payment_intent: '服务确认或收款核对开始前，可提交取消申请。'
+})
+
+function customerCancelRuleText(value = '') {
+  const raw = String(value || '').trim()
+  if (!raw) return ''
+  if (CANCEL_RULE_TEXT[raw]) return CANCEL_RULE_TEXT[raw]
+  // Internal snake-case/camel-case rule identifiers must never be shown to
+  // customers. Unknown natural-language server copy remains displayable.
+  if (/^[a-z][a-z0-9]*(?:[_-][a-z0-9]+)+$/i.test(raw)) return ''
+  return raw
+}
+
 // The server keeps detailed workflow stages for operations, while customers
 // only need the five business states agreed for the booking flow. Keep the
 // keys stable in the mini program so old records and new projections render
@@ -221,7 +235,7 @@ function getOrderStatusDesc(status = '', context = {}) {
     return '拍摄已完成，等待客服/摄影师完成线下选片确认。'
   }
   if (key === BUSINESS_STATUS.SHOT && context && context.selectionConfirmed) {
-    return context.canPay ? '线下选片已确认，请按客服指引支付尾款。' : '拍摄已完成，等待客服/摄影师完成线下选片确认。'
+    return context.canPay ? '线下选片已确认，可在订单详情中支付尾款。' : '拍摄已完成，等待客服/摄影师完成线下选片确认。'
   }
   return {
     [BUSINESS_STATUS.PENDING_PAYMENT]: '预约已提交，具体拍摄时间由客服/摄影师与您沟通确认；订金待支付。',
@@ -305,6 +319,7 @@ function canCreatePayment(order = {}, phase = '') {
     : stage === expectedStage
   if (!stageAllowed && explicitGrant !== true) return false
   if (resolvedPhase === 'final' && !selectionReady) return false
+  if (resolvedPhase === 'final' && depositDue(order) > 0 && !paymentConfirmed(order, 'deposit')) return false
   if (typeof order.canCreatePayment === 'boolean' && !order.canCreatePayment) return false
   if (typeof order.canPay === 'boolean' && !order.canPay) return false
   const due = resolvedPhase === 'deposit' ? depositDue(order) : finalDue(order)
@@ -351,6 +366,8 @@ function normalizeOrder(order = {}) {
   const latestPayment = currentPhase ? records.filter(record => String(record && record.phase || '') === currentPhase).slice(-1)[0] : null
   const serverPaymentStatus = order.paymentStatus ? paymentStatus(order.paymentStatus) : ''
   const resolvedPaymentStatus = latestPayment ? paymentStatus(latestPayment.status) : (serverPaymentStatus || 'not_created')
+  const paymentSimulationEnabled = order.paymentSimulationEnabled === true
+    || String(order.paymentMode || '').trim().toLowerCase() === 'mock'
   const timeline = Array.isArray(order.statusTimeline) ? order.statusTimeline : (Array.isArray(order.statusLogs) ? order.statusLogs : [])
   const confirmed = !!(order.confirmationSnapshot || order.confirmedSnapshot || order.serviceSnapshot || order.serviceConfirmedAt || order.confirmedAt || order.pricingConfirmed)
   const scheduleConfirmed = confirmed
@@ -395,7 +412,9 @@ function normalizeOrder(order = {}) {
     isAfterSale,
     canCancel,
     cancelRule: order.cancelRule || '',
+    cancelRuleText: customerCancelRuleText(order.cancelRule || ''),
     cancelReason: order.cancelReason || order.cancelUnavailableReason || '',
+    cancelReasonText: customerCancelRuleText(order.cancelReason || order.cancelUnavailableReason || ''),
     canAfterSale,
     packageName: snapshot.name || snapshot.packageName || order.packageName || firstItem.packageName || firstItem.albumName || '预约项目',
     packagePrice: snapshot.price !== undefined ? moneyValue(snapshot.price) : (order.packagePrice || total || firstItem.price || 0),
@@ -432,10 +451,12 @@ function normalizeOrder(order = {}) {
     canPay,
     canPayDeposit: canPay && currentPhase === 'deposit',
     canPayFinal: canPay && currentPhase === 'final',
+    paymentMode: paymentSimulationEnabled ? 'mock' : 'wechat',
+    paymentSimulationEnabled,
     paymentTestModeEnabled: order.paymentTestModeEnabled === true,
     canRunTestPayment,
     nextAction: canPay
-      ? (currentPhase === 'deposit' ? '生成订金核对单' : '生成尾款核对单')
+      ? (currentPhase === 'deposit' ? '支付订金' : '支付尾款')
       : (businessStatusKey === BUSINESS_STATUS.PENDING_PAYMENT ? '等待客服确认并支付订金'
         : businessStatusKey === BUSINESS_STATUS.AWAITING_PHOTOGRAPHER ? '等待客服安排摄影师'
           : businessStatusKey === BUSINESS_STATUS.SHOT ? (selectionReady ? '等待或支付尾款' : '等待线下选片确认')
@@ -447,6 +468,7 @@ function normalizeOrder(order = {}) {
 
 module.exports = {
   normalizeCustomerStatus,
+  customerCancelRuleText,
   normalizeBusinessStatus,
   businessStatusForOrder,
   businessStatusText,

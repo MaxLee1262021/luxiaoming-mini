@@ -44,15 +44,21 @@ App({
     analytics.track('app_launch', {
       scene: (options && options.scene) || (this.globalData.source && this.globalData.source.scene) || ''
     })
-    // 自托管架构：不再依赖微信云开发。启动即登录拿 openid（失败也不阻塞首屏）。
-    login()
-      .then((oid) => {
-        this.globalData.openid = oid
-        return userStore.syncUserProfile()
-          .then((user) => { this.globalData.userInfo = user.userInfo || null })
-          .catch((e) => { console.warn('用户资料同步失败（不影响浏览）', e) })
-      })
-      .catch((e) => { console.warn('登录失败（不影响浏览）', e) })
+    // 自托管架构：不再依赖微信云开发。主动退出后只保留公共浏览，
+    // 重新授权手机号才会恢复会话与资料同步。
+    if (userStore.isLoggedOut()) {
+      this.globalData.openid = null
+      this.globalData.userInfo = null
+    } else {
+      login()
+        .then((oid) => {
+          this.globalData.openid = oid
+          return userStore.syncUserProfile()
+            .then((user) => { this.globalData.userInfo = user.userInfo || null })
+            .catch((e) => { console.warn('用户资料同步失败（不影响浏览）', e) })
+        })
+        .catch((e) => { console.warn('登录失败（不影响浏览）', e) })
+    }
     // 记录进入来源（普通带参启动：如 scene=shopId=xxx）
     if (options && options.query) this.captureSource(options.query)
     this.initPrivacy()

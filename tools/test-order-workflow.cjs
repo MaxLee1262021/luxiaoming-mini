@@ -138,6 +138,20 @@ test("final payment is gated by offline selection confirmation", () => {
     canPay: true
   });
   assert.equal(inconsistentGrant.canPay, false);
+
+  const finalBeforeDeposit = order.normalizeOrder({
+    id: 'final-before-deposit',
+    workflowStage: 'awaiting_final_payment',
+    status: 'final_pending',
+    totalAmount: 100,
+    depositDue: 30,
+    depositPaid: 0,
+    finalDue: 70,
+    selectionStatus: 'confirmed',
+    canPayFinal: true,
+    canPay: true
+  });
+  assert.equal(finalBeforeDeposit.canPay, false);
 });
 
 if (!process.exitCode) console.log("Order workflow mini-program checks passed.");

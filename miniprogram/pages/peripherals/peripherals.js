@@ -183,7 +183,9 @@ Page({
     }
   },
 
-  goStackDetail(id) {
+  goStackDetail(input) {
+    const id = input && input.currentTarget ? input.currentTarget.dataset.id : input
+    if (id === undefined || id === null || id === '') return
     wx.navigateTo({ url: this.buildUrl('/pages/peripheralDetail/peripheralDetail', { id }) })
   },
 

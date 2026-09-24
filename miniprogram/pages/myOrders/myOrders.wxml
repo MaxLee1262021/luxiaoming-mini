@@ -1,5 +1,5 @@
 <view class="my-orders-page">
-  <lxm-nav-bar showBack="{{true}}" placeholder="{{true}}" />
+  <lxm-nav-bar title="我的订单" showBack="{{true}}" placeholder="{{true}}" theme="light" />
   <lxm-privacy-modal />
   <lxm-toast id="lxmToast" />
 

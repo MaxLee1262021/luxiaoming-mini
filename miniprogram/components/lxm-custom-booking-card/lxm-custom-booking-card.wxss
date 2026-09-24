@@ -35,7 +35,7 @@
 .lxm-cbc__sub {
   display: block;
   margin-top: 8rpx;
-  font-size: 24rpx;
+  font-size: var(--lxm-fz-xs);
   opacity: 0.92;
   line-height: 1.4;
 }

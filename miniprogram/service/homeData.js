@@ -48,6 +48,16 @@ function isGlobalPackage(item = {}) {
   return !item.spotId && !(Array.isArray(item.spotIds) && item.spotIds.length)
 }
 
+function isRemovedQuickNav(item = {}) {
+  const targetType = String(item.targetType || item.type || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]/g, '_')
+  const label = String(item.label || item.name || '').replace(/\s/g, '')
+  return ['all_spots', 'allspots', 'spot_list', 'spotlist'].includes(targetType)
+    || /^全部.*打卡点$/.test(label)
+}
+
 function isVideoBanner(item = {}) {
   const type = String(item.type || item.mediaType || item.fileType || '').toLowerCase()
   const url = String(item.videoUrl || item.url || item.fileID || item.fileId || item.src || '')
@@ -255,7 +265,12 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
   const homeSpots = buildHomeSpots(mergedSpots)
   const homeSeries = buildHomeSeries(photoSeries, mergedSpots, mergedAlbums, allPackages)
   const rawQuickNav = data.quickNav || previewData.quickNav
-  const quickNav = Array.isArray(rawQuickNav) ? rawQuickNav.filter(Boolean) : []
+  // The home page already exposes the map banner and ranked spot shelf; remove
+  // the redundant "all spots" shortcut even when an older backend config still
+  // returns it.
+  const quickNav = Array.isArray(rawQuickNav)
+    ? rawQuickNav.filter(item => item && !isRemovedQuickNav(item))
+    : []
 
   return {
     shopInfo: data.shopInfo || previewData.shopInfo || {},

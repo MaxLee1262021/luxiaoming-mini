@@ -1,3 +1,12 @@
+button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+  text-align: center;
+}
+
 /* 照片单品卡片：与首页「照片单品」的 strip-card 保持同一视觉语言 */
 .album-card {
   position: relative;

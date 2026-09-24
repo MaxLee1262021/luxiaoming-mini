@@ -192,7 +192,16 @@ page {
 
 /* 全局按钮交互态：原生 <button> 统一按下/禁用反馈，补齐五态（默认/按下/禁用/加载） */
 button {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+  text-align: center;
   transition: transform 0.12s ease, opacity 0.12s ease;
+}
+button[size="mini"] {
+  display: inline-flex;
 }
 button:active {
   transform: scale(0.97);
@@ -271,7 +280,7 @@ button[disabled] {
 
 /* ===== 商品详情页统一吸底操作栏（单一事实来源） =====
    四个详情页（照片留影 / 旅拍套餐 / 周边 / 短视频）共用同一套骨架：
-   左 [客服][收藏] 图标按钮 + 右主按钮（仅文案随页面变化）。
+   全宽主操作按钮（仅文案随页面变化）。
    高度 / 间距 / 阴影 / 安全区统一，消除原各页 .bottom-bar / .collection-bottom-bar 碎片化。 */
 .lxm-foot-bar {
   position: fixed;
@@ -281,41 +290,9 @@ button[disabled] {
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 18rpx;
   padding: 16rpx 24rpx calc(16rpx + env(safe-area-inset-bottom));
   background: rgba(255,253,249,0.96);
   box-shadow: 0 -12rpx 32rpx rgba(64,39,26,0.10);
-}
-
-.lxm-foot-bar__side {
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-}
-
-.lxm-foot-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 4rpx;
-  min-width: 84rpx;
-  height: 88rpx;
-  padding: 0;
-  background: transparent;
-  border: none;
-  line-height: 1;
-}
-.lxm-foot-btn::after { border: 0; }
-
-.lxm-foot-btn__txt {
-  color: var(--lxm-c-muted);
-  font-size: var(--lxm-fz-2xs);
-  font-weight: 900;
-}
-
-.lxm-foot-btn.is-active .lxm-foot-btn__txt {
-  color: var(--lxm-c-red-ink);
 }
 
 .lxm-foot-btn__main {
@@ -333,7 +310,6 @@ button[disabled] {
 }
 .lxm-foot-btn__main::after { border: 0; }
 
-.lxm-foot-btn:active,
 .lxm-foot-btn__main:active {
   opacity: 0.9;
 }

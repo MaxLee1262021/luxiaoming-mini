@@ -20,7 +20,7 @@ page {
   font-size: 23rpx;
   font-weight: var(--lxm-fw-semibold);
   letter-spacing: 4rpx;
-  color: var(--lxm-c-orange);
+  color: var(--lxm-c-red-ink);
 }
 
 .custom-title {
@@ -172,8 +172,8 @@ page {
   position: relative;
   font-size: var(--lxm-fz-md);
   font-weight: var(--lxm-fw-medium);
-  color: var(--lxm-c-surface);
-  background: var(--lxm-c-orange);
+  color: var(--lxm-c-cream);
+  background: var(--lxm-c-ink);
   padding: 12rpx 32rpx;
   border-radius: var(--lxm-r-xl);
 }
