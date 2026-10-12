@@ -54,11 +54,43 @@
   font-weight: var(--lxm-fw-bold);
 }
 
+.sheet-location {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin: 0 28rpx 20rpx;
+}
+
 .sheet-address {
-  margin-top: 10rpx;
+  flex: 1;
+  min-width: 0;
   font-size: var(--lxm-fz-sm);
   color: var(--lxm-c-gray-750);
   line-height: 1.4;
+  word-break: break-all;
+}
+
+.sheet-navigation-btn {
+  flex-shrink: 0;
+  min-width: 224rpx;
+  min-height: 88rpx;
+  margin: 0 0 0 auto;
+  padding: 0 20rpx;
+  border: 2rpx solid var(--lxm-c-line-strong);
+  border-radius: var(--lxm-r-pill);
+  background: var(--lxm-c-surface);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  font-weight: var(--lxm-fw-bold);
+  white-space: nowrap;
+}
+
+.sheet-navigation-btn::after {
+  border: 0;
+}
+
+.sheet-navigation-btn[disabled] {
+  color: var(--lxm-c-muted);
 }
 
 .sheet-guide-btn {

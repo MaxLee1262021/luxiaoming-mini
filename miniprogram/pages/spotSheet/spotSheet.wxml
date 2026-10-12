@@ -26,7 +26,6 @@
             <text wx:for="{{selectedSpot.tags}}" wx:key="*this" class="sheet-tag">{{item}}</text>
           </view>
         </view>
-        <view class="sheet-address" wx:if="{{selectedSpot.address}}">{{selectedSpot.address}}</view>
       </view>
       <view
         class="sheet-guide-btn"
@@ -39,6 +38,17 @@
         <text class="sg-text">旅拍灵感</text>
         <view class="sg-arrow"></view>
       </view>
+    </view>
+
+    <view class="sheet-location">
+      <view class="sheet-address" wx:if="{{selectedSpot.address}}">{{selectedSpot.address}}</view>
+      <button
+        class="sheet-navigation-btn"
+        bindtap="onNavigate"
+        loading="{{openingLocation}}"
+        disabled="{{!canNavigate || openingLocation}}"
+        aria-label="{{canNavigate ? '导航到' + selectedSpot.name : '该地点暂无导航位置'}}"
+      >{{canNavigate ? '导航到这里' : '暂无导航位置'}}</button>
     </view>
 
     <!-- B1 · 点位价值前置：hero 大图 + 热度标签 + 信任条 -->

@@ -5,6 +5,7 @@ const bookingApi = require('../../api/booking')
 const peripheralApi = require('../../api/peripheral')
 const guideApi = require('../../api/guide')
 const spotFilter = require('../../service/spotFilter')
+const { hasCoordinates } = require('../../service/citySpot')
 const { isExplicitDemoMode } = require('../../config/env')
 const { buildUrlWithSource } = require('../../utils/query')
 const { isVideo, isVideoSingle, isPublicProduct, normalizePackage } = require('../../utils/product')
@@ -18,6 +19,8 @@ Page({
     error: '',
 
     selectedSpot: {},
+    canNavigate: false,
+    openingLocation: false,
     selectedSpotProducts: { photoSingles: [], videos: [], peripherals: [], photoPackages: [] },
     selectedSpotGuides: [],
     _spotList: [],
@@ -138,6 +141,7 @@ Page({
     const range = n => Array.from({ length: n }, (_, i) => i)
     this.setData({
       selectedSpot: spot,
+      canNavigate: hasCoordinates(spot),
       selectedSpotProducts: products,
       selectedSpotGuides: this.resolveSpotGuides(spot),
       spotNoMedia,
@@ -244,6 +248,39 @@ Page({
     wx.navigateTo({
       url: this.buildUrl('/pages/guideList/guideList', { spotId: spot._id, spotName: spot.name || '' })
     })
+  },
+
+  onNavigate() {
+    if (this.data.openingLocation) return
+    const spot = this.data.selectedSpot || {}
+    if (!hasCoordinates(spot)) {
+      wx.showToast({ title: '该地点暂未配置位置', icon: 'none' })
+      return
+    }
+    if (typeof wx.openLocation !== 'function') {
+      wx.showToast({ title: '请升级微信后使用导航', icon: 'none' })
+      return
+    }
+    const showFailure = () => wx.showToast({ title: '地图打开失败，请稍后重试', icon: 'none' })
+    this.setData({ openingLocation: true })
+    try {
+      // selectedSpot 已在加载时转换为 GCJ-02，直接复用，避免重复转换造成偏移。
+      wx.openLocation({
+        latitude: Number(spot.latitude),
+        longitude: Number(spot.longitude),
+        name: String(spot.name || '打卡点'),
+        address: String(spot.address || ''),
+        scale: 16,
+        fail: error => {
+          if (error && /cancel/i.test(error.errMsg || '')) return
+          showFailure()
+        },
+        complete: () => this.setData({ openingLocation: false })
+      })
+    } catch (error) {
+      this.setData({ openingLocation: false })
+      showFailure()
+    }
   },
 
   goCustomBooking(e) {
