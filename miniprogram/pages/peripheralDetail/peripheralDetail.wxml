@@ -30,7 +30,7 @@
       <view class="desc">{{item.description || item.intro || '定制影像周边，可联系客服了解更多细节。'}}</view>
     </view>
 
-    <view class="section" wx:if="{{item.images && item.images.length > 1}}">
+    <view class="section" wx:if="{{item.images && item.images.length}}">
       <view class="section-title">商品图片</view>
       <view class="image-grid">
         <image wx:for="{{item.images}}" wx:key="*this" class="grid-img" src="{{item}}" mode="aspectFill" bindtap="previewImage" data-url="{{item}}" />
@@ -39,12 +39,15 @@
 
     <view class="section">
       <view class="section-title">服务说明</view>
-      <view class="info-item">下单前建议联系客服确认规格、数量和制作周期。</view>
+      <view class="info-item">如需定制，请咨询客服确认规格、数量和制作周期。</view>
       <view class="info-item">周边商品可与旅拍成片服务搭配咨询。</view>
     </view>
 
     <view class="lxm-foot-bar">
-      <button class="lxm-foot-btn__main" bindtap="contactService">加入预约</button>
+      <view class="lxm-foot-favorite">
+        <lxm-favorite-button type="peripheral" item-id="{{item._id}}" item="{{item}}" />
+      </view>
+      <button class="lxm-foot-btn__main" bindtap="contactService">咨询客服</button>
     </view>
   </block>
 </view>

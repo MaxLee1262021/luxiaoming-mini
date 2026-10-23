@@ -1,8 +1,8 @@
-const { normalizePackage, sortByHotScore, filterVisibleProducts } = require('../utils/product')
-const { isVideoSingle } = require('./videoProductDetail')
+const { normalizePackage, sortByHotScore, filterVisibleProducts, isVideoSingle } = require('../utils/product')
 const { buildModuleConfigMap, normalizeModuleConfig } = require('./pageConfig')
 const { filterPhotoSeries } = require('../utils/catalog')
 const { buildTarget } = require('../utils/router')
+const { normalizeAlbumPresentation } = require('../utils/albumPresentation')
 
 function mergePreviewList(list = [], fallback = []) {
   const seen = {}
@@ -94,8 +94,9 @@ function buildBookingAlbums(albums = [], series = [], spots = []) {
     const spotId = album.spotId || (Array.isArray(currentSeries.spotIds) && currentSeries.spotIds[0]) || ''
     const currentSpot = spots.find(item => item._id === spotId) || {}
     const sampleUrls = album.sampleUrls || album.samples || []
+    const normalizedAlbum = normalizeAlbumPresentation(album)
     return {
-      ...album,
+      ...normalizedAlbum,
       _id: albumId,
       albumId,
       seriesId: album.seriesId || currentSeries._id || '',
@@ -103,7 +104,7 @@ function buildBookingAlbums(albums = [], series = [], spots = []) {
       spotName: album.spotName || currentSpot.name || '',
       seriesName: album.seriesName || currentSeries.name || '',
       cover: album.cover || album.coverImage || sampleUrls[0] || '/images/placeholder.png',
-      sampleCount: album.photoCount || sampleUrls.length || 0
+      sampleCount: normalizedAlbum.photoCount || sampleUrls.length || 0
     }
   }).filter(item => item.albumId && item.seriesId)
 }
@@ -183,18 +184,7 @@ function normalizeHomeVideoItem(item = {}) {
 }
 
 function pickHomeVideoItems(list = [], limit = 4) {
-  const sorted = sortByHotScore(list).filter(item => item.displayType === 'video')
-  const picked = sorted.slice(0, limit)
-  const hasSingle = picked.some(item => isVideoSingle(item))
-  const hasPackage = picked.some(item => !isVideoSingle(item))
-  if (sorted.length > 1 && (!hasSingle || !hasPackage)) {
-    const supplement = sorted.find(item => hasSingle ? !isVideoSingle(item) : isVideoSingle(item))
-    if (supplement && !picked.some(item => item._id === supplement._id)) {
-      if (picked.length >= limit) picked[picked.length - 1] = supplement
-      else picked.push(supplement)
-    }
-  }
-  return picked
+  return sortByHotScore(list).filter(isVideoSingle).slice(0, limit)
 }
 
 function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
@@ -238,9 +228,7 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
     data.videoSingles,
     previewData.videoProducts,
     previewData.videoSingles
-  ).filter(item => filterVisibleProducts([item]).length).map(item => normalizeHomeVideoItem(item))
-  // 远程与预览都无短视频单品时，回退演示数据，避免首页短视频区空白
-  const fallbackVideoItems = (demoData.videoProducts || []).map(item => normalizeHomeVideoItem(item))
+  ).filter(isVideoSingle).filter(item => filterVisibleProducts([item]).length)
   // 「热门套餐」只展示可公开的旅拍套餐。后台可能只设置 isMainPush，
   // 也可能通过首页 recommendations 配置，因此不能只依赖 isHot。
   const photoPackages = allPackages
@@ -257,9 +245,9 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
     .sort((a, b) => (b.hotScore || 0) - (a.hotScore || 0))
     .slice(0, 6)
   const videoPackages = mergeManyLists(
-    explicitVideoProducts.length ? explicitVideoProducts : fallbackVideoItems,
-    allPackages.filter(item => item.displayType === 'video').map(item => normalizeHomeVideoItem(item))
-  ).filter(item => filterVisibleProducts([item]).length)
+    explicitVideoProducts,
+    allPackages.filter(isVideoSingle)
+  ).filter(item => filterVisibleProducts([item]).length).map(normalizeHomeVideoItem)
   const homeVideoProducts = pickHomeVideoItems(videoPackages, 4)
   const homeModules = normalizeModuleConfig(data.modules || previewData.modules)
   const homeSpots = buildHomeSpots(mergedSpots)

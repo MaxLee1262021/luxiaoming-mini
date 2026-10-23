@@ -22,22 +22,38 @@
       <view class="sheet-spot-info">
         <view class="sheet-name-row">
           <text class="sheet-name">{{selectedSpot.name}}</text>
-          <view class="sheet-tags" wx:if="{{selectedSpot.tags && selectedSpot.tags.length}}">
-            <text wx:for="{{selectedSpot.tags}}" wx:key="*this" class="sheet-tag">{{item}}</text>
-          </view>
+        </view>
+        <view class="sheet-tags" wx:if="{{selectedSpot.tags && selectedSpot.tags.length}}">
+          <text wx:for="{{selectedSpot.tags}}" wx:key="*this" class="sheet-tag">{{item}}</text>
         </view>
       </view>
-      <view
-        class="sheet-guide-btn"
-        bindtap="goGuideList"
-        hover-class="sheet-guide-btn--hover"
-        role="button"
-        aria-label="{{selectedSpotGuides.length ? '查看本打卡点的旅拍灵感' : '本打卡点暂无旅拍灵感'}}"
-      >
-        <view class="sg-dot"></view>
-        <text class="sg-text">旅拍灵感</text>
-        <view class="sg-arrow"></view>
+      <view class="sheet-actions">
+        <view
+          class="sheet-guide-btn"
+          bindtap="goGuideList"
+          hover-class="sheet-guide-btn--hover"
+          role="button"
+          aria-label="{{selectedSpotGuides.length ? '查看本打卡点的旅拍灵感' : '本打卡点暂无旅拍灵感'}}"
+        >
+          <view class="sg-dot"></view>
+          <text class="sg-text">旅拍灵感</text>
+          <view class="sg-arrow"></view>
+        </view>
       </view>
+    </view>
+
+    <view class="spot-favorite-row">
+      <view
+        class="sheet-route-btn"
+        bindtap="goNavigation"
+        wx:if="{{selectedSpot.address || (selectedSpot.latitude && selectedSpot.longitude)}}"
+        role="button"
+        aria-label="导航到{{selectedSpot.name}}"
+      >
+        <text class="route-icon">⌖</text>
+        <text>导航路线</text>
+      </view>
+      <lxm-favorite-button type="spot" item-id="{{selectedSpot._id}}" item="{{selectedSpot}}" />
     </view>
 
     <view class="sheet-location">

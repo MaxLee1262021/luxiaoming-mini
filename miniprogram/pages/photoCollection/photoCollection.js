@@ -1,9 +1,13 @@
 const app = getApp()
 const demoData = require('../../utils/demoData')
 const collectionApi = require('../../api/collection')
+const { getBookingData } = require('../../api/booking')
+const { buildRelatedPhotoCollections } = require('../../service/relatedPhotoCollections')
 const { buildUrlWithSource } = require('../../utils/query')
 const { isVideoSingle } = require('../../service/videoProductDetail')
 const { isExplicitDemoMode } = require('../../config/env')
+const { normalizeAlbumPresentation } = require('../../utils/albumPresentation')
+const { openCustomerService } = require('../../service/customerService')
 
 function getPackageId(record = {}) {
   if (!record || typeof record !== 'object') return ''
@@ -98,6 +102,7 @@ Page({
 
   async loadCollection(seriesId, albumId) {
     this._lastLoadArgs = [seriesId, albumId] // 记住加载参数，供降级提示条重试复用
+    this._relatedCatalog = null
     try {
       const res = await collectionApi.getPhotoCollection({ seriesId, albumId, spotId: this.data.currentSpotId })
       if (res && res.success) {
@@ -121,6 +126,22 @@ Page({
       }
     } finally {
       this.setData({ loading: false })
+    }
+    if (this.data.isAlbumDetail) await this.loadRelatedCollections()
+  },
+
+  async loadRelatedCollections() {
+    const currentCollection = this.data.currentCollection
+    try {
+      const res = await getBookingData()
+      if (!res || !res.success || currentCollection !== this.data.currentCollection) return
+      this._relatedCatalog = res.data || {}
+      this.setData({ relatedCollections: buildRelatedPhotoCollections(
+        this.data.currentCollection, this.data.collections, this._relatedCatalog
+      ) })
+    } catch (err) {
+      // 推荐加载失败时保留详情接口已有的同系列推荐，不影响商品详情及预约。
+      console.warn('load related photo collections failed', err)
     }
   },
 
@@ -163,7 +184,7 @@ Page({
     const videos = filterVideosBySpot(Array.isArray(data.videos) ? data.videos : (fallback.videos || []))
     const rawCollections = (data.collections && data.collections.length) ? data.collections : (fallback.collections || [])
     const collections = rawCollections.map(item => ({
-      ...item,
+      ...normalizeAlbumPresentation(item),
       collectionKey: this.getCollectionKey(item)
     }))
     const pending = this.data.pendingAlbumId
@@ -188,16 +209,17 @@ Page({
       : []
     const instructions = fromData.length > 0 ? fromData : demoData.DEFAULT_SHOOTING_INSTRUCTIONS
     const normalizedCollection = detailCollection
-      ? Object.assign({}, detailCollection, { shootingNotes: shootingNotesRaw, instructions })
+      ? Object.assign({}, normalizeAlbumPresentation(detailCollection), {
+        collectionKey: this.getCollectionKey(detailCollection), shootingNotes: shootingNotesRaw, instructions
+      })
       : null
     // 适用打卡点：单品详情时取该照片单品绑定的打卡点（自动汇总为纯文字 pill 列表）
     const albumSpots = (isAlbumDetail && normalizedCollection && normalizedCollection.spotId)
       ? [{ _id: normalizedCollection.spotId, name: normalizedCollection.spotName || '' }]
       : []
-    // 相关推荐：同系列其它照片单品（剔除当前查看的这一个）
-    const relatedCollections = (collections || []).filter(
-      item => item.collectionKey && detailCollection && item.collectionKey !== detailCollection.collectionKey
-    )
+    const relatedCollections = normalizedCollection
+      ? buildRelatedPhotoCollections(normalizedCollection, collections, this._relatedCatalog || (isDemo ? demoData.getBookingData() : {}))
+      : []
 
     this.setData({
       series: data.series || {},
@@ -238,13 +260,15 @@ Page({
   },
 
 
-  goCollectionDetail(e) {
-    const dataset = e.detail || e.currentTarget.dataset || {}
-    const id = dataset.albumId || dataset.id || ''
-    const collection = (this.data.collections || []).find(item => this.getCollectionKey(item) === id || item.albumId === id || item._id === id)
-    const seriesId = dataset.seriesId || (collection && collection.seriesId) || this.data.series._id || ''
-    const albumId = dataset.albumId || (collection && (collection.albumId || collection._id)) || ''
-    const spotId = dataset.spotId || (collection && collection.spotId) || ''
+  goCollectionDetail(e = {}) {
+    const detail = e.detail || {}
+    const dataset = (e.currentTarget && e.currentTarget.dataset) || {}
+    const id = detail.albumId || detail.id || dataset.albumId || dataset.id || ''
+    const collection = [...(this.data.collections || []), ...(this.data.relatedCollections || [])]
+      .find(item => this.getCollectionKey(item) === id || item.albumId === id || item._id === id)
+    const seriesId = detail.seriesId || dataset.seriesId || (collection && collection.seriesId) || this.data.series._id || ''
+    const albumId = detail.albumId || dataset.albumId || (collection && (collection.albumId || collection._id)) || ''
+    const spotId = detail.spotId || dataset.spotId || (collection && collection.spotId) || ''
     if (!albumId) {
       wx.showToast({ title: '照片留影不存在', icon: 'none' })
       return
@@ -295,7 +319,10 @@ Page({
 
   previewCollection(e) {
     const id = e.currentTarget.dataset.id || e.currentTarget.dataset.seriesId
-    const collection = (this.data.collections || []).find(item => this.getCollectionKey(item) === id || item.seriesId === id) || {}
+    const listed = (this.data.collections || []).find(item => this.getCollectionKey(item) === id || item.seriesId === id)
+    const current = this.data.currentCollection || {}
+    const isCurrent = id && (this.getCollectionKey(current) === id || current._id === id || current.albumId === id || current.seriesId === id)
+    const collection = listed || (isCurrent ? current : {})
     const urls = (collection.sampleUrls || []).filter(Boolean)
     if (!urls.length && collection.coverImage) urls.push(collection.coverImage)
     if (!urls.length && collection.cover) urls.push(collection.cover)
@@ -362,13 +389,7 @@ Page({
   },
 
   contactService() {
-    wx.openCustomerServiceChat({
-      extInfo: {},
-      corpId: (getApp().globalData && getApp().globalData.corpId) || '',
-      fail() {
-        wx.showToast({ title: '请联系客服咨询', icon: 'none' })
-      }
-    })
+    openCustomerService()
   },
 
 })

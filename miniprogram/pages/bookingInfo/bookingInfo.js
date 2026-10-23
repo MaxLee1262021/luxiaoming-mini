@@ -1,6 +1,7 @@
 const app = getApp()
 const demoData = require('../../utils/demoData')
 const bookingApi = require('../../api/booking')
+const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
 const bookingUtils = require('../../utils/booking')
 const bookingDataService = require('../../service/bookingData')
@@ -11,6 +12,26 @@ const userStore = require('../../store/userStore')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
 const analytics = require('../../utils/analytics')
 const { isExplicitDemoMode } = require('../../config/env')
+const { paymentFailure, logPaymentFailure } = require('../../utils/paymentFeedback')
+
+function requestWechatPayment(paymentParams = {}) {
+  const { timeStamp, nonceStr, package: packageValue, signType, paySign } = paymentParams
+  if (!timeStamp || !nonceStr || !packageValue || !signType || !paySign) {
+    return Promise.reject(new Error('支付参数不完整，请重新发起支付'))
+  }
+  if (!wx.requestPayment) return Promise.reject(new Error('当前微信版本不支持支付，请升级后重试'))
+  return new Promise((resolve, reject) => {
+    wx.requestPayment({
+      timeStamp: String(timeStamp),
+      nonceStr: String(nonceStr),
+      package: String(packageValue),
+      signType: String(signType),
+      paySign: String(paySign),
+      success: resolve,
+      fail: reject
+    })
+  })
+}
 
 Page({
   data: {
@@ -22,12 +43,22 @@ Page({
     contactPhones: [],
     phoneMode: 'wechat',
     message: '',
+    date: '',
+    time: '',
+    today: '',
     participantCount: 1,
     agreed: false,
     submitting: false,
+    bookingId: '',
+    paymentSubmitting: false,
+    paymentStatus: 'not_created',
+    paymentMessage: '',
     bookingRequestKey: '',
     items: [],
     totalPrice: 0,
+    depositRatio: 0.3,
+    depositDue: 0,
+    depositPercent: 30,
     prefillSeriesId: '',
     prefillPackageId: '',
     prefillAlbumId: '',
@@ -39,11 +70,9 @@ Page({
     allSeries: [],
     allAlbums: [],
     allPackages: [],
-    allPeripherals: [],
     filteredSeries: [],
     filteredAlbums: [],
     filteredPackages: [],
-    filteredPeripherals: [],
     currentSpotId: '',
     currentTab: 'package',
     pickerKeyword: '',
@@ -76,6 +105,8 @@ Page({
 
   onLoad(options = {}) {
     const source = app.captureSource ? app.captureSource(options) : {}
+    const now = new Date()
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
     this.setData({
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || '',
@@ -85,7 +116,10 @@ Page({
       prefillSpotId: options.spotId || '',
       prefillAlbumPrice: options.albumPrice || '',
       prefillBasket: options.basket || '',
-      requestedSpot: options.requestedSpot || ''
+      requestedSpot: options.requestedSpot || '',
+      date: options.date || '',
+      time: options.time || options.timePeriod || '',
+      today
     })
     this.applyPageConfig()
     this.refreshAuthState()
@@ -236,23 +270,21 @@ Page({
     const allSeries = bookingData.allSeries
     const allPackages = bookingData.allPackages
     const allAlbums = bookingData.allAlbums
-    const allPeripherals = bookingData.allPeripherals || demoData.peripherals || []
     const currentSpotId = this.data.prefillSpotId || ''
     this.setData({
       spotOptions: spots,
       allSeries,
       allAlbums,
       allPackages,
-      allPeripherals,
       currentSpotId
     })
-    this.setData({ sheetProducts: this.buildSheetProducts({ allPackages, allSeries, allAlbums, allPeripherals, spotOptions: spots }) })
+    this.setData({ sheetProducts: this.buildSheetProducts({ allPackages, allSeries, allAlbums, spotOptions: spots }) })
     this.updatePickerLists(currentSpotId)
     this.initPrefill()
   },
 
-  // 把页面四类商品归一化为「添加拍摄项目」弹窗可选择的行（单一来源，组件内部只做分组展示）
-  buildSheetProducts({ allPackages = [], allSeries = [], allAlbums = [], allPeripherals = [], spotOptions = [] } = {}) {
+  // 把拍摄商品归一化为「添加拍摄项目」弹窗可选择的行，周边仅支持展示和客服咨询。
+  buildSheetProducts({ allPackages = [], allSeries = [], allAlbums = [], spotOptions = [] } = {}) {
     const productUtils = require('../../utils/product')
     const itemId = item => String((item && (item._id || item.id || item.albumId)) || '')
     const findSeries = id => (allSeries || []).find(s => itemId(s) === String(id || '')) || {}
@@ -278,6 +310,7 @@ Page({
     // 套餐 / 视频单品（均在 allPackages 中，按 isVideo 区分）
     ;(allPackages || []).forEach(pkg => {
       const isVid = productUtils.isVideo(pkg)
+      if (!productUtils.isPublicProduct(pkg) || (isVid && !productUtils.isVideoSingle(pkg))) return
       const series = findSeries(pkg.seriesId)
       const meta = isVid
         ? [pkg.videoDuration, pkg.finishedVideoCount].filter(Boolean).join(' · ') || '短视频成片'
@@ -323,24 +356,6 @@ Page({
         })
       })
     })
-    // 影像周边（全城通用，spotId 留空，由组件在每个面板补充）
-    ;(allPeripherals || []).forEach(per => {
-      rows.push({
-        uid: 'peri_' + per._id,
-        kind: 'peripheral',
-        cat: 'peripheral',
-        spotId: '',
-        spotName: '',
-        name: per.name,
-        cover: per.image || per.cover || '/images/placeholder.png',
-        price: per.price || 0,
-        meta: (per.specs && per.specs.join(' · ')) || per.description || '影像周边',
-        catLabel: '影像周边',
-        src: { _id: per._id, name: per.name, price: per.price },
-        series: {},
-        spot: {}
-      })
-    })
     return rows
   },
 
@@ -350,7 +365,11 @@ Page({
       const basketItems = wx.getStorageSync('lxm_booking_basket') || []
       wx.removeStorageSync('lxm_booking_basket')
       if (basketItems.length) {
-        this.setData({ items: basketItems })
+        const items = basketItems.filter(item => !bookingPicker.isPeripheralItem(item))
+        if (items.length !== basketItems.length) {
+          wx.showToast({ title: '周边仅支持咨询，已从预约中移除', icon: 'none' })
+        }
+        this.setData({ items })
         this.updateTotalPrice()
         return
       }
@@ -408,15 +427,6 @@ Page({
   updatePickerLists(spotId = '') {
     const keyword = this.data.pickerKeyword
     const spotSeries = bookingUtils.filterSeriesBySpot(this.data.allSeries, spotId)
-    let filteredPeripherals = this.data.allPeripherals || []
-    if (keyword) {
-      const kw = keyword.toLowerCase()
-      filteredPeripherals = filteredPeripherals.filter(item =>
-        (item.name || '').toLowerCase().includes(kw) ||
-        (item.cate || '').toLowerCase().includes(kw) ||
-        (item.description || '').toLowerCase().includes(kw)
-      )
-    }
     this.setData({
       filteredSeries: bookingPicker.enrichSeriesList(spotSeries, this.data.allAlbums, keyword),
       filteredAlbums: bookingPicker.filterAlbumsBySeries(this.data.allAlbums, this.data.selectedSeriesId, keyword),
@@ -426,8 +436,7 @@ Page({
         spotId,
         keyword,
         type: this.data.currentTab === 'video' ? 'video' : 'photo'
-      }),
-      filteredPeripherals
+      })
     })
   },
 
@@ -442,7 +451,6 @@ Page({
   addPackage(e) { bookingInfoActions.addPackage(this, e) },
   addSeries(e) { bookingInfoActions.addSeries(this, e) },
   addAlbum(e) { bookingInfoActions.addAlbum(this, e) },
-  addPeripheral(e) { bookingInfoActions.addPeripheral(this, e) },
   previewPickerAlbum(e) { bookingInfoActions.previewPickerAlbum(this, e) },
   previewPickerAlbumSample(e) { bookingInfoActions.previewPickerAlbumSample(this, e) },
   backToSeriesList() { bookingInfoActions.backToSeriesList(this) },
@@ -463,6 +471,10 @@ Page({
   onSheetConfirm(e) {
     const selected = (e.detail && e.detail.items) || []
     if (!selected.length) return
+    if (selected.some(row => row.kind === 'peripheral' || row.cat === 'peripheral')) {
+      wx.showToast({ title: '周边仅支持咨询客服，不能加入预约', icon: 'none' })
+      return
+    }
     const bookingUtils = require('../../utils/booking')
     const bookingPicker = require('../../service/bookingPicker')
     const count = this.data.participantCount || 1
@@ -475,9 +487,6 @@ Page({
           requestedSpot: row.spotName || ''
         })
       }
-      if (row.kind === 'peripheral') {
-        return bookingUtils.buildItemFromPeripheral({ peripheral: row.src })
-      }
       if (row.kind === 'album') {
         return bookingUtils.buildPrefillItem({ album: row.src, series: row.series, spot: row.spot })
       }
@@ -485,7 +494,7 @@ Page({
     })
     const combined = [...(this.data.items || []), ...items]
     if (!bookingPicker.hasMainItem(combined)) {
-      wx.showToast({ title: '影像周边需搭配拍摄项目一起预约', icon: 'none' })
+      wx.showToast({ title: '请至少添加一个拍摄项目', icon: 'none' })
       return
     }
     this.setData({
@@ -496,7 +505,16 @@ Page({
   },
 
   updateTotalPrice() {
-    this.setData({ totalPrice: bookingUtils.sumItemsPrice(this.data.items) })
+    const totalPrice = bookingUtils.sumItemsPrice(this.data.items)
+    const configuredRatio = bookingConfig.getConfig().depositRatio || this.data.depositRatio || 0.3
+    const depositRatio = Number.isFinite(Number(configuredRatio)) ? Number(configuredRatio) : 0.3
+    const depositDue = bookingUtils.sumDepositDue(this.data.items, depositRatio)
+    this.setData({
+      totalPrice,
+      depositRatio,
+      depositDue,
+      depositPercent: totalPrice > 0 ? Math.round((depositDue / totalPrice) * 100) : Math.round(depositRatio * 100)
+    })
   },
 
   onNameInput(e) { this.setData({ name: e.detail.value }) },
@@ -518,6 +536,8 @@ Page({
   removeContactPhone(e) { bookingInfoActions.removeContactPhone(this, e) },
   useContactPhone(e) { bookingInfoActions.useContactPhone(this, e) },
   onMessageInput(e) { this.setData({ message: e.detail.value }) },
+  onDateChange(e) { this.setData({ date: e.detail.value || '' }) },
+  onTimeChange(e) { this.setData({ time: e.detail.value || '' }) },
   changeParticipant(e) {
     const delta = Number(e.currentTarget.dataset.delta) || 0
     let next = (this.data.participantCount || 1) + delta
@@ -547,6 +567,98 @@ Page({
     })
   },
 
+  redirectToBookingSuccess(result = {}) {
+    const created = (result && result.data && typeof result.data === 'object') ? result.data : result
+    const orderId = created.orderId || created._id || created.id || ''
+    const orderNo = created.orderNo || ''
+    if (!orderId && !orderNo) return false
+    wx.redirectTo({
+      url: this.buildUrl('/pages/bookingSuccess/bookingSuccess', {
+        orderNo,
+        orderId,
+        date: this.data.date,
+        timePeriod: this.data.time,
+        workflowStage: created.workflowStage || (created.order && created.order.workflowStage) || 'awaiting_confirmation'
+      })
+    })
+    return true
+  },
+
+  async startBookingPayment(bookingId) {
+    if (!bookingId || this.data.paymentSubmitting) return false
+    const storageKey = `lxm_booking_payment_intent_${bookingId}`
+    let idempotencyKey = wx.getStorageSync(storageKey)
+    if (!idempotencyKey) {
+      idempotencyKey = `mini-deposit-${bookingId}-${Date.now()}`
+      wx.setStorageSync(storageKey, idempotencyKey)
+    }
+    const requestedAmount = Number(this._pendingDepositDue || this.data.depositDue || 0)
+    this.setData({
+      bookingId,
+      paymentSubmitting: true,
+      paymentMessage: requestedAmount > 0 ? `正在准备支付定金 ¥${requestedAmount}` : '正在准备定金支付...'
+    })
+    let invokeFailure = null
+    try {
+      const result = await orderApi.createPayment({ bookingId, phase: 'deposit', idempotencyKey })
+      if (!result || !result.success) throw new Error((result && (result.error || result.message)) || '定金支付发起失败')
+      let payment = result.data || result
+      const serverDepositDue = Number(payment.depositDue ?? payment.amount ?? this.data.depositDue)
+      if (Number.isFinite(serverDepositDue) && serverDepositDue >= 0) {
+        const serverTotal = Number(payment.totalAmount ?? payment.totalPrice ?? this.data.totalPrice)
+        const roundedDeposit = Math.round(serverDepositDue * 100) / 100
+        this.setData({
+          depositDue: roundedDeposit,
+          depositPercent: serverTotal > 0 ? Math.round((roundedDeposit / serverTotal) * 100) : this.data.depositPercent
+        })
+      }
+      this.setData({
+        paymentStatus: payment.status || 'pending',
+        paymentMessage: payment.status === 'confirmed' ? '定金已确认，正在生成正式预约单...' : '正在调起微信支付...'
+      })
+      if (payment.status !== 'confirmed') {
+        try {
+          await requestWechatPayment(payment.paymentParams)
+          this.setData({ paymentMessage: '支付已完成，正在确认预约...' })
+        } catch (err) {
+          invokeFailure = paymentFailure(err)
+          logPaymentFailure(err, 'booking_deposit')
+          this.setData({ paymentMessage: invokeFailure.message })
+          wx.showToast({ title: invokeFailure.toast, icon: 'none' })
+        }
+        const latest = await orderApi.getPaymentStatus({ bookingId, phase: 'deposit' })
+        if (latest && latest.success) payment = latest.data || latest
+      }
+      if (payment.status === 'confirmed' && this.redirectToBookingSuccess(payment)) {
+        wx.removeStorageSync(storageKey)
+        return true
+      }
+      if (invokeFailure && payment.status !== 'confirmed') {
+        // A NOTPAY/pending server record does not turn a rejected invocation
+        // into a payment still being processed by the customer.
+        if (payment.status === 'failed') wx.removeStorageSync(storageKey)
+        this.setData({ paymentMessage: invokeFailure.message, paymentStatus: payment.status || 'pending' })
+        return false
+      }
+      if (payment.status === 'failed') {
+        wx.removeStorageSync(storageKey)
+        this.setData({ paymentMessage: '支付未完成，可重新提交预约支付。' })
+      } else if (payment.status !== 'confirmed') {
+        this.setData({ paymentMessage: '支付结果确认中，请稍后重试或联系客服。' })
+      }
+      return false
+    } catch (err) {
+      console.error('booking payment failed', err)
+      this.setData({ paymentMessage: invokeFailure
+        ? `${invokeFailure.message}支付状态暂未核实，请稍后查询。`
+        : '定金支付暂不可用，请稍后重试或联系客服。' })
+      if (!invokeFailure) wx.showToast({ title: (err && err.message) || '定金支付暂不可用，请稍后重试', icon: 'none' })
+      return false
+    } finally {
+      this.setData({ paymentSubmitting: false })
+    }
+  },
+
   async submitBooking() {
     if (this.data.submitting) return
     if (this.data.dataUnavailable) {
@@ -565,6 +677,16 @@ Page({
     }
     this.setData({ submitting: true })
     try {
+      // The server validates the latest notice version. The config request is
+      // asynchronous on page load, so wait for it before constructing the
+      // payload instead of submitting the built-in fallback version.
+      let currentBookingConfig = this.data.bookingConfig || bookingConfig.getConfig()
+      try {
+        currentBookingConfig = await bookingConfig.ensureLoaded()
+        if (currentBookingConfig !== this.data.bookingConfig) this.setData({ bookingConfig: currentBookingConfig })
+      } catch (err) {
+        console.warn('booking config unavailable before submit', err)
+      }
       // Keep a manually entered contact phone as a convenience without
       // overwriting the verified WeChat phone stored on the profile.
       userStore.saveUser({ lastContactPhone: this.data.phone })
@@ -577,28 +699,44 @@ Page({
         placementType: source.placementType || '',
         placementLabel: source.placementLabel || ''
       })
-      // 先建单：预约提交为待确认，绝不直接标已付
+      // 先创建预约支付请求，只有定金确认后才生成正式预约单
       let submitMessage = this.data.message || ''
       if (!submitMessage.includes('参与人数')) {
         submitMessage = (submitMessage ? submitMessage + '\n' : '') + '参与人数：' + (this.data.participantCount || 1) + ' 人'
       }
       const bookingRequestKey = this.data.bookingRequestKey || `booking-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
       this.setData({ bookingRequestKey })
-      const payload = { ...bookingUtils.buildBookingPayload({ ...this.data, message: submitMessage }), idempotencyKey: bookingRequestKey }
+      const payload = {
+        ...bookingUtils.buildBookingPayload({ ...this.data, bookingConfig: currentBookingConfig, message: submitMessage }),
+        idempotencyKey: bookingRequestKey
+      }
       const res = await bookingApi.createBooking(payload)
       if (res && res.success) {
         const created = (res.data && typeof res.data === 'object') ? res.data : res
         const orderId = created.orderId || created._id || created.id || res.orderId || res._id || ''
         const orderNo = created.orderNo || res.orderNo || ''
-        if (!orderId && !orderNo) throw new Error('预约未被服务端确认，请勿重复提交，可联系客服核实')
-        analytics.track('booking_submit', { orderNo, itemCount: (this.data.items || []).length })
-        wx.redirectTo({
-          url: this.buildUrl('/pages/bookingSuccess/bookingSuccess', {
-            orderNo,
-            orderId,
-            workflowStage: created.workflowStage || 'awaiting_confirmation'
+        // A booking that still needs deposit/service confirmation is stored as
+        // a booking request first, so the server returns bookingId without an
+        // orderId/orderNo. Start its deposit payment instead of treating it as
+        // a failed submission or entering the success page early.
+        const bookingId = created.bookingId || res.bookingId || ''
+        if (!orderId && !orderNo && !bookingId) throw new Error('预约未被服务端确认，请勿重复提交，可联系客服核实')
+        analytics.track('booking_submit', { orderNo, bookingId, itemCount: (this.data.items || []).length })
+        if (bookingId && !orderId && !orderNo) {
+          this._pendingDepositDue = Number(created.depositDue ?? created.depositAmount ?? this.data.depositDue)
+          const createdTotal = Number(created.totalAmount ?? created.totalPrice ?? this.data.totalPrice)
+          this.setData({
+            bookingId,
+            depositDue: Number.isFinite(this._pendingDepositDue) ? this._pendingDepositDue : this.data.depositDue,
+            depositPercent: createdTotal > 0 && Number.isFinite(this._pendingDepositDue)
+              ? Math.round((this._pendingDepositDue / createdTotal) * 100)
+              : this.data.depositPercent
           })
-        })
+          await this.startBookingPayment(bookingId)
+          this._pendingDepositDue = 0
+          return
+        }
+        this.redirectToBookingSuccess({ ...created, orderId, orderNo })
       } else {
         wx.showToast({ title: (res && res.error) || '提交失败', icon: 'none' })
       }

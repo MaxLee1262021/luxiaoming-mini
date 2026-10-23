@@ -32,29 +32,35 @@
     <view class="order-status-row">
       <view class="order-status-item" bindtap="goToOrders" data-status="pending_payment">
         <view class="status-icon-wrap"><lxm-icon type="order" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">待支付</text>
+        <text class="status-name">待确认</text>
+        <text class="status-count">{{orderCounts.pendingConfirmation}}单</text>
       </view>
       <view class="order-status-item" bindtap="goToOrders" data-status="awaiting_photographer">
         <view class="status-icon-wrap"><lxm-icon type="service" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">待安排</text>
+        <text class="status-name">待拍摄</text>
+        <text class="status-count">{{orderCounts.awaitingShoot}}单</text>
       </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="shot">
+      <view class="order-status-item" bindtap="goToOrders" data-status="shooting">
         <view class="status-icon-wrap"><lxm-icon type="photo" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">已拍摄</text>
+        <text class="status-name">拍摄中</text>
+        <text class="status-count">{{orderCounts.shooting}}单</text>
       </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="delivered">
+      <view class="order-status-item" bindtap="goToOrders" data-status="completed">
         <view class="status-icon-wrap"><lxm-icon type="package" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">已交付</text>
-      </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="">
-        <view class="status-icon-wrap"><lxm-icon type="order" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">全部订单</text>
+        <text class="status-name">已完成</text>
+        <text class="status-count">{{orderCounts.completed}}单</text>
       </view>
     </view>
   </view>
 
   <view class="section-title-text">常用服务</view>
   <view class="service-card">
+    <view class="service-item" hover-class="lxm-card-lift" bindtap="goToMyFavorites" role="button" aria-label="我的收藏">
+      <view class="service-main">
+        <text class="service-text">我的收藏</text>
+      </view>
+      <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
+    </view>
     <view class="service-item" hover-class="lxm-card-lift" bindtap="goToMyBookings">
       <view class="service-main">
         <text class="service-text">我的预约</text>

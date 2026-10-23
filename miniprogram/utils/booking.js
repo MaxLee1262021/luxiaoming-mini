@@ -21,14 +21,30 @@ function sumItemsPrice(items = []) {
   }, 0)
 }
 
+function normalizeDepositRatio(value, fallback = 0.3) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < 0) return fallback
+  return Math.min(number > 1 ? number / 100 : number, 1)
+}
+
+function sumDepositDue(items = [], fallbackRatio = 0.3) {
+  const amount = (items || []).reduce((sum, item) => {
+    const price = Number(item && item.price) || 0
+    const quantity = Math.max(1, Math.min(99, Math.floor(Number(item && (item.quantity ?? item.qty)) || 1)))
+    const ratio = normalizeDepositRatio(item && (item.depositRatio ?? item.depositRate), fallbackRatio)
+    return sum + price * quantity * ratio
+  }, 0)
+  return Math.round((amount + Number.EPSILON) * 100) / 100
+}
+
 function validateBookingForm(data = {}) {
   if (!String(data.name || '').trim()) return { valid: false, message: '请输入姓名' }
   if (!isValidPhone(data.phone)) return { valid: false, message: '手机号格式错误' }
   if (!data.agreed) return { valid: false, message: '请同意预约须知' }
   const items = data.items || []
   if (!items.length) return { valid: false, message: '请至少添加一个拍摄项目' }
-  const hasMainItem = items.some(item => !item.peripheralId)
-  if (!hasMainItem) return { valid: false, message: '影像周边需搭配拍摄项目一起预约' }
+  if (items.some(item => item.peripheralId)) return { valid: false, message: '周边仅支持咨询客服，不能加入预约' }
+  if ((data.date && !data.time) || (!data.date && data.time)) return { valid: false, message: '请选择完整的拍摄日期和时间' }
   return { valid: true, message: '' }
 }
 
@@ -37,10 +53,10 @@ function buildBookingPayload(data = {}) {
   const contactPhones = [data.phone, ...(data.contactPhones || [])]
     .map(phone => String(phone || '').trim())
     .filter((phone, index, list) => phone && list.indexOf(phone) === index)
-  // The customer does not choose a shooting slot in the mini program. The
-  // service team and photographer confirm the actual time after the request
-  // is created, so legacy date/time fields must not leak stale picker values
-  // into a new booking.
+  const config = data.bookingConfig || {}
+  const agreementVersion = String(
+    data.agreementVersion || config.bookingNoticeVersion || config.agreementVersion || 'v1.0'
+  ).trim()
   return {
     shopId: data.shopId || '',
     scene: data.scene || '',
@@ -48,10 +64,21 @@ function buildBookingPayload(data = {}) {
     phone: String(data.phone || '').trim(),
     contactPhones,
     message: data.message || '',
+    date: data.date || '',
+    timePeriod: data.time || '',
     items,
     totalPrice: sumItemsPrice(items),
+    depositRatio: normalizeDepositRatio(data.depositRatio, 0.3),
     participantCount: Number(data.participantCount || 1),
     bookingMode: 'consult',
+    // The server checks the exact notice version, so the checkbox state must
+    // travel with the request instead of being kept only in page state.
+    agreement: {
+      version: agreementVersion,
+      current: data.agreed === true
+    },
+    agreementVersion,
+    agreementCurrent: data.agreed === true,
     // 商家二维码溯源字段：扫码进来时由预约页从实时来源填入
     placementType: data.placementType || '',
     placementLabel: data.placementLabel || '',
@@ -71,7 +98,8 @@ function buildPrefillItem({ series = {}, spot = {}, album = {}, pkg = {}, defaul
     packageName: pkg.name || '',
     price: Number(pkg.price || defaultPrice || album.price || 0),
     quantity: 1,
-    defaultPrice: Number(defaultPrice || album.price || 0)
+    defaultPrice: Number(defaultPrice || album.price || 0),
+    depositRatio: album.depositRatio ?? series.depositRatio ?? pkg.depositRatio
   }
 }
 
@@ -98,7 +126,8 @@ function buildItemFromPackage({ pkg = {}, series = {}, spot = {}, album = {} } =
     packageName: pkg.name || '',
     price: pkg.price || 0,
     quantity: 1,
-    defaultPrice: album.price || 0
+    defaultPrice: album.price || 0,
+    depositRatio: pkg.depositRatio ?? series.depositRatio
   }
 }
 
@@ -116,7 +145,8 @@ function buildItemFromPeripheral({ peripheral = {} } = {}) {
     peripheralName: peripheral.name || '',
     price: peripheral.price || 0,
     quantity: 1,
-    defaultPrice: 0
+    defaultPrice: 0,
+    depositRatio: peripheral.depositRatio
   }
 }
 
@@ -124,6 +154,7 @@ module.exports = {
   isValidPhone,
   isPastDate,
   sumItemsPrice,
+  sumDepositDue,
   validateBookingForm,
   buildBookingPayload,
   buildPrefillItem,

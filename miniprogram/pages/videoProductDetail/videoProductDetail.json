@@ -5,6 +5,7 @@
   "usingComponents": {
     "lxm-toast": "/components/lxm-toast/lxm-toast",
     "lxm-related-videos": "/components/lxm-related-videos/lxm-related-videos",
-    "lxm-shooting-notes": "/components/lxm-shooting-notes/lxm-shooting-notes"
+    "lxm-shooting-notes": "/components/lxm-shooting-notes/lxm-shooting-notes",
+    "lxm-favorite-button": "/components/lxm-favorite-button/lxm-favorite-button"
   }
 }

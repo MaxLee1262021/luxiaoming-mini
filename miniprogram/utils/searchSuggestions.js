@@ -2,6 +2,7 @@
 // 输入为空返回全部（用于默认「全部内容」态），有输入返回实时匹配。
 // 与 utils/searchNav.js 配合，做到「点建议直达 / 点搜索跳结果页」两端完全一致的最后一公里。
 const demoData = require('./demoData')
+const { isVideo, isVideoSingle, isPublicProduct } = require('./product')
 
 function buildSearchSuggestions(kw, source = {}) {
   // Existing callers pass a spots array. New callers can pass the real home
@@ -52,8 +53,7 @@ function buildSearchSuggestions(kw, source = {}) {
 
   // 2. 旅拍套餐（照片类）
   ;(packages || []).forEach(p => {
-    const type = String(p.productType || p.serviceType || p.type || '').toLowerCase()
-    if (/video|短视频|视频/.test(type)) return
+    if (isVideo(p) || !isPublicProduct(p)) return
     const text = `${p.name || ''} ${(p.tags || []).join(' ')}`.toLowerCase()
     if (!k || text.indexOf(k) >= 0) {
       push('package', '旅拍套餐', '🎁', '#FFD36A', 'rgba(255,211,106,0.14)', p.name, p.price ? '¥' + p.price : '', { _id: p._id, seriesId: p.seriesId, spotId: p.spotId }, p.price ? '¥' + p.price : '')
@@ -62,8 +62,7 @@ function buildSearchSuggestions(kw, source = {}) {
 
   // 3. 视频旅拍（视频类）
   ;(videos || []).forEach(p => {
-    const type = String(p.productType || p.serviceType || p.type || '').toLowerCase()
-    if (!/video|短视频|视频/.test(type)) return
+    if (!isVideoSingle(p) || !isPublicProduct(p)) return
     const text = `${p.name || ''} ${(p.tags || []).join(' ')}`.toLowerCase()
     if (!k || text.indexOf(k) >= 0) {
       push('video', '视频旅拍', '🎬', '#FF8D52', 'rgba(255,141,82,0.14)', p.name, '', { _id: p._id, seriesId: p.seriesId, spotId: p.spotId })

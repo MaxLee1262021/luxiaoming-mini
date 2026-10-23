@@ -1,23 +1,29 @@
 const app = getApp()
 const demoData = require('../../utils/demoData')
 const homeApi = require('../../api/home')
+const collectionApi = require('../../api/collection')
 const searchApi = require('../../api/search')
 const { parseScene, buildUrlWithSource } = require('../../utils/query')
 const { buildModuleConfigMap, normalizeModuleConfig } = require('../../service/pageConfig')
 const { buildHomeViewData, findHomePackage, getBannerTarget, getHomePackageDetailPath, isGlobalPackage, isHomeDataEmpty } = require('../../service/homeData')
-const router = require('../../utils/router')
 const { setSitePageConfig } = require('../../service/siteConfig')
 const { routeSearchSuggestion } = require('../../utils/searchNav')
 const { buildSearchSuggestions } = require('../../utils/searchSuggestions')
 const { isExplicitDemoMode } = require('../../config/env')
+const { STORE_APP_ID } = require('../../config/store')
 
 const defaultHomeModules = normalizeModuleConfig()
+// 当前基础库的官方小店卡片按 256px 宽渲染；仅缩放外包装，保留内部排版。
+const storeHomeCardWidth = 256
+const storeHomeLoadingHeight = 150
 
 Page({
   onShow() {
     if (typeof this.getTabBar === 'function' && this.getTabBar()) {
       this.getTabBar().setData({ selected: 0 })
     }
+    // 返回首页时允许再次打开套餐；导航进行中则由 goPackage 自己保持锁定。
+    this._packageNavigationInFlight = false
     // Tab 页面会被微信缓存，切回时 onLoad 不会再次触发；复用同一刷新入口同步最新内容。
     this.refreshOnTabShow()
   },
@@ -39,6 +45,11 @@ Page({
     hotPackages: [],
     videoPackages: [],
     peripherals: [],
+    storeAppId: STORE_APP_ID,
+    storeHomeSupported: false,
+    storeHomeUnavailableText: '请在手机微信中打开小店',
+    storeHomeScale: 1,
+    storeHomeHeight: storeHomeLoadingHeight,
     spotTabs: [],
     activeSpotId: '',
     activeSpotName: '',
@@ -46,7 +57,6 @@ Page({
     filteredVideos: [],
     filteredPackages: [],
     spotNoProducts: false,
-    quickNav: [],
     homeModules: defaultHomeModules,
     moduleConfig: buildModuleConfigMap(defaultHomeModules),
     bannerAutoplay: true,
@@ -66,7 +76,9 @@ Page({
   },
 
   async onLoad(options = {}) {
+    this._storeHomeUnloaded = false
     this.initNavMetrics()
+    this.initStoreEntry()
     const source = app.captureSource ? app.captureSource(options) : {}
     const sceneParams = parseScene(options.scene)
     const shopId = options.shopId || source.shopId || sceneParams.shopId || ''
@@ -82,7 +94,17 @@ Page({
     this.startSearchKeywordLoop()
   },
 
+  onReady() {
+    this.scheduleStoreHomeLayout()
+  },
+
+  onResize() {
+    this.scheduleStoreHomeLayout()
+  },
+
   onUnload() {
+    this._storeHomeUnloaded = true
+    this.clearStoreHomeLayoutTimers()
     this.stopSearchKeywordLoop()
   },
 
@@ -141,6 +163,70 @@ Page({
         this._tabRefreshPromise = null
       })
     return this._tabRefreshPromise
+  },
+
+  initStoreEntry() {
+    try {
+      const device = typeof wx.getDeviceInfo === 'function' ? wx.getDeviceInfo() : wx.getSystemInfoSync()
+      const platform = String(device.platform || '').toLowerCase()
+      const isDesktop = platform === 'windows' || platform === 'mac'
+      const supported = typeof wx.canIUse === 'function' && wx.canIUse('store-home')
+      const windowInfo = typeof wx.getWindowInfo === 'function' ? wx.getWindowInfo() : wx.getSystemInfoSync()
+      // 首帧按原双列卡片的内宽预估，渲染后再用实际宽高校准。
+      const scale = ((windowInfo.windowWidth || 375) * 308 / 750) / storeHomeCardWidth
+      this.setData({
+        storeHomeSupported: !!STORE_APP_ID && supported && !isDesktop,
+        storeHomeScale: scale,
+        storeHomeHeight: storeHomeLoadingHeight * scale,
+        storeHomeUnavailableText: isDesktop
+          ? '请在手机微信中打开小店'
+          : '请更新微信后打开小店'
+      })
+    } catch (err) {
+      console.warn('init store entry failed', err)
+      this.setData({ storeHomeSupported: false })
+    }
+  },
+
+  clearStoreHomeLayoutTimers() {
+    const timers = this._storeHomeLayoutTimers || []
+    timers.forEach(timer => clearTimeout(timer))
+    this._storeHomeLayoutTimers = []
+  },
+
+  scheduleStoreHomeLayout() {
+    this.clearStoreHomeLayoutTimers()
+    if (!this.data.storeHomeSupported || this._storeHomeUnloaded) return
+    // 店铺信息异步加载后高度会变化，分次同步占位，避免覆盖后面的首页内容。
+    this._storeHomeLayoutTimers = [0, 300, 1000, 3000, 7000, 15000].map(delay => (
+      setTimeout(() => this.measureStoreHomeLayout(), delay)
+    ))
+  },
+
+  measureStoreHomeLayout() {
+    if (this._storeHomeUnloaded || this._storeHomeMeasuring || !this.data.storeHomeSupported || typeof wx.createSelectorQuery !== 'function') return
+    this._storeHomeMeasuring = true
+    try {
+      const query = wx.createSelectorQuery().in(this)
+      query.select('.goods-store-stage').boundingClientRect()
+      query.select('.goods-store-natural').boundingClientRect()
+      query.exec(rects => {
+        this._storeHomeMeasuring = false
+        if (this._storeHomeUnloaded) return
+        const [stage, content] = rects || []
+        if (!stage || !content || stage.width <= 0 || content.width <= 0 || content.height <= 0) return
+        // boundingClientRect 已包含当前缩放；按新旧宽度之比调整，不能再重复乘 scale。
+        const ratio = stage.width / content.width
+        const scale = stage.width / storeHomeCardWidth
+        const height = content.height * ratio
+        if (!Number.isFinite(scale) || !Number.isFinite(height)) return
+        if (Math.abs(scale - this.data.storeHomeScale) < 0.001 && Math.abs(height - this.data.storeHomeHeight) < 0.5) return
+        this.setData({ storeHomeScale: scale, storeHomeHeight: height })
+      })
+    } catch (err) {
+      this._storeHomeMeasuring = false
+      console.warn('measure store entry failed', err)
+    }
   },
 
   initNavMetrics() {
@@ -207,7 +293,8 @@ Page({
           this.setData({ error: '首页内容加载失败，请稍后重试' })
         }
       } else {
-        this.applyHomeData(res.data || {})
+        const homeData = await this.hydrateHomeAlbumMetadata(res.data || {})
+        this.applyHomeData(homeData)
       }
     } catch (err) {
       console.error('getHomeData error', err)
@@ -217,7 +304,59 @@ Page({
         this.setData({ error: '首页内容加载失败，请稍后重试' })
       }
     } finally {
-      this.setData({ loading: false })
+      this.setData({ loading: false }, () => this.scheduleStoreHomeLayout())
+    }
+  },
+
+  async hydrateHomeAlbumMetadata(data = {}) {
+    const albums = Array.isArray(data.albums) ? data.albums : []
+    if (!albums.length) return data
+    if (!this._albumMetadataCache) this._albumMetadataCache = new Map()
+    const unresolved = albums.filter(album => {
+      const id = String(album._id || album.id || album.albumId || '')
+      return id && !this._albumMetadataCache.has(id)
+    })
+    if (unresolved.length) {
+      const results = await Promise.all(unresolved.map(async album => {
+        const id = album._id || album.id || album.albumId || ''
+        try {
+          const response = await collectionApi.getPhotoCollection({
+            seriesId: album.seriesId || '',
+            albumId: id,
+            spotId: album.spotId || ''
+          })
+          const rows = response && response.success && response.data && Array.isArray(response.data.collections)
+            ? response.data.collections
+            : []
+          const detail = rows.find(item => String(item._id || item.id || item.albumId || '') === String(id)) || rows[0] || null
+          return [String(id), detail]
+        } catch (error) {
+          return [String(id), null]
+        }
+      }))
+      results.forEach(([id, detail]) => this._albumMetadataCache.set(id, detail))
+    }
+    return {
+      ...data,
+      albums: albums.map(album => {
+        const id = String(album._id || album.id || album.albumId || '')
+        const detail = this._albumMetadataCache.get(id)
+        if (!detail) return album
+        return {
+          ...album,
+          ...detail,
+          _id: album._id || detail._id || detail.albumId,
+          albumId: album.albumId || detail.albumId || detail._id,
+          seriesId: album.seriesId || detail.seriesId,
+          spotId: album.spotId || detail.spotId,
+          spotName: detail.spotName || album.spotName,
+          seriesName: detail.seriesName || album.seriesName,
+          photoCount: detail.photoCount || album.photoCount || 0,
+          sampleUrls: detail.sampleUrls || album.sampleUrls || [],
+          intro: detail.intro || detail.description || album.intro || album.description || '',
+          description: detail.description || detail.intro || album.description || album.intro || ''
+        }
+      })
     }
   },
 
@@ -506,14 +645,23 @@ Page({
       return
     }
     const id = String(pkg._id || pkg.id || pkg.packageId || pkg.productId || packageId)
+    // 组件事件和快速连点都可能在页面切换完成前再次触发。只允许一次
+    // 详情页入栈，避免返回时需要逐层退出重复的套餐详情页。
+    if (this._packageNavigationInFlight) return
+    this._packageNavigationInFlight = true
 
     wx.navigateTo({
       url: this.buildUrl(getHomePackageDetailPath(pkg), {
         id: pkg.seriesId,
         packageId: id,
         productId: id,
-        spotId: pkg.spotId
-      })
+        spotId: pkg.spotId,
+        from: 'home'
+      }),
+      fail: () => {
+        // 导航失败时解除锁，保证用户可以立即重试。
+        this._packageNavigationInFlight = false
+      }
     })
   },
 
@@ -559,27 +707,8 @@ Page({
   },
 
 
-  goPeripheralList() {
-    wx.navigateTo({ url: this.buildUrl('/pages/peripherals/peripherals') })
-  },
-
   goGuideList() {
     wx.navigateTo({ url: this.buildUrl('/pages/guideList/guideList') })
   },
-
-  // 首页快捷入口（后台可配置的"导航"）点击：统一走路由表，避免各入口各写一套跳转逻辑。
-  goQuickNav(e) {
-    const detail = (e && e.detail) || {}
-    const dataset = (e && e.currentTarget && e.currentTarget.dataset) || {}
-    const index = Number(dataset.index)
-    const configured = Number.isInteger(index) ? (this.data.quickNav || [])[index] : {}
-    const item = detail.item || dataset.item || configured || {}
-    const targetType = detail.targetType || detail.type || dataset.targetType || dataset.type || item.targetType || item.type
-    const targetId = detail.targetId || detail.id || dataset.targetId || dataset.id || item.targetId || item.id || ''
-    const handled = router.navigateToType(targetType, targetId, this.buildUrl.bind(this))
-    if (!handled) {
-      wx.showToast({ title: '该入口暂未配置', icon: 'none' })
-    }
-  }
 
 })

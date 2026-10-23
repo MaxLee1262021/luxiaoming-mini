@@ -79,8 +79,8 @@ async function test(name, run) {
 (async () => {
   await test('relative public media expands without altering local assets or signatures', async () => {
     const data = client.normalizeMediaUrls({ cover: '/api/media/f1', images: ['/uploads/old.png', '/images/placeholder.png'], url: 'https://storage.example.invalid/a?signature=x%2Fy' });
-    assert.equal(data.cover, 'http://localhost:5192/api/media/f1');
-    assert.equal(data.images[0], 'http://localhost:5192/uploads/old.png');
+    assert.equal(data.cover, 'https://www.cslxm.cn/api/media/f1');
+    assert.equal(data.images[0], 'https://www.cslxm.cn/uploads/old.png');
     assert.equal(data.images[1], '/images/placeholder.png');
     assert.equal(data.url, 'https://storage.example.invalid/a?signature=x%2Fy');
   });

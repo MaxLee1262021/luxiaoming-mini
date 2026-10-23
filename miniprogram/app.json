@@ -8,6 +8,7 @@
     "pages/search/search",
     "pages/peripheralDetail/peripheralDetail",
     "pages/my/my",
+    "pages/myFavorites/myFavorites",
     "pages/photoCollection/photoCollection",
     "pages/photoPackageDetail/photoPackageDetail",
     "pages/bookingInfo/bookingInfo",
@@ -69,6 +70,7 @@
   },
   "requiredPrivateInfos": ["getLocation"],
   "style": "v2",
+  "lazyCodeLoading": "requiredComponents",
   "sitemapLocation": "sitemap.json",
   "__usePrivacyCheck__": true
 }

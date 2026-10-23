@@ -2,16 +2,15 @@
   <view class="video-cover-wrap">
     <image class="video-cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
     <view class="video-shade"></view>
-    <view class="play-btn" catchtap="onPreview"><lxm-icon type="play" size="28" color="white"></lxm-icon></view>
+    <view class="play-btn" wx:if="{{previewVideoUrl}}" catchtap="onPreview"><lxm-icon type="play" size="28" color="white"></lxm-icon></view>
     <view class="video-marketing-badge {{marketingBadgeClass}}" wx:if="{{marketingBadge}}">{{marketingBadge}}</view>
     <view class="video-cover-badge" wx:if="{{item.price !== undefined && item.price !== ''}}">¥{{item.minPrice || item.price}}起</view>
     <view class="video-copy">
       <text class="video-tag">{{item.tag || '视频摄像'}}</text>
       <text class="video-title">{{item.name || item.title}}</text>
-      <text class="video-meta">{{item.videoDuration || '30-60 秒'}} · {{item.finishedVideoCount || '1 条成片'}} · {{item.deliveryCycle || '3 个工作日'}}</text>
+      <text class="video-meta" wx:if="{{videoMetaText}}">{{videoMetaText}}</text>
       <view class="video-bottom">
         <text class="video-price" wx:if="{{item.price !== undefined && item.price !== ''}}">¥{{item.price}}</text>
-        <text class="video-link">查看详情</text>
       </view>
       <button class="video-book" wx:if="{{showBook}}" catchtap="onBook">预约同款</button>
     </view>

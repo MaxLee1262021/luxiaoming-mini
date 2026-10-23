@@ -1,5 +1,5 @@
 <view class="photo-collection-page">
-  <lxm-nav-bar showBack="{{true}}" title="照片留影详情" />
+  <lxm-nav-bar showBack="{{true}}" title="照片留影详情" theme="{{isAlbumDetail ? 'light' : 'dark'}}" placeholder="{{isAlbumDetail}}" />
   <lxm-privacy-modal />
   <lxm-toast id="lxmToast" />
   <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
@@ -31,30 +31,6 @@
   </view>
 
   <view class="album-detail" wx:if="{{isAlbumDetail && currentCollection}}">
-    <view class="album-hero-stage">
-      <swiper class="album-sample-swiper" indicator-dots autoplay interval="3200" circular wx:if="{{currentCollection.sampleUrls && currentCollection.sampleUrls.length}}">
-        <block wx:for="{{currentCollection.sampleUrls}}" wx:for-item="sampleUrl" wx:key="*this">
-          <swiper-item>
-            <image
-              class="album-sample-hero"
-              src="{{sampleUrl || currentCollection.coverImage || currentCollection.cover || '/images/placeholder.png'}}"
-              mode="aspectFill"
-              lazy-load
-              bindtap="previewCollection"
-              data-id="{{currentCollection.collectionKey || currentCollection._id || currentCollection.albumId}}"
-              data-url="{{sampleUrl}}"
-            />
-          </swiper-item>
-        </block>
-      </swiper>
-      <image wx:else class="album-sample-hero single" src="{{currentCollection.coverImage || currentCollection.cover || '/images/placeholder.png'}}" mode="aspectFill" />
-      <view class="album-hero-gradient"></view>
-      <view class="album-hero-copy">
-        <view class="album-hero-badge">鹿小鸣旅拍</view>
-        <view class="album-hero-title">{{currentCollection.name || currentCollection.seriesName}}</view>
-      </view>
-      <view class="album-hero-count">{{currentCollection.photoCount || (currentCollection.sampleUrls && currentCollection.sampleUrls.length) || 0}} 张照片</view>
-    </view>
     <view class="album-package-card">
       <view class="package-top">
         <view class="kicker">照片留影商品</view>
@@ -95,7 +71,6 @@
     />
     <lxm-empty-state wx:else type="album" title="暂无更多照片" desc="可以先看封面图。" />
   </view>
-
     <!-- 照片单品详情：适用打卡点（与旅拍套餐/视频详情统一） -->
     <view class="section" wx:if="{{isAlbumDetail && spots.length}}">
       <view class="section-head">
@@ -118,7 +93,14 @@
       <scroll-view scroll-x class="related-scroll" show-scrollbar="{{false}}">
         <block wx:for="{{relatedCollections}}" wx:key="collectionKey">
           <view class="related-album-item">
-            <lxm-album-card mode="compact" item="{{item}}" bind:tap="goCollectionDetail" />
+            <lxm-album-card
+              mode="compact"
+              item="{{item}}"
+              data-album-id="{{item.albumId || item._id}}"
+              data-series-id="{{item.seriesId}}"
+              data-spot-id="{{item.spotId}}"
+              bind:tap="goCollectionDetail"
+            />
           </view>
         </block>
       </scroll-view>
@@ -126,6 +108,9 @@
 
     <!-- 照片单品详情：底部操作 -->
     <view class="lxm-foot-bar" wx:if="{{isAlbumDetail && currentCollection}}">
+      <view class="lxm-foot-favorite">
+        <lxm-favorite-button type="photo_single" item-id="{{currentCollection._id || currentCollection.albumId}}" item="{{currentCollection}}" />
+      </view>
       <button class="lxm-foot-btn__main" bindtap="goBookingFromCollectionBottom">预约同款</button>
     </view>
 
@@ -159,6 +144,9 @@
               cover-size="330"
               selected="{{focusAlbumId && activeCollectionId === item.collectionKey}}"
               item="{{item}}"
+              data-album-id="{{item.albumId || item._id}}"
+              data-series-id="{{item.seriesId}}"
+              data-spot-id="{{item.spotId}}"
               bind:tap="goCollectionDetail"
             />
           </block>

@@ -72,22 +72,6 @@
     </view>
   </view>
 
-  <!-- 首页快捷入口：后台可配置，点击统一走 goQuickNav。 -->
-  <scroll-view wx:if="{{quickNav.length}}" class="quick-nav" scroll-x show-scrollbar="{{false}}">
-    <view
-      wx:for="{{quickNav}}"
-      wx:key="index"
-      class="quick-nav-item"
-      data-index="{{index}}"
-      data-target-type="{{item.targetType}}"
-      data-target-id="{{item.targetId || item.id}}"
-      bindtap="goQuickNav"
-    >
-      <view class="quick-nav-icon">{{item.icon || '·'}}</view>
-      <text class="quick-nav-label">{{item.label || item.name}}</text>
-    </view>
-  </scroll-view>
-
   <view class="feature-zone lxm-panel" wx:if="{{moduleConfig.features.visible !== false}}">
     <view class="section-header">
       <view>
@@ -121,11 +105,17 @@
         <text class="feature-desc">旅拍灵感 · 机位与路线</text>
         <view class="feature-link">去看看<lxm-icon type="arrow-right" size="20" color="white"></lxm-icon></view>
       </view>
-      <view class="feature-card goods-feature" bindtap="goPeripheralList">
+      <view class="feature-card goods-feature goods-store-card" aria-label="影像周边微信小店">
         <text class="feature-kicker">好物</text>
         <text class="feature-name">影像周边</text>
         <view class="feature-desc">相册 · 相框 · 冲印 · DIY纪念</view>
-        <view class="feature-link">去看看<lxm-icon type="arrow-right" size="20" color="red"></lxm-icon></view>
+        <!-- 整张官方卡片在原周边位置等比缩放，不改内部样式、不裁切内容。 -->
+        <view wx:if="{{storeHomeSupported}}" class="goods-store-stage" style="height: {{storeHomeHeight}}px;">
+          <view class="goods-store-natural" style="transform: scale({{storeHomeScale}});">
+            <store-home class="goods-store-home" appid="{{storeAppId}}" />
+          </view>
+        </view>
+        <view wx:else class="feature-link">{{storeHomeUnavailableText}}</view>
       </view>
     </view>
   </view>
@@ -149,15 +139,12 @@
         <view wx:else class="rank-cover rank-cover--ph"></view>
         <text class="rank-name">{{item.name}}</text>
       </view>
-      <view class="rank-card rank-more" bindtap="goExplore">
-        <text class="rank-more-text">更多 ›</text>
-      </view>
     </scroll-view>
   </view>
 
   <!-- 选中打卡点下有商品：显示三分类货架；无商品：统一显示约拍定制空态卡 -->
   <block wx:if="{{!spotNoProducts}}">
-    <view class="booking-strip lxm-panel" wx:if="{{bookingAlbums.length && moduleConfig.bookingAlbums.visible !== false && (!activeSpotId || filteredAlbums.length)}}">
+    <view class="booking-strip lxm-panel" wx:if="{{bookingAlbums.length && moduleConfig.bookingAlbums.visible !== false}}">
       <view class="strip-head">
         <view>
           <text class="strip-title">照片留影</text>

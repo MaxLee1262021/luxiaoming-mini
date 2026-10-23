@@ -2,5 +2,5 @@
 // private-env.js is intentionally gitignored because the deployed hostname is
 // environment-specific.
 module.exports = {
-  PROD_API_BASE: 'https://api.example.com/api'
+  PROD_API_BASE: 'https://www.cslxm.cn/api'
 }

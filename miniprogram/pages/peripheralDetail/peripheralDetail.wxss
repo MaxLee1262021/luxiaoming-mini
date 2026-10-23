@@ -70,8 +70,10 @@ page {
 }
 
 .detail-card {
+  position: relative;
   margin-top: -48rpx;
 }
+
 
 .title-row {
   display: flex;

@@ -94,7 +94,11 @@ function isPeripheral(item = {}) {
   return resolveCategory(item) === CATEGORY.PERIPHERAL
 }
 function isVideoSingle(item = {}) {
-  return resolveCategory(item) === CATEGORY.VIDEO_SINGLE
+  // 与后台公共 RPC 保持一致：视频类型只表示媒介，独立单品还必须有明确标记。
+  // normalizePackage 会为旧视频套餐生成 category，不能据此把它升级成单品。
+  if (!item || !(item.isVideoSingle === true || item.productKind === 'video_single')) return false
+  return [item.serviceType, item.type, item.productType, item.productKind, item.category]
+    .some(value => /video|短视频|视频/.test(normalizeType(value)))
 }
 function isPhotoSingle(item = {}) {
   return resolveCategory(item) === CATEGORY.PHOTO_SINGLE
@@ -147,7 +151,7 @@ function normalizeTags(tags) {
 function buildVideoFields(pkg = {}) {
   if (!isVideo(pkg)) return []
   const fieldMap = [
-    ['视频时长', pkg.videoDuration || (pkg.duration ? `${pkg.duration} 分钟拍摄` : '')],
+    ['视频时长', pkg.videoDuration || pkg.durationText || (pkg.duration ? `${pkg.duration} 分钟拍摄` : '')],
     ['成片数量', pkg.finishedVideoCount || pkg.videoCount || pkg.deliverCount],
     ['航拍服务', pkg.hasAerial === true || pkg.aerial === true ? '包含' : (pkg.hasAerial === false ? '不含' : '')],
     ['全包剪辑', pkg.fullEdit === true || pkg.includeEditing === true ? '包含' : (pkg.fullEdit === false ? '不含' : '')],

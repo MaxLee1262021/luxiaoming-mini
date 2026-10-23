@@ -334,59 +334,6 @@
   background: var(--lxm-c-orange);
 }
 
-/* 后台可配置首页快捷入口：横向滚动，单项保留足够触摸高度。 */
-.quick-nav {
-  display: flex;
-  width: auto;
-  margin: 0 28rpx 20rpx;
-  padding: 2rpx 0 8rpx;
-  white-space: nowrap;
-}
-
-.quick-nav-item {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  width: 128rpx;
-  min-height: 104rpx;
-  margin-right: 14rpx;
-  padding: 12rpx 8rpx;
-  box-sizing: border-box;
-  border: 1rpx solid var(--lxm-c-line-soft);
-  border-radius: var(--lxm-r-md);
-  background: var(--lxm-c-surface);
-  box-shadow: var(--lxm-shadow-card);
-}
-
-.quick-nav-item:active {
-  transform: scale(0.96);
-}
-
-.quick-nav-icon {
-  width: 48rpx;
-  height: 48rpx;
-  line-height: 48rpx;
-  margin-bottom: 8rpx;
-  border-radius: 50%;
-  background: rgba(238, 44, 44, 0.08);
-  color: var(--lxm-c-red-ink);
-  text-align: center;
-  font-size: 28rpx;
-}
-
-.quick-nav-label {
-  max-width: 112rpx;
-  overflow: hidden;
-  color: var(--lxm-c-ink);
-  font-size: var(--lxm-fz-xs);
-  font-weight: var(--lxm-fw-semibold);
-  line-height: 1.25;
-  text-align: center;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* .booking-strip 背景/边距/阴影统一由 .lxm-panel 提供，子元素样式保持不变 */
 
 .strip-head {
@@ -496,7 +443,7 @@
 
 .feature-row {
   display: grid;
-  grid-template-columns: 1.16fr 0.92fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14rpx;
   padding: 0 28rpx;
 }
@@ -518,6 +465,44 @@
 
 .goods-feature {
   background: linear-gradient(145deg, var(--lxm-c-surface) 0%, var(--lxm-c-gray-250) 100%);
+}
+
+/* 保留原双列和描述文字，只在周边展示区域放入完整的官方小店卡片。 */
+.goods-store-card {
+  min-width: 0;
+  padding-right: 10rpx;
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.goods-store-stage {
+  position: relative;
+  width: 100%;
+  margin-top: 18rpx;
+  flex-shrink: 0;
+}
+
+.goods-store-natural {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 256px;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-start;
+  text-align: left;
+  transform-origin: left top;
+}
+
+.goods-store-home {
+  display: block;
+  box-sizing: border-box;
+  width: 256px;
+  flex: 0 0 256px;
+  margin: 0;
+  padding: 0;
 }
 
 .feature-kicker {
@@ -790,17 +775,5 @@
 .rank-card.on .rank-num.r1 { color: var(--lxm-c-gold-bright); }
 .rank-card.on .rank-num.r2 { color: var(--lxm-c-gray-200); }
 .rank-card.on .rank-num.r3 { color: var(--lxm-c-orange-bright); }
-.rank-more {
-  justify-content: center;
-  width: 116rpx;
-  background: transparent;
-  border: 1rpx dashed rgba(238, 44, 44, 0.45);
-  box-shadow: none;
-}
-.rank-more-text {
-  font-size: var(--lxm-fz-xs);
-  font-weight: var(--lxm-fw-medium);
-  color: var(--lxm-c-red);
-}
 
 

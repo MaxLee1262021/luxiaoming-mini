@@ -1,5 +1,5 @@
 <view class="page">
-  <lxm-nav-bar showBack="{{true}}" placeholder="{{true}}" theme="light" />
+  <lxm-nav-bar showBack="{{true}}" placeholder="{{true}}" theme="light" backToHome="{{backToHome}}" />
   <lxm-privacy-modal />
   <lxm-toast id="lxmToast" />
   <view wx:if="{{loading}}" class="lxm-skeleton-wrap">
@@ -24,10 +24,6 @@
         <view class="sold-pill" wx:elif="{{selectedPackage.isHot}}">热门预约</view>
       </view>
       <view class="package-title">{{selectedPackage.name}}</view>
-      <view class="package-description" wx:if="{{packageDescription}}">{{packageDescription}}</view>
-      <view class="package-tags" wx:if="{{serviceTags.length}}">
-        <text wx:for="{{serviceTags}}" wx:key="*this" class="package-tag">{{item}}</text>
-      </view>
       <view class="combo-metrics">
         <view class="combo-metric">
           <text class="combo-metric__value">{{packageStats.itemCount}}</text>
@@ -51,16 +47,6 @@
       </view>
     </view>
 
-    <view class="section" wx:if="{{packageBenefits.length}}">
-      <view class="section-head"><view class="section-title">套餐服务</view></view>
-      <view class="benefit-list">
-        <view class="benefit-row" wx:for="{{packageBenefits}}" wx:key="label">
-          <text class="benefit-label">{{item.label}}</text>
-          <text class="benefit-value">{{item.value}}</text>
-        </view>
-      </view>
-    </view>
-
     <view class="section" wx:if="{{includedItems.length}}">
       <view class="section-head">
         <view class="section-title">旅拍套餐包含</view>
@@ -76,7 +62,6 @@
           <view class="item-card__dot item-card__dot--{{item.typeClass}}"></view>
           <view class="item-card__main">
             <view class="item-card__name">{{item.name}}</view>
-            <view class="item-card__specs" wx:if="{{item.specs}}">{{item.specs}}</view>
           </view>
           <view class="item-card__meta">
             <text class="item-card__price">{{item.priceText}}</text>
@@ -98,9 +83,12 @@
       </view>
     </view>
 
-    <lxm-shooting-notes notes="{{instructions}}" wx:if="{{moduleVisible.bookingRule && instructions.length}}" />
+    <lxm-shooting-notes notes="{{instructions}}" wx:if="{{instructions.length}}" />
 
     <view class="lxm-foot-bar">
+      <view class="lxm-foot-favorite">
+        <lxm-favorite-button type="photo_package" item-id="{{selectedPackage._id}}" item="{{selectedPackage}}" />
+      </view>
       <button class="lxm-foot-btn__main" bindtap="goBookingInfo">预约此套餐</button>
     </view>
   </block>

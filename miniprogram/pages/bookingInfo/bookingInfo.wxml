@@ -44,7 +44,7 @@
           <view class="card-title">拍摄项目 {{index + 1}}{{item.custom ? ' · 定制' : ''}}</view>
           <view class="delete-btn" bindtap="removeItem" data-index="{{index}}">删除</view>
         </view>
-        <view class="selected-title">{{item.peripheralName || item.packageName || item.albumName || item.seriesName || '旅拍项目'}}</view>
+        <view class="selected-title">{{item.packageName || item.albumName || item.seriesName || '旅拍项目'}}</view>
         <view class="selected-info">{{item.spotName || '待确认打卡点'}} · {{item.seriesName || '旅拍风格'}}</view>
         <view class="selected-info" wx:if="{{item.albumName}}">照片留影：{{item.albumName}}</view>
         <view class="selected-custom-tag" wx:if="{{item.custom}}">定制服务</view>
@@ -100,8 +100,15 @@
 
     <view class="card">
       <view class="card-title">拍摄安排</view>
-      <view class="schedule-manual">具体拍摄时间由客服、摄影师与您沟通后人工确认</view>
-      <view class="schedule-hint">提交预约后请保持手机畅通。确认时间、地点、服务内容和价格后，客服会通知您支付订金。</view>
+      <view class="schedule-picker-row">
+        <picker mode="date" value="{{date}}" start="{{today}}" bindchange="onDateChange">
+          <view class="schedule-picker">{{date || '选择拍摄日期'}}</view>
+        </picker>
+        <picker mode="time" value="{{time}}" bindchange="onTimeChange">
+          <view class="schedule-picker">{{time || '选择具体时间'}}</view>
+        </picker>
+      </view>
+      <view class="schedule-hint">提交预约后客服仍会确认档期、地点、服务内容和价格。</view>
     </view>
 
     <view class="card">
@@ -112,7 +119,7 @@
     <view class="card" wx:if="{{moduleVisible.selectedItems && items.length > 0}}">
       <view class="card-title">费用明细</view>
         <view class="fee-item" wx:for="{{items}}" wx:key="index">
-          <text>{{item.peripheralName || item.packageName || item.albumName || item.seriesName || '拍摄项目'}}{{item.custom ? '（' + participantCount + '人）' : ''}}</text>
+          <text>{{item.packageName || item.albumName || item.seriesName || '拍摄项目'}}{{item.custom ? '（' + participantCount + '人）' : ''}}</text>
           <text class="fee-price">¥{{item.price || 0}}</text>
         </view>
       <view class="fee-total">
@@ -125,12 +132,19 @@
       <view class="card-title">预约方式</view>
       <view class="mode-option active">
         <view class="mode-head">
-          <text class="mode-name">咨询预约</text>
+          <text class="mode-name">定金预约</text>
+          <text class="mode-fee">需支付 ¥{{depositDue}}</text>
           <view class="mode-check"><lxm-icon type="check" size="22" color="white"></lxm-icon></view>
         </view>
-        <view class="mode-desc">提交后先生成预约申请。客服确认拍摄安排和金额后，会在订单详情中开放定金微信支付。</view>
+        <view class="mode-desc">定金按当前预约项目总价的 {{depositPercent}}% 计算。提交后调起定金支付（微信支付），支付 ¥{{depositDue}} 后生成预约单。</view>
+        <view class="deposit-row">
+          <text>本次应付定金</text>
+          <text class="deposit-amount">¥{{depositDue}}</text>
+        </view>
       </view>
     </view>
+
+    <view class="booking-payment-hint" wx:if="{{paymentMessage}}">{{paymentMessage}}</view>
 
     <view class="notice-row" wx:if="{{moduleVisible.notice}}" bindtap="toggleAgree">
       <view class="checkbox"><lxm-icon wx:if="{{agreed}}" type="check" size="20" color="red"></lxm-icon></view>
@@ -147,8 +161,8 @@
     />
   </block>
   <view class="booking-submit-bar">
-    <button class="submit-btn" bindtap="submitBooking" loading="{{submitting}}" disabled="{{submitting || dataUnavailable}}" aria-label="提交预约">
-      {{submitting ? '提交中...' : '提交预约'}}
+    <button class="submit-btn" bindtap="submitBooking" loading="{{submitting || paymentSubmitting}}" disabled="{{submitting || paymentSubmitting || dataUnavailable}}" aria-label="提交预约">
+      {{paymentSubmitting ? '支付处理中...' : (submitting ? '提交中...' : ('提交预约并支付定金 ¥' + depositDue))}}
     </button>
   </view>
 </block>

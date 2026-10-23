@@ -77,13 +77,6 @@ function addAlbum(page, e) {
   togglePickerCart(page, bookingPicker.buildItemFromAlbum({ album, series, spot }))
 }
 
-function addPeripheral(page, e) {
-  const peripheralId = e.currentTarget.dataset.id
-  const peripheral = (page.data.allPeripherals || []).find(item => item._id === peripheralId) || {}
-  if (!peripheral._id) return
-  togglePickerCart(page, bookingUtils.buildItemFromPeripheral({ peripheral }))
-}
-
 function previewPickerAlbum(page, e) {
   const albumId = e.currentTarget.dataset.id || ''
   page.setData({ activePickerAlbumId: page.data.activePickerAlbumId === albumId ? '' : albumId })
@@ -112,8 +105,8 @@ function confirmPickerCart(page) {
     return
   }
   const combined = [...(page.data.items || []), ...(page.data.pickerCart || [])]
-  if (!bookingPicker.hasMainItem(combined)) {
-    wx.showToast({ title: '影像周边需搭配拍摄项目一起预约', icon: 'none' })
+  if (combined.some(item => bookingPicker.isPeripheralItem(item))) {
+    wx.showToast({ title: '周边仅支持咨询客服，不能加入预约', icon: 'none' })
     return
   }
   page.setData({
@@ -178,7 +171,6 @@ module.exports = {
   addContactPhone,
   addNewPhone,
   addPackage,
-  addPeripheral,
   addSeries,
   backToSeriesList,
   closePicker,

@@ -2,6 +2,7 @@ const app = getApp()
 const demoData = require('../../utils/demoData')
 const peripheralApi = require('../../api/peripheral')
 const { backOrSwitchTab } = require('../../utils/navigation')
+const { openCustomerService } = require('../../service/customerService')
 Page({
   data: {
     id: '',
@@ -50,11 +51,18 @@ Page({
   },
 
   applyDetailItem(item = {}) {
+    const imageList = item.images || item.gallery || item.photos || item.sampleUrls || []
+    const images = Array.from(new Set([
+      ...(Array.isArray(imageList) ? imageList : []),
+      item.cover,
+      item.coverUrl,
+      item.image
+    ].filter(Boolean)))
     this.setData({
       item: {
         ...item,
         cover: item.cover || item.coverUrl || item.image || '/images/placeholder.png',
-        images: item.images && item.images.length ? item.images : [item.cover || item.coverUrl || item.image || '/images/placeholder.png']
+        images: images.length ? images : ['/images/placeholder.png']
       },
       error: ''
     })
@@ -71,13 +79,7 @@ Page({
   },
 
   contactService() {
-    wx.openCustomerServiceChat({
-      extInfo: {},
-      corpId: (getApp().globalData && getApp().globalData.corpId) || '',
-      fail() {
-        wx.showToast({ title: '请联系客服咨询', icon: 'none' })
-      }
-    })
+    openCustomerService()
   },
 
   goBack() {

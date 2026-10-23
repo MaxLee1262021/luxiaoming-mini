@@ -41,7 +41,6 @@
         <text class="price-symbol">¥</text>
         <text class="price-value">{{item.price}}</text>
       </view>
-      <view class="detail-link" wx:if="{{!selectable}}">查看详情</view>
     </view>
 
     <view class="price-original" wx:if="{{item.originalPrice}}">

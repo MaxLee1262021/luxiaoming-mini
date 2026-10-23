@@ -28,6 +28,10 @@
       </view>
     </view>
 
+    <view class="guide-favorite-row">
+      <lxm-favorite-button type="guide" item-id="{{guide._id || guide.id}}" item="{{guide}}" />
+    </view>
+
     <!-- 关联打卡点：点击跳转到打卡点详情 -->
     <view class="spot-link" wx:if="{{relatedSpot.id}}" bindtap="goSpot" hover-class="lxm-card-lift" hover-stay-time="150">
       <image class="spot-link-cover" src="{{relatedSpot.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />

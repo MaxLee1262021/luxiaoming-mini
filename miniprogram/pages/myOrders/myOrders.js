@@ -121,6 +121,9 @@ Page({
     const currentStatus = this.data.currentStatus
     if (!currentStatus) return true
     if (currentStatus === AFTER_SALE_STATUS) return order.isAfterSale === true
+    if (currentStatus === 'shooting') {
+      return order.workflowStage === 'shooting' || order.status === 'shooting' || order.customerStatusKey === BUSINESS_STATUS.AWAITING_PHOTOGRAPHER && order.workflowStage === 'shooting'
+    }
     const canonicalAliases = {
       pending: BUSINESS_STATUS.PENDING_PAYMENT,
       deposit: BUSINESS_STATUS.PENDING_PAYMENT,

@@ -3,6 +3,7 @@ Component({
     title: { type: String, value: '' },
     kicker: { type: String, value: '' },
     showBack: { type: Boolean, value: false },
+    backToHome: { type: Boolean, value: false },
     theme: { type: String, value: 'dark' },
     placeholder: { type: Boolean, value: false }
   },
@@ -34,6 +35,10 @@ Component({
     },
 
     onBack() {
+      if (this.data.backToHome) {
+        wx.switchTab({ url: '/pages/index/index' })
+        return
+      }
       const pages = getCurrentPages()
       if (pages.length >= 2) {
         wx.navigateBack({ delta: 1 })

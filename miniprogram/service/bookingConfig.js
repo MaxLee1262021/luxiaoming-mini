@@ -7,7 +7,13 @@ const bookingConfigApi = require('../api/bookingConfig')
 
 const DEFAULT_CONFIG = {
   customPrice: { single: 200, extraPerPerson: 100 },
-  bookingNotice: '1. 建议提前预约，方便安排摄影师和拍摄路线。\n2. 拍摄当天请准时到达约定地点。\n3. 如遇天气原因，可联系客服协商改期。\n4. 照片和短视频交付周期以旅拍套餐详情为准。'
+  // Customer-facing booking requests use a 30% deposit by default. The server
+  // remains authoritative and returns the frozen amount after submission.
+  depositRatio: 0.3,
+  bookingNotice: '1. 建议提前预约，方便安排摄影师和拍摄路线。\n2. 拍摄当天请准时到达约定地点。\n3. 如遇天气原因，可联系客服协商改期。\n4. 照片和短视频交付周期以旅拍套餐详情为准。',
+  // The booking RPC validates the version of the notice that was agreed to.
+  // Keep the built-in notice compatible with the server's legacy default path.
+  bookingNoticeVersion: 'v1.0'
 }
 
 let cached = null // 已成功加载的配置
@@ -26,7 +32,9 @@ function ensureLoaded() {
       const d = (res && res.success && res.data) || {}
       cached = {
         customPrice: Object.assign({}, DEFAULT_CONFIG.customPrice, d.customPrice || {}),
-        bookingNotice: d.bookingNotice || DEFAULT_CONFIG.bookingNotice
+        depositRatio: normalizeDepositRatio(d.depositRatio ?? d.depositRate ?? DEFAULT_CONFIG.depositRatio),
+        bookingNotice: d.bookingNotice || DEFAULT_CONFIG.bookingNotice,
+        bookingNoticeVersion: String(d.bookingNoticeVersion || d.agreementVersion || DEFAULT_CONFIG.bookingNoticeVersion).trim()
       }
       return cached
     })
@@ -73,8 +81,15 @@ function buildCustomItem({ count = 1, spotId = '', spotName = '', requestedSpot 
     participantCount: Math.max(1, Number(count) || 1),
     requestedSpot: requestedSpot || spotName || '',
     pricingRule: buildCustomRuleText(),
-    serviceType: 'custom'
+    serviceType: 'custom',
+    depositRatio: getConfig().depositRatio
   }
+}
+
+function normalizeDepositRatio(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < 0) return DEFAULT_CONFIG.depositRatio
+  return Math.min(number > 1 ? number / 100 : number, 1)
 }
 
 module.exports = {
@@ -84,5 +99,6 @@ module.exports = {
   singlePrice,
   calcCustomPrice,
   buildCustomRuleText,
-  buildCustomItem
+  buildCustomItem,
+  normalizeDepositRatio
 }

@@ -21,12 +21,22 @@
         <block wx:for="{{samples}}" wx:key="_id">
           <swiper-item>
             <view class="hero-media" bindtap="previewVideo" data-index="{{index}}">
-              <image class="hero-cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+              <video
+                wx:if="{{item.url}}"
+                class="hero-cover hero-video"
+                src="{{item.url}}"
+                poster="{{item.cover || '/images/placeholder.png'}}"
+                object-fit="cover"
+                muted
+                controls="{{false}}"
+                show-center-play-btn="{{false}}"
+              ></video>
+              <image wx:else class="hero-cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
               <view class="hero-mask"></view>
-              <view class="play-chip">播放预览</view>
+              <view class="play-chip" wx:if="{{item.url}}">播放预览</view>
               <view class="hero-meta">
                 <text>{{item.title || product.name}}</text>
-                <text>{{item.durationText || product.videoDuration || '60s'}}</text>
+                <text wx:if="{{item.durationText || product.videoDuration}}">{{item.durationText || product.videoDuration}}</text>
               </view>
             </view>
           </swiper-item>
@@ -79,6 +89,9 @@
     />
 
     <view class="lxm-foot-bar">
+      <view class="lxm-foot-favorite">
+        <lxm-favorite-button type="video_single" item-id="{{product._id}}" item="{{product}}" />
+      </view>
       <button class="lxm-foot-btn__main" bindtap="goBookingInfo">预约同款</button>
     </view>
   </block>

@@ -1,14 +1,13 @@
-const demoData = require('../utils/demoData')
-const { normalizePackageList, normalizePackage, buildVideoFields, buildPackageBenefits, isVideoSingle } = require('../utils/product')
+const { normalizePackageList, normalizePackage, buildVideoFields, buildPackageBenefits, isVideoSingle, filterVisibleProducts } = require('../utils/product')
 
 function resolveItemPrice(item = {}, context = {}) {
   const declared = Number(item.price)
   if (declared > 0) return declared
 
   const t = item.target || {}
-  const videos = context.videoProducts || context.videos || demoData.videoProducts || []
-  const albums = context.albums || demoData.albums || []
-  const peripherals = context.peripherals || demoData.peripherals || []
+  const videos = context.videoProducts || context.videos || []
+  const albums = context.albums || []
+  const peripherals = context.peripherals || []
 
   if (item.type === 'video') {
     const pid = t.productId || item.productId || item.videoId
@@ -64,7 +63,7 @@ function normalizeVideoSample(item = {}, fallback = {}) {
     url,
     videoUrl: url,
     type: 'video',
-    durationText: item.durationText || item.videoDuration || fallback.videoDuration || '60s',
+    durationText: item.durationText || item.videoDuration || fallback.videoDuration || '',
     spotName: item.spotName || fallback.spotName || ''
   }
 }
@@ -75,12 +74,13 @@ function matchesSpot(item = {}, spotId = '') {
 }
 
 function buildVideoProductDetail(data = {}, params = {}) {
-  const allPackages = normalizePackageList([
+  const allPackages = normalizePackageList(filterVisibleProducts([
+    ...(data.videoSingles || []),
     ...(data.videoProducts || []),
     ...(data.allPackages || []),
     ...(data.packages || []),
     data.currentPackage
-  ].filter(Boolean))
+  ].filter(Boolean)).filter(isVideoSingle))
 
   const productId = params.productId || params.packageId || params.id || ''
   const selectedProduct = productId
@@ -121,9 +121,9 @@ function buildVideoProductDetail(data = {}, params = {}) {
     videoFields: buildVideoFields(product),
     packageBenefits: buildPackageBenefits(product),
     includedItems: normalizeIncludedItems(selectedProduct && selectedProduct.includedItems, {
-      videoProducts: data.videoProducts || demoData.videoProducts,
-      albums: data.albums || demoData.albums,
-      peripherals: data.peripherals || demoData.peripherals
+      videoProducts: data.videoProducts || data.videoSingles || [],
+      albums: data.albums || [],
+      peripherals: data.peripherals || []
     })
   }
 }

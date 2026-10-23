@@ -9,9 +9,6 @@
 
   <view class="lxm-sample-gallery__stage" wx:if="{{activeUrl}}" bindtap="onPreview">
     <image class="lxm-sample-gallery__stage-img" src="{{activeUrl}}" mode="aspectFill" lazy-load />
-    <view class="lxm-sample-gallery__stage-mask">
-      <text class="lxm-sample-gallery__stage-tip">点击全屏预览</text>
-    </view>
   </view>
 
   <scroll-view wx:if="{{galleryUrls.length}}" class="lxm-sample-gallery__strip" scroll-x show-scrollbar="{{false}}">

@@ -2,6 +2,7 @@ const app = getApp()
 const orderApi = require('../../api/order')
 const { buildUrlWithSource, decodeQueryFields, decodeQueryValue } = require('../../utils/query')
 const { normalizeOrder } = require('../../utils/order')
+const { openCustomerService } = require('../../service/customerService')
 
 const SUCCESS_QUERY_FIELDS = [
   'packageName',
@@ -122,17 +123,7 @@ Page({
   },
 
   contactService() {
-    if (!wx.openCustomerServiceChat) {
-      wx.showToast({ title: '客服暂未配置，请稍后再试', icon: 'none' })
-      return
-    }
-    wx.openCustomerServiceChat({
-      extInfo: {},
-      corpId: (getApp().globalData && getApp().globalData.corpId) || '',
-      fail() {
-        wx.showToast({ title: '客服暂未配置，请稍后再试', icon: 'none' })
-      }
-    })
+    openCustomerService()
   },
 
   goMyOrders() {

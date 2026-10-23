@@ -1,5 +1,5 @@
 const bookingUtils = require('../utils/booking')
-const { isVideo } = require('../utils/product')
+const { isVideo, isVideoSingle, isPublicProduct } = require('../utils/product')
 
 // 中文友好的搜索分词：保留完整词，并补充相邻 2-gram（与 api/search.js 一致）。
 // 让"橘子洲旅拍"这类输入也能命中数据里的"橘子洲"。
@@ -79,7 +79,8 @@ function filterAlbumsBySeries(albums = [], seriesId = '', keyword = '') {
 
 function filterPackages({ packages = [], albums = [], spotId = '', keyword = '', type = 'photo' } = {}) {
   return bookingUtils.filterPackagesBySpot(packages, spotId)
-    .filter(item => type === 'video' ? isVideo(item) : !isVideo(item))
+    .filter(isPublicProduct)
+    .filter(item => type === 'video' ? isVideoSingle(item) : !isVideo(item))
     .filter(item => matchKeyword(item, keyword))
     .map(item => ({
       ...item,

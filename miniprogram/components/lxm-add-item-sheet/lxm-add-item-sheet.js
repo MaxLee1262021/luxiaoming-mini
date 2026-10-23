@@ -40,7 +40,7 @@ Component({
   methods: {
     noop() {},
 
-    // 列表页：为每个打卡点标注「专属可拍项目数」（周边全城通用，不计入此数）
+    // 列表页：为每个打卡点标注「专属可拍项目数」。
     buildSpotView() {
       const products = this.data.products || []
       const spots = this.data.spots || []
@@ -119,25 +119,23 @@ Component({
       this.setData({ activeSpotId: '', expanded: '', panel: null, kw: '' })
     },
 
-    // 打卡点面板：信息头 + 类目横排 row（周边全城通用，出现于每个面板）
+    // 打卡点面板：信息头 + 拍摄项目类目横排。
     buildPanel(spotId) {
       const spots = this.data.spots || []
       const spot = spots.find(s => s._id === spotId) || {}
       const products = this.data.products || []
       const expanded = this.data.expanded
       const own = products.filter(p => p.spotId === spotId && p.cat !== 'peripheral')
-      const peri = products.filter(p => p.cat === 'peripheral')
       const groups = {
         package: own.filter(p => p.cat === 'package'),
         album: own.filter(p => p.cat === 'album'),
         video: own.filter(p => p.cat === 'video')
       }
-      const catTitles = { package: '旅拍套餐', album: '照片留影', video: '视频摄像', peripheral: '影像周边' }
+      const catTitles = { package: '旅拍套餐', album: '照片留影', video: '视频摄像' }
       const allCats = [
         { cat: 'package', items: groups.package },
         { cat: 'album', items: groups.album },
-        { cat: 'video', items: groups.video },
-        { cat: 'peripheral', items: peri }
+        { cat: 'video', items: groups.video }
       ]
       const sections = allCats
         .filter(c => c.items.length)
@@ -173,7 +171,7 @@ Component({
         delete cartMap[uid]
       } else {
         const item = (this.data.products || []).find(p => p.uid === uid)
-        if (!item) return
+        if (!item || item.cat === 'peripheral') return
         cart.push(item)
         cartMap[uid] = true
       }

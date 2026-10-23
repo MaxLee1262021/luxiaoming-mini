@@ -1,4 +1,31 @@
+function configuredText(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? String(value) : ''
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function videoMeta(item) {
+  const duration = configuredText(item.videoDuration) || configuredText(item.durationText)
+  let finishedCount = configuredText(item.finishedVideoCount)
+  if (/^\d+(?:\.\d+)?$/.test(finishedCount)) finishedCount += ' 条成片'
+  return [duration, finishedCount, configuredText(item.deliveryCycle)]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function previewUrl(item) {
+  const url = [item.videoUrl, item.previewVideoUrl, item.url]
+    .find(value => typeof value === 'string' && value.trim())
+  return url ? url.trim() : ''
+}
+
 Component({
+  data: {
+    marketingBadge: '',
+    marketingBadgeClass: '',
+    videoMetaText: '',
+    previewVideoUrl: ''
+  },
+
   properties: {
     item: {
       type: Object,
@@ -41,7 +68,12 @@ Component({
           marketingBadgeClass = 'is-hot'
         }
       }
-      this.setData({ marketingBadge, marketingBadgeClass })
+      this.setData({
+        marketingBadge,
+        marketingBadgeClass,
+        videoMetaText: videoMeta(item || {}),
+        previewVideoUrl: previewUrl(item || {})
+      })
     }
   },
 
@@ -58,9 +90,11 @@ Component({
 
     onPreview() {
       const item = this.data.item || {}
+      const url = previewUrl(item)
+      if (!url) return
       this.triggerEvent('preview', {
         id: item._id || item.id,
-        url: item.videoUrl || item.previewVideoUrl || item.url,
+        url,
         cover: item.cover
       })
     },

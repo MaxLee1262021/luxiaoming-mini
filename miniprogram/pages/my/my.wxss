@@ -224,7 +224,7 @@
 
 .order-status-row {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 0;
 }
 
@@ -269,6 +269,14 @@
   line-height: 1.3;
   text-align: center;
   white-space: normal;
+}
+
+.status-count {
+  display: block;
+  margin-top: 8rpx;
+  color: var(--lxm-c-muted-2);
+  font-size: var(--lxm-fz-2xs);
+  line-height: 1.2;
 }
 
 .logout-area {

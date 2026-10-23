@@ -381,13 +381,6 @@ page {
   white-space: nowrap;
 }
 
-.item-card__specs {
-  margin-top: 8rpx;
-  color: var(--lxm-c-gray-700);
-  font-size: var(--lxm-fz-sm);
-  line-height: 1.4;
-}
-
 .item-card__meta {
   display: flex;
   align-items: center;

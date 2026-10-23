@@ -4,6 +4,8 @@ const { buildUrlWithSource } = require('../../utils/query')
 const { normalizeOrder, getOrderStatusDesc } = require('../../utils/order')
 const orderFiles = require('../../service/orderFileActions')
 const { normalizeFile } = require('../../service/mediaFiles')
+const { paymentFailure, logPaymentFailure } = require('../../utils/paymentFeedback')
+const { openCustomerService } = require('../../service/customerService')
 
 function requestWechatPayment(paymentParams = {}) {
   const { timeStamp, nonceStr, package: packageValue, signType, paySign } = paymentParams
@@ -22,10 +24,6 @@ function requestWechatPayment(paymentParams = {}) {
       fail: reject
     })
   })
-}
-
-function paymentWasCancelled(error) {
-  return /cancel/i.test(String(error && error.errMsg || error && error.message || ''))
 }
 
 function isSimulatedPaymentOrder(order = {}) {
@@ -127,17 +125,7 @@ Page({
   },
 
   contactService() {
-    if (!wx.openCustomerServiceChat) {
-      wx.showToast({ title: '请在微信内联系客服', icon: 'none' })
-      return
-    }
-    wx.openCustomerServiceChat({
-      extInfo: {},
-      corpId: (getApp().globalData && getApp().globalData.corpId) || '',
-      fail() {
-        wx.showToast({ title: '客服暂未配置，请稍后再试', icon: 'none' })
-      }
-    })
+    openCustomerService()
   },
 
   goBookingAgain() {
@@ -206,16 +194,23 @@ Page({
       if (!silent) wx.showToast({ title: '支付参数准备中，请稍后重试', icon: 'none' })
       return payment
     }
+    let invokeFailure = null
     try {
       await requestWechatPayment(payment.paymentParams)
       this.setData({ paymentMessage: '微信支付已完成，正在确认订单状态...' })
       if (!silent) wx.showToast({ title: '支付结果确认中', icon: 'none' })
     } catch (err) {
+      invokeFailure = paymentFailure(err)
+      logPaymentFailure(err, 'order_payment')
       if (!silent) {
-        wx.showToast({ title: paymentWasCancelled(err) ? '已取消支付' : '支付未完成，请重试', icon: 'none' })
+        wx.showToast({ title: invokeFailure.toast, icon: 'none' })
       }
     }
-    return this.refreshPaymentStatus({ silent: true })
+    const latest = await this.refreshPaymentStatus({ silent: true })
+    if (invokeFailure && (!latest || latest.status !== 'confirmed')) {
+      this.setData({ paymentMessage: invokeFailure.message })
+    }
+    return latest
   },
 
   handlePaymentTap(e) {

@@ -205,7 +205,7 @@ Page({
       spotId,
       cover: album.cover || album.coverImage || (album.sampleUrls && album.sampleUrls[0]) || '/images/placeholder.png'
     }))
-    const videos = products.filter(item => isVideo(item) && belongsToSpot(item))
+    const videos = products.filter(item => isVideoSingle(item) && belongsToSpot(item))
     const peripherals = (catalog.peripherals || []).filter(item => {
       const relatedSpotIds = [
         ...(Array.isArray(item.spotIds) ? item.spotIds : []),
@@ -281,6 +281,11 @@ Page({
       this.setData({ openingLocation: false })
       showFailure()
     }
+  },
+
+  // Legacy alias kept for the route action in the spot sheet header.
+  goNavigation() {
+    return this.onNavigate()
   },
 
   goCustomBooking(e) {

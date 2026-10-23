@@ -4,6 +4,7 @@
     "lxm-nav-bar": "/components/lxm-nav-bar/lxm-nav-bar",
     "lxm-icon": "/components/lxm-icon/lxm-icon",
     "lxm-toast": "/components/lxm-toast/lxm-toast",
-    "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal"
+    "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal",
+    "lxm-favorite-button": "/components/lxm-favorite-button/lxm-favorite-button"
   }
 }

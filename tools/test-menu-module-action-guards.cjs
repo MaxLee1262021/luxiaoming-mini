@@ -12,7 +12,20 @@ function loadPage(relativePath, dependencies, wx, app) {
   vm.runInNewContext(source, {
     Page(value) { definition = value },
     getApp() { return app || { globalData: {} } },
-    require(request) { return dependencies[request] || {} },
+    require(request) {
+      if (request === '../../service/customerService') {
+        const module = { exports: {} }
+        const servicePath = 'miniprogram/service/customerService.js'
+        vm.runInNewContext(fs.readFileSync(path.join(root, servicePath), 'utf8'), {
+          module,
+          wx,
+          getApp() { return app || { globalData: {} } },
+          console: pageConsole
+        }, { filename: servicePath })
+        return module.exports
+      }
+      return dependencies[request] || {}
+    },
     wx,
     console: pageConsole,
     Promise,
@@ -73,11 +86,21 @@ function testMyCustomerServiceGuardsUnavailableSdkAndMissingCorpId() {
   const page = createMyPage(wx, { globalData: {} })
   page.openCustomerService.call({ ensureAuth() { return true } })
   assert.strictEqual(toasts.length, 1)
-  assert.match(toasts[0].title, /客服暂未配置/)
+  assert.match(toasts[0].title, /微信版本不支持客服/)
 
   let opened = 0
   wx.openCustomerServiceChat = () => { opened += 1 }
   page.openCustomerService.call({ ensureAuth() { return true } })
+  assert.strictEqual(opened, 0)
+  assert.match(toasts[1].title, /客服暂未配置/)
+
+  const missingUrl = createMyPage(wx, { globalData: { corpId: 'ww-corp-id' } })
+  missingUrl.openCustomerService.call({ ensureAuth() { return true } })
+  assert.strictEqual(opened, 0)
+  assert.match(toasts[2].title, /客服暂未配置/)
+
+  const missingCorpId = createMyPage(wx, { globalData: { customerServiceUrl: 'https://work.weixin.qq.com/kfid/test' } })
+  missingCorpId.openCustomerService.call({ ensureAuth() { return true } })
   assert.strictEqual(opened, 0)
 }
 
@@ -88,14 +111,58 @@ function testMyCustomerServiceOpensOnlyWhenReadyAndHandlesThrows() {
     showToast(options) { toasts.push(options) },
     openCustomerServiceChat(options) { received = options }
   }
-  const page = createMyPage(wx, { globalData: { corpId: 'ww-corp-id' } })
+  const customerServiceUrl = 'https://work.weixin.qq.com/kfid/test'
+  const page = createMyPage(wx, { globalData: { corpId: 'ww-corp-id', customerServiceUrl } })
+  page.openCustomerService.call({ ensureAuth() { return false } })
+  assert.strictEqual(received, undefined)
   page.openCustomerService.call({ ensureAuth() { return true } })
   assert.strictEqual(received.corpId, 'ww-corp-id')
+  assert.strictEqual(received.extInfo.url, customerServiceUrl)
+
+  received.fail(new Error('request failed'))
+  assert.strictEqual(toasts.length, 1)
+  assert.match(toasts[0].title, /客服暂时无法打开/)
 
   wx.openCustomerServiceChat = () => { throw new Error('unsupported') }
   page.openCustomerService.call({ ensureAuth() { return true } })
-  assert.strictEqual(toasts.length, 1)
-  assert.match(toasts[0].title, /客服暂未配置/)
+  assert.strictEqual(toasts.length, 2)
+  assert.match(toasts[1].title, /客服暂时无法打开/)
+}
+
+function testAllCustomerServiceEntriesUseTheConfiguredAccount() {
+  const app = { globalData: { corpId: 'ww-corp-id', customerServiceUrl: 'https://work.weixin.qq.com/kfid/test' } }
+  const calls = []
+  const wx = {
+    openCustomerServiceChat(options) { calls.push(options) },
+    showToast() { throw new Error('Configured customer service must not show an error') }
+  }
+  const pages = ['peripheralDetail', 'photoCollection', 'photoPackageDetail', 'videoProductDetail', 'bookingSuccess', 'orderDetail']
+  for (const name of pages) {
+    const page = loadPage(`miniprogram/pages/${name}/${name}.js`, {}, wx, app)
+    page.contactService()
+  }
+  createMyPage(wx, app).openCustomerService.call({ ensureAuth() { return true } })
+  assert.strictEqual(calls.length, 7)
+  for (const call of calls) {
+    assert.strictEqual(call.corpId, app.globalData.corpId)
+    assert.strictEqual(call.extInfo.url, app.globalData.customerServiceUrl)
+    assert.strictEqual(typeof call.fail, 'function')
+  }
+}
+
+function testAppLoadsBothCustomerServiceSettings() {
+  const config = require('../miniprogram/config/env')
+  let appDefinition
+  vm.runInNewContext(fs.readFileSync(path.join(root, 'miniprogram/app.js'), 'utf8'), {
+    Page() {},
+    App(value) { appDefinition = value },
+    wx: { showToast() {} },
+    require(request) { return request === './config/env' ? config : {} }
+  }, { filename: 'miniprogram/app.js' })
+  assert.ok(config.CORP_ID)
+  assert.match(config.CUSTOMER_SERVICE_URL, /^https:\/\/work\.weixin\.qq\.com\/kfid\//)
+  assert.strictEqual(appDefinition.globalData.corpId, config.CORP_ID)
+  assert.strictEqual(appDefinition.globalData.customerServiceUrl, config.CUSTOMER_SERVICE_URL)
 }
 
 function testMyLogoutClearsOnlyAfterConfirmation() {
@@ -203,6 +270,8 @@ function testPeripheralsDetailUsesDatasetIdForTapEvents() {
 
 testMyCustomerServiceGuardsUnavailableSdkAndMissingCorpId()
 testMyCustomerServiceOpensOnlyWhenReadyAndHandlesThrows()
+testAllCustomerServiceEntriesUseTheConfiguredAccount()
+testAppLoadsBothCustomerServiceSettings()
 testMyLogoutClearsOnlyAfterConfirmation()
 testMyPhoneAuthReportsMissingPrivacyDeclaration()
 testMyUsesFixedAvatarAndDoesNotExposeProfilePicker()

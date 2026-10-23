@@ -14,6 +14,7 @@
 }
 
 .sheet-header {
+  position: relative;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -24,6 +25,14 @@
 .sheet-spot-info {
   flex: 1;
   min-width: 0;
+}
+
+.sheet-actions {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10rpx;
 }
 
 .sheet-name-row {
@@ -43,6 +52,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 8rpx;
+  margin-top: 10rpx;
 }
 
 .sheet-tag {
@@ -147,6 +157,30 @@
   height: 88rpx;
 }
 
+.sheet-route-btn {
+  position: relative;
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7rpx;
+  min-width: 148rpx;
+  height: 88rpx;
+  padding: 0 18rpx;
+  box-sizing: border-box;
+  border-radius: 999rpx;
+  background: var(--lxm-c-red);
+  color: var(--lxm-c-cream);
+  box-shadow: 0 6rpx 16rpx rgba(238,44,44,0.18);
+  font-size: var(--lxm-fz-sm);
+  font-weight: var(--lxm-fw-bold);
+}
+
+.route-icon {
+  font-size: 28rpx;
+  line-height: 1;
+}
+
 /* B1 · 点位价值前置：hero 大图 + 信任条 */
 .sheet-hero {
   position: relative;
@@ -155,6 +189,20 @@
   border-radius: 26rpx;
   overflow: hidden;
   box-shadow: 0 8rpx 24rpx rgba(42, 33, 27, 0.1);
+}
+
+.spot-favorite-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 20rpx;
+  margin: 0 28rpx 20rpx;
+}
+
+.spot-favorite-row lxm-favorite-button {
+  flex: 1;
+  min-width: 0;
+  --lxm-favorite-width: 100%;
 }
 
 .sheet-seal {
@@ -252,6 +300,8 @@
 .sheet-scroll {
   width: 100%;
   white-space: nowrap;
+  padding-right: 28rpx;
+  box-sizing: border-box;
 }
 
 /* 横滑进度圆点（方案 B · 底部小圆点，不遮卡片） */
@@ -294,7 +344,9 @@
 }
 
 .package-scroll {
-  height: 480rpx;
+  height: 520rpx;
+  padding-top: 4rpx;
+  box-sizing: border-box;
 }
 
 .package-scroll lxm-package-card {
@@ -302,6 +354,7 @@
   width: 320rpx;
   flex: 0 0 auto;
   margin-right: 20rpx;
+  vertical-align: top;
 }
 
 /* ---------- 区块内单品/套餐切换 ---------- */

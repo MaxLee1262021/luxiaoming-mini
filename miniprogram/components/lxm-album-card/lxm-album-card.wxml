@@ -1,4 +1,4 @@
-<view class="album-card {{mode}} {{selected ? 'is-selected' : ''}}" bindtap="onTap" hover-class="lxm-card-lift" hover-stay-time="150">
+<view class="album-card {{mode}} {{selected ? 'is-selected' : ''}}" catchtap="onTap" hover-class="lxm-card-lift" hover-stay-time="150">
   <view class="album-marketing-badge {{marketingBadgeClass}}" wx:if="{{marketingBadge && mode !== 'row'}}">{{marketingBadge}}</view>
 
   <!-- 覆盖式：网格 / 横向滚动小卡 -->

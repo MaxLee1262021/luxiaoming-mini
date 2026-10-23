@@ -6,6 +6,7 @@ const { buildUrlWithSource } = require('../../utils/query')
 const { buildVideoProductDetail } = require('../../service/videoProductDetail')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
 const { isExplicitDemoMode } = require('../../config/env')
+const { openCustomerService } = require('../../service/customerService')
 
 Page({
   data: {
@@ -202,13 +203,7 @@ Page({
   },
 
   contactService() {
-    wx.openCustomerServiceChat({
-      extInfo: {},
-      corpId: (getApp().globalData && getApp().globalData.corpId) || '',
-      fail() {
-        wx.showToast({ title: '请联系客服咨询', icon: 'none' })
-      }
-    })
+    openCustomerService()
   },
 
 })

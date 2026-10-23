@@ -1,0 +1,9 @@
+<button
+  class="favorite-button {{active ? 'is-active' : ''}} {{loading ? 'is-loading' : ''}}"
+  bindtap="onTap"
+  disabled="{{loading || !itemId}}"
+  aria-label="{{active ? '取消收藏' : '收藏'}}"
+>
+  <text class="favorite-icon">{{active ? '♥' : '♡'}}</text>
+  <text class="favorite-label">{{active ? '已收藏' : '收藏'}}</text>
+</button>

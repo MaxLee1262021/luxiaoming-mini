@@ -280,7 +280,7 @@ button[disabled] {
 
 /* ===== 商品详情页统一吸底操作栏（单一事实来源） =====
    四个详情页（照片留影 / 旅拍套餐 / 周边 / 短视频）共用同一套骨架：
-   全宽主操作按钮（仅文案随页面变化）。
+   收藏入口与主操作按钮（仅文案随页面变化）。
    高度 / 间距 / 阴影 / 安全区统一，消除原各页 .bottom-bar / .collection-bottom-bar 碎片化。 */
 .lxm-foot-bar {
   position: fixed;
@@ -307,6 +307,13 @@ button[disabled] {
   border: none;
   font-size: var(--lxm-fz-md);
   font-weight: 900;
+}
+.lxm-foot-favorite {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 128rpx;
+  margin-right: 18rpx;
 }
 .lxm-foot-btn__main::after { border: 0; }
 

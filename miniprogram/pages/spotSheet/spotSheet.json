@@ -7,6 +7,7 @@
     "lxm-video-card": "/components/lxm-video-card/lxm-video-card",
     "lxm-icon": "/components/lxm-icon/lxm-icon",
     "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal",
-    "lxm-custom-booking-card": "/components/lxm-custom-booking-card/lxm-custom-booking-card"
+    "lxm-custom-booking-card": "/components/lxm-custom-booking-card/lxm-custom-booking-card",
+    "lxm-favorite-button": "/components/lxm-favorite-button/lxm-favorite-button"
   }
 }

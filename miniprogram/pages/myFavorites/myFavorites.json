@@ -1,0 +1,7 @@
+{
+  "navigationStyle": "custom",
+  "enablePullDownRefresh": true,
+  "usingComponents": {
+    "lxm-empty-state": "/components/lxm-empty-state/lxm-empty-state"
+  }
+}

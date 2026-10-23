@@ -54,8 +54,8 @@ function normalizeCatalog(data = {}) {
   const videos = mergeByIdentity(
     data.videoSingles,
     data.videoProducts,
-    packages.filter(isVideo)
-  ).filter(item => filterVisibleProducts([item]).length)
+    packages.filter(isVideoSingle)
+  ).filter(isVideoSingle).filter(item => filterVisibleProducts([item]).length)
     .map(item => normalizeSearchVideoItem(item))
   return {
     spots: Array.isArray(data.spots) ? data.spots : [],
@@ -94,7 +94,7 @@ function normalizeSearchVideoItem(item = {}) {
     videoCardVariant: single ? 'single' : 'package',
     name: item.name || item.title || '',
     videoDuration: item.videoDuration || item.durationText || '',
-    finishedVideoCount: item.finishedVideoCount || '1条成片'
+    finishedVideoCount: item.finishedVideoCount === undefined ? '' : item.finishedVideoCount
   }
 }
 

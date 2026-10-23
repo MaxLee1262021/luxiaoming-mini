@@ -1,6 +1,6 @@
 const sourceStore = require('./store/sourceStore')
 const { parseScene } = require('./utils/query')
-const { API_BASE, CORP_ID } = require('./config/env')
+const { API_BASE, CORP_ID, CUSTOMER_SERVICE_URL } = require('./config/env')
 const { callCloud, login } = require('./api/client')
 const userStore = require('./store/userStore')
 const shareHelper = require('./utils/share')
@@ -169,7 +169,8 @@ App({
     openid: null,
     source: {},
     sitePageConfig: {},
-    // 企业微信客服 ID（corpId）：从 config/env.js 读取；后台 getCorpConfig RPC 就绪后，可改为由运营配置下发覆盖
-    corpId: CORP_ID || ''
+    // 全站客服入口统一读取此处，配置来源为 config/env.js。
+    corpId: CORP_ID || '',
+    customerServiceUrl: CUSTOMER_SERVICE_URL || ''
   }
 })

@@ -5,6 +5,7 @@ const { buildUrlWithSource } = require('../../utils/query')
 const { buildPhotoPackageDetail } = require('../../service/packageDetail')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
 const { isExplicitDemoMode } = require('../../config/env')
+const { openCustomerService } = require('../../service/customerService')
 
 Page({
   data: {
@@ -15,6 +16,7 @@ Page({
     spotId: '',
     shopId: '',
     scene: '',
+    backToHome: false,
     seriesInfo: {},
     selectedPackage: null,
     packageDescription: '',
@@ -27,6 +29,7 @@ Page({
       typeCount: 0,
       saveAmount: 0
     },
+    instructions: demoData.DEFAULT_SHOOTING_INSTRUCTIONS,
     pageConfig: {},
     moduleVisible: {
       bookingRule: true
@@ -42,7 +45,8 @@ Page({
       packageId: options.packageId || '',
       spotId: options.spotId || '',
       shopId: options.shopId || source.shopId || '',
-      scene: options.scene || source.scene || ''
+      scene: options.scene || source.scene || '',
+      backToHome: options.from === 'home'
     })
     this.applyPageConfig()
     this.loadData()
@@ -115,6 +119,10 @@ Page({
       typeCount: new Set(includedItems.map(i => i.typeClass)).size,
       saveAmount: Math.max(0, (Number(selectedPackage.originalPrice) || 0) - (Number(selectedPackage.price) || 0))
     }
+    const noteText = selectedPackage.shootingNotes || selectedPackage.shootingDescription || selectedPackage.shootingNote || ''
+    const instructions = noteText
+      ? String(noteText).split(/[；;\n]/).map(text => text.trim()).filter(Boolean)
+      : demoData.DEFAULT_SHOOTING_INSTRUCTIONS
     this.setData({
       seriesId: detail.seriesId,
       spotId: detail.spotId,
@@ -126,6 +134,7 @@ Page({
       includedItems,
       spots: detail.spots || [],
       packageStats,
+      instructions,
       error: ''
     })
   },
@@ -207,13 +216,7 @@ Page({
   },
 
   contactService() {
-    wx.openCustomerServiceChat({
-      extInfo: {},
-      corpId: (getApp().globalData && getApp().globalData.corpId) || '',
-      fail() {
-        wx.showToast({ title: '请联系客服咨询', icon: 'none' })
-      }
-    })
+    openCustomerService()
   },
 
 })

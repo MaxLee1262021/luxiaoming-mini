@@ -51,7 +51,7 @@
             </view>
             <view class="stack-foot">
               <text class="stack-price">¥{{item.price || 0}}</text>
-              <view class="stack-btn" catchtap="goStackDetail" data-id="{{item._id}}">咨询</view>
+              <view class="stack-btn" catchtap="goStackDetail" data-id="{{item._id}}">详情</view>
             </view>
           </view>
         </view>

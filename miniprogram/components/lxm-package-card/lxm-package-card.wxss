@@ -256,7 +256,6 @@
   margin-top: 8rpx;
 }
 
-
 .card-price-row {
   display: flex;
   align-items: flex-end;
@@ -287,14 +286,3 @@
   font-weight: 900;
   margin: 0 3rpx;
 }
-
-.detail-link {
-  flex-shrink: 0;
-  padding: 12rpx 18rpx;
-  border-radius: 999rpx;
-  background: linear-gradient(135deg, var(--lxm-c-red) 0%, var(--lxm-c-orange) 100%);
-  color: var(--lxm-c-cream);
-  font-size: var(--lxm-fz-sm);
-  font-weight: 900;
-}
-

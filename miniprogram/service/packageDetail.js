@@ -1,5 +1,6 @@
 const demoData = require('../utils/demoData')
 const { isVideo, normalizePackage, normalizePackageList, normalizeTags, buildPackageBenefits } = require('../utils/product')
+const { normalizeAlbumPresentation } = require('../utils/albumPresentation')
 
 function resolvePackageSpots(pkg = {}, data = {}) {
   const spotIds = new Set()
@@ -96,50 +97,6 @@ function resolveItemPrice(item = {}, context = {}) {
   return declared || 0
 }
 
-function resolveItemSpecs(item = {}, context = {}) {
-  const t = item.target || {}
-  const videos = context.videoProducts || context.videos || demoData.videoProducts || []
-  const albums = context.albums || demoData.albums || []
-  const peripherals = context.peripherals || demoData.peripherals || []
-
-  if (item.type === 'video') {
-    const pid = t.productId || item.productId || item.videoId
-    const vid = pid && videos.find(v => v._id === pid || v.videoId === pid || v.productId === pid)
-    if (vid) {
-      const specs = []
-      if (vid.videoDuration) specs.push(`${vid.videoDuration}`)
-      if (vid.finishedVideoCount || vid.videoCount) specs.push(`${vid.finishedVideoCount || vid.videoCount}条成片`)
-      if (vid.hasAerial || vid.aerial || vid.includeAerial) specs.push('含航拍')
-      if (vid.fullEdit || vid.includeEditing) specs.push('含剪辑')
-      if (vid.deliveryCycle || vid.deliveryDays) specs.push(`${vid.deliveryCycle || vid.deliveryDays}交付`)
-      return specs.length ? specs.join(' · ') : '视频摄像'
-    }
-    return '视频摄像'
-  }
-
-  if (item.type === 'album') {
-    const aid = t.albumId || item.albumId
-    const alb = aid && albums.find(a => a._id === aid || a.albumId === aid)
-    if (alb) {
-      const specs = []
-      if (alb.duration) specs.push(`${alb.duration}分钟`)
-      if (alb.retouchCount) specs.push(`${alb.retouchCount}张精修`)
-      if (alb.rawPhotoCount && alb.rawPhotoCount !== '多') specs.push(`${alb.rawPhotoCount}张底片`)
-      else if (alb.rawPhotoCount === '多' || alb.rawPhotoCount === '全送' || alb.includeRaw) specs.push('底片全送')
-      return specs.length ? specs.join(' · ') : '照片留影'
-    }
-    return '照片留影'
-  }
-
-  if (item.type === 'peripheral') {
-    const pid = t.peripheralId || item.peripheralId || t.id || item.id
-    const per = pid && peripherals.find(p => p._id === pid || p.peripheralId === pid)
-    return per ? (per.subtitle || per.spec || per.material || '定制化周边') : '影像周边'
-  }
-
-  return ''
-}
-
 function normalizeIncludedItems(items = [], context = {}) {
   const typeMeta = {
     album: { label: '照片留影', cls: 'album' },
@@ -156,7 +113,6 @@ function normalizeIncludedItems(items = [], context = {}) {
       name: item.name || '未命名产品',
       cover: item.cover || '/images/placeholder.png',
       priceText: price ? `¥${price}` : '免费包含',
-      specs: resolveItemSpecs(item, context),
       target: item.target || null
     }
   })
@@ -164,20 +120,21 @@ function normalizeIncludedItems(items = [], context = {}) {
 
 function normalizeRelatedAlbums(albums = [], seriesInfo = {}, spotId = '') {
   return (albums || []).map(album => {
-    const sampleUrls = album.sampleUrls || album.samples || []
-    const albumId = album._id || album.albumId || ''
+    const normalizedAlbum = normalizeAlbumPresentation(album)
+    const sampleUrls = normalizedAlbum.sampleUrls || normalizedAlbum.samples || []
+    const albumId = normalizedAlbum._id || normalizedAlbum.albumId || ''
     return {
-      ...album,
+      ...normalizedAlbum,
       _id: albumId,
       albumId,
-      seriesId: album.seriesId || seriesInfo._id || '',
-      seriesName: album.seriesName || seriesInfo.name || '',
-      spotId: album.spotId || spotId,
-      cover: album.cover || album.coverImage || sampleUrls[0] || '/images/placeholder.png',
+      seriesId: normalizedAlbum.seriesId || seriesInfo._id || '',
+      seriesName: normalizedAlbum.seriesName || seriesInfo.name || '',
+      spotId: normalizedAlbum.spotId || spotId,
+      cover: normalizedAlbum.cover || normalizedAlbum.coverImage || sampleUrls[0] || '/images/placeholder.png',
       sampleUrls,
       previewUrls: sampleUrls.slice(0, 3),
-      photoCount: album.photoCount || sampleUrls.length || 0,
-      price: Number(album.price || 0)
+      photoCount: normalizedAlbum.photoCount || sampleUrls.length || 0,
+      price: Number(normalizedAlbum.price || 0)
     }
   }).filter(album => album.albumId)
 }

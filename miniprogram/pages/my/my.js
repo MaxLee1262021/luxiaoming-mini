@@ -1,5 +1,7 @@
 const app = getApp()
+const { openCustomerService } = require('../../service/customerService')
 const { logout, getOpenid } = require('../../api/client')
+const orderApi = require('../../api/order')
 const sourceStore = require('../../store/sourceStore')
 const userStore = require('../../store/userStore')
 const { buildUrlWithSource } = require('../../utils/query')
@@ -14,6 +16,12 @@ Page({
     authReady: false,
     authLoading: false,
     phone: '',
+    orderCounts: {
+      pendingConfirmation: 0,
+      awaitingShoot: 0,
+      shooting: 0,
+      completed: 0
+    },
     navTopPx: 26,
     capsuleSafeRightPx: 104
   },
@@ -48,12 +56,39 @@ Page({
 
   async refreshUserState() {
     this.loadUserInfo()
-    if (!userStore.isAuthed()) return
+    if (!userStore.isAuthed()) {
+      this.setData({ orderCounts: { pendingConfirmation: 0, awaitingShoot: 0, shooting: 0, completed: 0 } })
+      return
+    }
     try {
       await userStore.syncUserProfile()
       this.loadUserInfo()
     } catch (err) {
       console.warn('sync user profile failed', err)
+    }
+    this.loadOrderCounts()
+  },
+
+  async loadOrderCounts() {
+    try {
+      const result = await orderApi.getOrderStatusCount({})
+      const data = (result && result.success && result.data) || result && result.data || result || {}
+      const business = data.businessStatus || data.publicStatus || {}
+      const pick = (...values) => {
+        const value = values.find(item => item !== undefined && item !== null && item !== '')
+        const number = Number(value)
+        return Number.isFinite(number) && number >= 0 ? number : 0
+      }
+      this.setData({
+        orderCounts: {
+          pendingConfirmation: pick(business.pending_payment, data.pending_payment, data.pending, data.deposit),
+          awaitingShoot: pick(business.reserved, business.awaiting_shoot, data.awaiting_photographer, data.confirmed, data.awaiting_shoot),
+          shooting: pick(business.shooting, data.shooting, data.shot),
+          completed: pick(business.completed, data.completed, data.delivered, data.paid)
+        }
+      })
+    } catch (err) {
+      console.warn('load order status count failed', err)
     }
   },
 
@@ -139,6 +174,11 @@ Page({
     wx.navigateTo({ url: this.buildUrl('/pages/myOrders/myOrders') })
   },
 
+  goToMyFavorites() {
+    if (!this.ensureAuth()) return
+    wx.navigateTo({ url: this.buildUrl('/pages/myFavorites/myFavorites') })
+  },
+
   goToPeripherals() {
     wx.navigateTo({ url: this.buildUrl('/pages/peripherals/peripherals') })
   },
@@ -188,24 +228,6 @@ Page({
 
   openCustomerService() {
     if (!this.ensureAuth()) return
-    const appInstance = getApp()
-    const corpId = (appInstance && appInstance.globalData && appInstance.globalData.corpId) || ''
-    if (typeof wx.openCustomerServiceChat !== 'function' || !corpId) {
-      wx.showToast({ title: '客服暂未配置，请稍后再试', icon: 'none' })
-      return
-    }
-    try {
-      wx.openCustomerServiceChat({
-        extInfo: {},
-        corpId,
-        fail(err) {
-          console.error('open customer service failed', err)
-          wx.showToast({ title: '客服暂未配置，请稍后再试', icon: 'none' })
-        }
-      })
-    } catch (err) {
-      console.error('open customer service failed', err)
-      wx.showToast({ title: '客服暂未配置，请稍后再试', icon: 'none' })
-    }
+    openCustomerService()
   }
 })
