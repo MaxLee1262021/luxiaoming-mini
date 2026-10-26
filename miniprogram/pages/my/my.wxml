@@ -9,7 +9,7 @@
     </view>
     <view class="user-detail">
       <view class="user-name-row">
-        <text class="user-nickname">鹿小鸣旅拍</text>
+        <text class="user-nickname">麓小鸣旅拍</text>
         <view class="user-role-tag role-{{roleType}}">{{roleLabel}}</view>
       </view>
       <text class="user-signature">{{authReady ? (phone ? ('联系电话 ' + phone) : '已登录，可查看订单') : '授权后查看订单、预约和客服服务'}}</text>
@@ -30,25 +30,10 @@
       <text class="card-title">订单状态</text>
     </view>
     <view class="order-status-row">
-      <view class="order-status-item" bindtap="goToOrders" data-status="pending_payment">
-        <view class="status-icon-wrap"><lxm-icon type="order" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">待确认</text>
-        <text class="status-count">{{orderCounts.pendingConfirmation}}单</text>
-      </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="awaiting_photographer">
-        <view class="status-icon-wrap"><lxm-icon type="service" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">待拍摄</text>
-        <text class="status-count">{{orderCounts.awaitingShoot}}单</text>
-      </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="shooting">
-        <view class="status-icon-wrap"><lxm-icon type="photo" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">拍摄中</text>
-        <text class="status-count">{{orderCounts.shooting}}单</text>
-      </view>
-      <view class="order-status-item" bindtap="goToOrders" data-status="completed">
-        <view class="status-icon-wrap"><lxm-icon type="package" size="42" color="ink"></lxm-icon></view>
-        <text class="status-name">已完成</text>
-        <text class="status-count">{{orderCounts.completed}}单</text>
+      <view class="order-status-item" wx:for="{{orderStatusFilters}}" wx:key="key" bindtap="goToOrders" data-status="{{item.key}}">
+        <view class="status-icon-wrap"><lxm-icon type="{{item.icon}}" size="42" color="ink"></lxm-icon></view>
+        <text class="status-name">{{item.text}}</text>
+        <text class="status-count">{{orderCounts[item.countKey]}}单</text>
       </view>
     </view>
   </view>
@@ -69,7 +54,7 @@
     </view>
     <view class="service-item" hover-class="lxm-card-lift" bindtap="goToPeripherals">
       <view class="service-main">
-        <text class="service-text">影像周边</text>
+        <text class="service-text">影像定制</text>
       </view>
       <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
     </view>
@@ -104,6 +89,6 @@
   </view>
 
   <view class="brand-footer">
-    <text class="brand-footer-title">鹿小鸣城市旅拍</text>
+    <text class="brand-footer-title">麓小鸣城市旅拍</text>
   </view>
 </view>

@@ -2,6 +2,7 @@ const app = getApp()
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
 const { normalizeOrder, getOrderStatusDesc } = require('../../utils/order')
+const { ORDER_STATUS_FILTERS } = require('../../utils/orderStatusFilters')
 const orderFiles = require('../../service/orderFileActions')
 const { normalizeFile } = require('../../service/mediaFiles')
 const { paymentFailure, logPaymentFailure } = require('../../utils/paymentFeedback')
@@ -36,9 +37,11 @@ Page({
   data: {
     ...orderFiles.data,
     id: '',
+    outTradeNo: '',
     shopId: '',
     scene: '',
     order: {},
+    orderStatusFilters: ORDER_STATUS_FILTERS,
     statusDesc: '',
     error: '',
     loading: true,
@@ -57,10 +60,11 @@ Page({
     const source = app.captureSource ? app.captureSource(options) : {}
     this.setData({
       id: options.id || options.orderId || options.orderNo || '',
+      outTradeNo: options.out_trade_no || options.outTradeNo || '',
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || ''
     })
-    this.loadOrder()
+    return this.loadOrder()
   },
 
 
@@ -74,14 +78,19 @@ Page({
   },
 
   async loadOrder() {
-    if (!this.data.id) {
+    if (!this.data.id && !this.data.outTradeNo) {
       this.setData({ loading: false, error: '缺少订单信息' })
       return
     }
 
+    this.setData({ loading: true, error: '' })
     try {
       const isOrderNo = /^(LXM|LS)/.test(this.data.id)
-      const res = await orderApi.getOrderDetail(isOrderNo ? { orderNo: this.data.id } : { orderId: this.data.id })
+      const query = {
+        ...(this.data.id ? (isOrderNo ? { orderNo: this.data.id } : { orderId: this.data.id }) : {}),
+        ...(this.data.outTradeNo ? { outTradeNo: this.data.outTradeNo } : {})
+      }
+      const res = await orderApi.getOrderDetail(query)
       // Never replace a failed customer-order request with a sample order.
       if (!res || !res.success) {
         this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
@@ -133,8 +142,7 @@ Page({
   },
 
   retry() {
-    this.setData({ error: '', loading: true })
-    this.loadOrder()
+    return this.loadOrder()
   },
 
   async createPayment(e) {

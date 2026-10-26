@@ -51,9 +51,11 @@ global.wx = {
       getPeripherals: {
         success: true,
         data: [
-          { _id: "per-global", name: "全城相册", mode: "全城通用", status: "上架", isShow: true, price: 99 },
-          { _id: "per-a", name: "橘洲相册", spotIds: ["spot-a"], status: "上架", isShow: true, price: 129 },
-          { _id: "per-b", name: "其他点位相册", spotIds: ["spot-b"], status: "上架", isShow: true, price: 159 }
+          { _id: "per-global", name: "全城相册", mode: "全城通用", status: "上架", isShow: true, price: 99, storeProductId: "store-global" },
+          { _id: "per-a", name: "橘洲相册", spotIds: ["spot-a"], status: "上架", isShow: true, price: 129, storeProductId: "store-a" },
+          { _id: "per-b", name: "其他点位相册", spotIds: ["spot-b"], status: "上架", isShow: true, price: 159, storeProductId: "store-b" },
+          { _id: "per-unbound-global", name: "未绑定全城相册", mode: "全城通用", status: "上架", isShow: true, price: 99 },
+          { _id: "per-unbound-a", name: "未绑定橘洲相册", spotIds: ["spot-a"], status: "上架", isShow: true, price: 129, storeProductId: "  " }
         ]
       },
       listGuides: {
@@ -114,6 +116,10 @@ function completeLocation(options, error) {
     page.data.selectedSpotProducts.peripherals.map((item) => item._id).sort(),
     ["per-a", "per-global"]
   );
+  for (const id of ["per-unbound-global", "per-unbound-a"]) {
+    assert.equal(page.data.catalog.peripherals.some((item) => item._id === id), false, `${id} must be excluded from the catalog without a WeChat store binding`);
+    assert.equal(page.data.selectedSpotProducts.peripherals.some((item) => item._id === id), false, `${id} must not appear in the spot's peripheral shelf`);
+  }
   assert.deepEqual(page.data.selectedSpotProducts.photoPackages.map((item) => item._id), ["pkg-a"]);
 
   assert.equal(page.data.canNavigate, true, "API string coordinates should enable navigation");

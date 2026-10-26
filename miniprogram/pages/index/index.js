@@ -112,7 +112,7 @@ Page({
   onShareAppMessage() {
     const spotName = this.data.activeSpotName || ''
     return {
-      title: spotName ? `鹿小鸣旅拍｜${spotName}打卡点，把长沙拍成你的旅行封面` : '鹿小鸣旅拍｜把城市拍成你的旅行封面',
+      title: spotName ? `麓小鸣旅拍｜${spotName}打卡点，把长沙拍成你的旅行封面` : '麓小鸣旅拍｜把城市拍成你的旅行封面',
       path: '/pages/index/index'
     }
   },

@@ -12,7 +12,7 @@
       <view class="brand-left">
         <view class="brand-logo">鹿</view>
         <view class="brand-copy">
-          <text class="brand-name">鹿小鸣旅拍</text>
+          <text class="brand-name">麓小鸣旅拍</text>
         </view>
       </view>
     </view>
@@ -64,7 +64,7 @@
       </block>
     </swiper>
     <view class="banner-copy" bindtap="goBanner" data-index="{{bannerIndex}}">
-      <text class="banner-kicker">鹿小鸣城市旅拍</text>
+      <text class="banner-kicker">麓小鸣城市旅拍</text>
       <text class="banner-title">把长沙拍成你的旅行封面</text>
     </view>
     <view class="banner-dots">
@@ -105,9 +105,9 @@
         <text class="feature-desc">旅拍灵感 · 机位与路线</text>
         <view class="feature-link">去看看<lxm-icon type="arrow-right" size="20" color="white"></lxm-icon></view>
       </view>
-      <view class="feature-card goods-feature goods-store-card" aria-label="影像周边微信小店">
+      <view class="feature-card goods-feature goods-store-card" aria-label="影像定制微信小店">
         <text class="feature-kicker">好物</text>
-        <text class="feature-name">影像周边</text>
+        <text class="feature-name">影像定制</text>
         <view class="feature-desc">相册 · 相框 · 冲印 · DIY纪念</view>
         <!-- 整张官方卡片在原周边位置等比缩放，不改内部样式、不裁切内容。 -->
         <view wx:if="{{storeHomeSupported}}" class="goods-store-stage" style="height: {{storeHomeHeight}}px;">

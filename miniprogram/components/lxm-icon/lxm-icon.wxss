@@ -1,4 +1,4 @@
-/* 鹿小鸣旅拍 · 统一图标库 lxm-icon
+/* 麓小鸣旅拍 · 统一图标库 lxm-icon
  * 线性描边风格，24x24 viewBox，与 lxm-empty-state 同源。
  * 通过 color 属性（ink/muted/red）选择配色变体，见 .c-* 类。
  * 用法：<lxm-icon type="home" size="26" color="muted"></lxm-icon>

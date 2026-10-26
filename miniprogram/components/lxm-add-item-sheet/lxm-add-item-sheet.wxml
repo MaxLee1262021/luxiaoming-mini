@@ -1,4 +1,4 @@
-<!-- 鹿小鸣 · 添加拍摄项目 半截弹窗组件 -->
+<!-- 麓小鸣 · 添加拍摄项目 半截弹窗组件 -->
 <!-- 交互：搜索框输入 → 下拉显示相关打卡点 → 点打卡点切到该打卡点面板 → 类目横排 row → 点「查看全部 ›」弹窗内展开完整列表 → 约拍定制兜底 → 底部选中栏 -->
 <view wx:if="{{visible}}" class="lxm-mask" bindtap="onMaskTap">
   <view class="lxm-sheet" catchtap="noop">

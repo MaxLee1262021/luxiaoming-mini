@@ -1,7 +1,7 @@
 /**
  * utils/product.js — 商品类型单一真相源
  *
- * 鹿小鸣旅拍小程序所有商品（照片单品 / 旅拍套餐 / 短视频单品 / 周边）
+ * 麓小鸣旅拍小程序所有商品（照片单品 / 旅拍套餐 / 短视频单品 / 周边）
  * 的类型判定都从这里走，禁止在页面或其他 service 里再手写 if (item.type === 'video')。
  *
  * 规范 category（统一用这一个字段）：
@@ -92,6 +92,14 @@ function isPhoto(item = {}) {
 }
 function isPeripheral(item = {}) {
   return resolveCategory(item) === CATEGORY.PERIPHERAL
+}
+
+function hasStoreProductId(item = {}) {
+  return String(item.storeProductId || '').trim() !== ''
+}
+
+function filterStorePeripherals(list = []) {
+  return (list || []).filter(hasStoreProductId)
 }
 function isVideoSingle(item = {}) {
   // 与后台公共 RPC 保持一致：视频类型只表示媒介，独立单品还必须有明确标记。
@@ -254,6 +262,8 @@ module.exports = {
   isVideo,
   isPhoto,
   isPeripheral,
+  hasStoreProductId,
+  filterStorePeripherals,
   isVideoSingle,
   isPhotoSingle,
   isPhotoPackage,

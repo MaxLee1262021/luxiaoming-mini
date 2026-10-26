@@ -47,7 +47,7 @@
     "disableSWC": true
   },
   "appid": "wxefa2b93544724396",
-  "projectname": "鹿小鸣长沙旅拍",
+  "projectname": "麓小鸣长沙旅拍",
   "libVersion": "3.7.12",
   "condition": {},
   "cloudfunctionTemplateRoot": "cloudfunctionTemplate/",

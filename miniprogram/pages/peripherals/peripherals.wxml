@@ -50,7 +50,6 @@
               <text class="stack-spec" wx:for="{{item.specs}}" wx:for-item="s" wx:key="*this">{{s}}</text>
             </view>
             <view class="stack-foot">
-              <text class="stack-price">¥{{item.price || 0}}</text>
               <view class="stack-btn" catchtap="goStackDetail" data-id="{{item._id}}">详情</view>
             </view>
           </view>

@@ -59,6 +59,7 @@ test("delivered order retains the final-payment entry", () => {
     selectionStatus: "confirmed",
     paymentPhase: "final",
     paymentStatus: "not_created",
+    canPayFinal: true,
   });
   assert.equal(normalized.workflowStage, "awaiting_final_payment");
   assert.equal(normalized.paymentPhase, "final");
@@ -82,7 +83,7 @@ test("server payment state and sanitized timeline survive normalization", () => 
   assert.equal(normalized.statusLogs.length, 1);
 });
 
-test("final payment is gated by offline selection confirmation", () => {
+test("final payment needs completed shooting and a server grant, without a selection gate", () => {
   const pendingSelection = order.normalizeOrder({
     id: "selection-pending",
     workflowStage: "selection_pending",
@@ -94,7 +95,7 @@ test("final payment is gated by offline selection confirmation", () => {
     finalDue: 70,
     selectionStatus: "pending"
   });
-  assert.equal(pendingSelection.statusText, "待安排摄影师");
+  assert.equal(pendingSelection.statusText, "拍摄中");
   assert.equal(pendingSelection.canPay, false);
 
   const confirmedSelection = order.normalizeOrder({
@@ -106,7 +107,8 @@ test("final payment is gated by offline selection confirmation", () => {
     depositPaid: 30,
     depositFinanceStatus: "confirmed",
     finalDue: 70,
-    selectionStatus: "confirmed"
+    selectionStatus: "confirmed",
+    canPayFinal: true
   });
   assert.equal(confirmedSelection.canPay, true);
   assert.equal(confirmedSelection.paymentPhase, "final");
@@ -137,7 +139,14 @@ test("final payment is gated by offline selection confirmation", () => {
     canPayFinal: true,
     canPay: true
   });
-  assert.equal(inconsistentGrant.canPay, false);
+  assert.equal(inconsistentGrant.canPay, true);
+
+  const beforeShootingCompleted = order.normalizeOrder({
+    id: 'shooting-not-complete', workflowStage: 'shooting', status: 'shooting',
+    totalAmount: 100, depositDue: 30, depositPaid: 30, depositFinanceStatus: 'confirmed',
+    finalDue: 70, selectionStatus: 'confirmed', canPayFinal: true, paymentPhase: 'final'
+  });
+  assert.equal(beforeShootingCompleted.canPay, false);
 
   const finalBeforeDeposit = order.normalizeOrder({
     id: 'final-before-deposit',

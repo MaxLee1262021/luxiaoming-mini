@@ -1,5 +1,5 @@
 {
-  "desc": "鹿小鸣旅拍索引策略：营销页与内容页允许收录；个人中心、订单、预约等隐私与交易页禁止收录。规则自上而下匹配，命中即止。",
+  "desc": "麓小鸣旅拍索引策略：营销页与内容页允许收录；个人中心、订单、预约等隐私与交易页禁止收录。规则自上而下匹配，命中即止。",
   "rules": [
     { "action": "disallow", "page": "pages/my/my" },
     { "action": "disallow", "page": "pages/myOrders/myOrders" },

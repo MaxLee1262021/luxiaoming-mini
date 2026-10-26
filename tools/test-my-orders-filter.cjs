@@ -1,147 +1,170 @@
-"use strict";
+'use strict';
 
-const assert = require("node:assert/strict");
-const fs = require("node:fs");
-const path = require("node:path");
-const vm = require("node:vm");
-
-const source = fs.readFileSync(
-  path.join(__dirname, "..", "miniprogram", "pages", "myOrders", "myOrders.js"),
-  "utf8"
-);
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+const miniRoot = path.join(__dirname, '..', 'miniprogram');
+const orderUtils = require(path.join(miniRoot, 'utils', 'order'));
+const filters = require(path.join(miniRoot, 'utils', 'orderStatusFilters'));
+const queryUtils = require(path.join(miniRoot, 'utils', 'query'));
 const requests = [];
+const navigation = [];
 let responseData = [];
 let directResponse = false;
-let pageDefinition;
+let counts = {};
 
-const dependencies = {
-  "../../api/order": {
-    getMyOrders(query) {
-      requests.push(query);
-      return Promise.resolve(directResponse ? responseData : { success: true, data: responseData });
-    }
+const api = {
+  async getMyOrders(query) {
+    requests.push(query);
+    return directResponse ? responseData : { success: true, data: responseData };
   },
-  "../../utils/query": {
-    buildUrlWithSource() { return ""; }
-  },
-  "../../utils/order": {
-    BUSINESS_STATUS: {
-      PENDING_PAYMENT: "pending_payment",
-      AWAITING_PHOTOGRAPHER: "awaiting_photographer",
-      SHOT: "shot",
-      PAID: "paid",
-      DELIVERED: "delivered"
-    },
-    normalizeOrder(order) {
-      return { ...order, customerStatusKey: order.businessStatus || "pending_payment" };
-    },
-    normalizeCustomerStatus(status) {
-      return status || "pending";
-    }
-  }
+  async getOrderStatusCount() { return { success: true, data: counts }; }
 };
 
-vm.runInNewContext(source, {
-  Page(definition) {
-    pageDefinition = definition;
-  },
-  getApp() {
-    return { captureSource() { return {}; } };
-  },
-  require(request) {
-    return dependencies[request];
-  },
-  console,
-  Promise
-}, { filename: "myOrders.js" });
-
-assert.ok(pageDefinition, "myOrders page must register");
-assert.deepEqual(JSON.parse(JSON.stringify(pageDefinition.data.tabs)), [
-  { key: "", text: "全部订单" },
-  { key: "pending_payment", text: "待支付" },
-  { key: "awaiting_photographer", text: "待安排" },
-  { key: "shot", text: "已拍摄" },
-  { key: "paid", text: "已支付" },
-  { key: "delivered", text: "已交付" }
-]);
-const myMarkup = fs.readFileSync(
-  path.join(__dirname, "..", "miniprogram", "pages", "my", "my.wxml"),
-  "utf8"
-);
-const ordersStyles = fs.readFileSync(
-  path.join(__dirname, "..", "miniprogram", "pages", "myOrders", "myOrders.wxss"),
-  "utf8"
-);
-assert.match(ordersStyles, /\.tabs\s*\{[\s\S]*?display:\s*flex;[\s\S]*?flex-wrap:\s*nowrap;[\s\S]*?overflow-x:\s*auto;/);
-for (const [status, label] of [
-  ["pending_payment", "待支付"],
-  ["awaiting_photographer", "待安排"],
-  ["shot", "已拍摄"],
-  ["delivered", "已交付"],
-  ["", "全部订单"]
-]) {
-  assert.match(myMarkup, new RegExp(`data-status="${status}"[\\s\\S]*?<text class="status-name">${label}</text>`));
+function loadPage(name, extraDependencies = {}) {
+  let definition;
+  const dependencies = {
+    '../../api/order': api,
+    '../../utils/query': queryUtils,
+    '../../utils/order': orderUtils,
+    '../../utils/orderStatusFilters': filters,
+    ...extraDependencies
+  };
+  vm.runInNewContext(fs.readFileSync(path.join(miniRoot, 'pages', name, name + '.js'), 'utf8'), {
+    Page(value) { definition = value; },
+    getApp() { return { captureSource() { return {}; } }; },
+    require(request) {
+      assert.ok(Object.hasOwn(dependencies, request), 'unexpected page dependency ' + request);
+      return dependencies[request];
+    },
+    wx: { navigateTo(options) { navigation.push(options.url); } },
+    console, Promise
+  }, { filename: name + '.js' });
+  assert.ok(definition, name + ' must register');
+  return definition;
 }
-assert.doesNotMatch(myMarkup, /data-status="after_sale"/);
+
+const ordersDefinition = loadPage('myOrders');
+const myDefinition = loadPage('my', {
+  '../../service/customerService': {}, '../../api/client': {},
+  '../../store/sourceStore': {}, '../../store/userStore': {}
+});
+const plain = value => JSON.parse(JSON.stringify(value));
+function page(definition) {
+  return {
+    ...definition, data: plain(definition.data),
+    setData(patch) { Object.assign(this.data, patch); }
+  };
+}
+const settle = () => new Promise(setImmediate);
+
+assert.deepEqual(plain(ordersDefinition.data.tabs).map(({ key, text }) => ({ key, text })), [
+  { key: '', text: '全部订单' },
+  { key: 'reserved', text: '待确认' },
+  { key: 'awaiting_shoot', text: '待拍摄' },
+  { key: 'shooting', text: '拍摄中' },
+  { key: 'completed', text: '已完成' }
+]);
+assert.deepEqual(plain(myDefinition.data.orderStatusFilters), plain(ordersDefinition.data.tabs.slice(1)));
+const myMarkup = fs.readFileSync(path.join(miniRoot, 'pages', 'my', 'my.wxml'), 'utf8');
+assert.match(myMarkup, /wx:for="\{\{orderStatusFilters\}\}"[\s\S]*?data-status="\{\{item.key\}\}"/);
+assert.match(myMarkup, /type="\{\{item.icon\}\}"/);
+assert.match(myMarkup, /class="status-name">\{\{item.text\}\}/);
+assert.match(myMarkup, /orderCounts\[item.countKey\]/);
+
+const rows = [
+  { id: 'reserved-1', businessStatus: 'reserved', workflowStage: 'awaiting_dispatch' },
+  { id: 'awaiting-1', businessStatus: 'awaiting_shoot', workflowStage: 'awaiting_shoot' },
+  { id: 'shooting-1', businessStatus: 'shooting', workflowStage: 'shooting' },
+  { id: 'completed-1', businessStatus: 'completed', workflowStage: 'completed' },
+  { id: 'unpaid-draft', businessStatus: 'pending_payment', workflowStage: 'awaiting_deposit' }
+];
+for (const stale of [
+  { businessStatus: 'reserved', status: 'cancelled' },
+  { businessStatus: 'reserved', workflowStage: 'cancelled' },
+  { listStatusKey: 'reserved', deleted: true },
+  { businessStatus: 'awaiting_shoot', isDeleted: true }
+]) assert.equal(filters.orderListStatus(stale), '');
 
 (async () => {
-  const page = {
-    ...pageDefinition,
-    data: { ...pageDefinition.data },
-    setData(patch) {
-      this.data = { ...this.data, ...patch };
-    }
+  const my = page(myDefinition);
+  my.ensureAuth = () => true;
+  my.data.shopId = 'shop-1';
+  my.data.scene = 'entry&source';
+  for (const [index, filter] of filters.ORDER_STATUS_FILTERS.entries()) {
+    my.goToOrders({ currentTarget: { dataset: { status: filter.key } } });
+    const target = new URL(navigation.at(-1), 'https://mini.example.invalid');
+    assert.equal(target.pathname, '/pages/myOrders/myOrders');
+    assert.equal(target.searchParams.get('status'), filter.key);
+    assert.equal(target.searchParams.get('shopId'), 'shop-1');
+    assert.equal(target.searchParams.get('scene'), 'entry&source');
+    const orders = page(ordersDefinition);
+    responseData = rows;
+    orders.onLoad(Object.fromEntries(target.searchParams));
+    await settle();
+    assert.equal(orders.data.currentStatus, filter.key);
+    assert.equal(orders.data.tabs[index + 1].text, filter.text);
+    assert.deepEqual(plain(requests.at(-1)), { page: 1, pageSize: 10, businessStatus: filter.key });
+    assert.equal(orders.data.orders.length, 1, 'server business status and client filter must agree for ' + filter.key);
+    assert.equal(orders.data.orders[0].statusText, filter.text);
+  }
+
+  // A zero reserved count must stay zero even when other totals are nonzero.
+  counts = { businessStatus: { pending_payment: 19, reserved: 0, awaiting_shoot: 3, shooting: 4, completed: 5 } };
+  await my.loadOrderCounts();
+  assert.deepEqual(plain(my.data.orderCounts), { pendingConfirmation: 0, awaitingShoot: 3, shooting: 4, completed: 5 });
+  counts.businessStatus.reserved = 2;
+  await my.loadOrderCounts();
+  assert.equal(my.data.orderCounts.pendingConfirmation, 2);
+
+  const aliases = {
+    pending_payment: 'reserved', pending: 'reserved', deposit: 'reserved',
+    awaiting_photographer: 'reserved', confirmed: 'reserved',
+    shot: 'shooting', editing: 'shooting', final: 'shooting',
+    paid: 'completed', delivered: 'completed'
   };
+  for (const [legacy, canonical] of Object.entries(aliases)) {
+    const orders = page(ordersDefinition);
+    responseData = rows;
+    orders.onLoad({ status: legacy });
+    await settle();
+    assert.equal(orders.data.currentStatus, canonical, legacy);
+    assert.ok(orders.data.tabs.some(tab => tab.key === canonical));
+    assert.equal(requests.at(-1).businessStatus, canonical);
+    assert.equal(orders.data.orders.length, 1);
+  }
 
-  page.setData({ currentStatus: "pending_payment" });
-  await page.loadOrders(true);
-  assert.deepEqual(JSON.parse(JSON.stringify(requests)), [{ page: 1, pageSize: 10, status: "pending_payment" }]);
-
-  responseData = {
-    list: [{ id: "pending-1", businessStatus: "pending_payment" }],
-    total: 1
-  };
-  await page.loadOrders(true);
-  assert.equal(page.data.orders.length, 1, "list-wrapped order responses must be rendered");
-
-  responseData = { data: { rows: [{ id: "pending-2", businessStatus: "pending_payment" }] } };
-  await page.loadOrders(true);
-  assert.equal(page.data.orders.length, 1, "nested rows responses must be rendered");
-
+  const orders = page(ordersDefinition);
+  orders.setData({ currentStatus: 'reserved' });
+  for (const response of [
+    { list: [rows[0]], total: 1 },
+    { data: { rows: [rows[0]] } }
+  ]) {
+    responseData = response;
+    await orders.loadOrders(true);
+    assert.equal(orders.data.orders.length, 1, 'wrapped rows must render');
+  }
   directResponse = true;
-  responseData = [{ id: "pending-3", businessStatus: "pending_payment" }];
-  await page.loadOrders(true);
-  assert.equal(page.data.orders.length, 1, "direct array responses must be rendered");
-
-  page.setData({ currentStatus: "awaiting_photographer" });
-  await page.loadOrders(true);
-  assert.deepEqual(JSON.parse(JSON.stringify(requests.at(-1))), { page: 1, pageSize: 10, status: "awaiting_photographer" });
-
-  page.setData({ currentStatus: "shot" });
-  await page.loadOrders(true);
-  assert.deepEqual(JSON.parse(JSON.stringify(requests.at(-1))), { page: 1, pageSize: 10, status: "shot" });
-
-  page.setData({ currentStatus: "paid" });
-  await page.loadOrders(true);
-  assert.deepEqual(JSON.parse(JSON.stringify(requests.at(-1))), { page: 1, pageSize: 10, status: "paid" });
-
-  page.setData({ currentStatus: "delivered" });
-  await page.loadOrders(true);
-  assert.deepEqual(JSON.parse(JSON.stringify(requests.at(-1))), { page: 1, pageSize: 10, status: "delivered" });
-
+  responseData = [rows[0]];
+  await orders.loadOrders(true);
+  assert.equal(orders.data.orders.length, 1, 'direct array must render');
   directResponse = false;
-  responseData = {
-    list: [
-      { id: "after-sale-1", businessStatus: "paid", isAfterSale: true },
-      { id: "normal-1", businessStatus: "paid", isAfterSale: false }
-    ]
-  };
-  page.setData({ currentStatus: "after_sale" });
-  await page.loadOrders(true);
-  assert.deepEqual(JSON.parse(JSON.stringify(requests.at(-1))), { page: 1, pageSize: 100 });
-  assert.deepEqual(page.data.orders.map(item => item.id), ["after-sale-1"]);
-  console.log("My orders business-status filter check passed");
-})().catch((error) => {
-  console.error(error);
-  process.exitCode = 1;
-});
+
+  responseData = rows;
+  orders.filterOrders({ currentTarget: { dataset: { status: '' } } });
+  await settle();
+  assert.equal(orders.data.currentStatus, '');
+  assert.deepEqual(plain(requests.at(-1)), { page: 1, pageSize: 10 });
+  assert.equal(orders.data.orders.length, rows.length);
+
+  responseData = { list: [
+    { id: 'after-sale-1', businessStatus: 'completed', afterSaleActive: true },
+    { id: 'normal-1', businessStatus: 'completed', afterSaleActive: false }
+  ] };
+  orders.setData({ currentStatus: 'after_sale' });
+  await orders.loadOrders(true);
+  assert.deepEqual(plain(requests.at(-1)), { page: 1, pageSize: 100 });
+  assert.deepEqual(plain(orders.data.orders.map(item => item.id)), ['after-sale-1']);
+  console.log('Personal center and order-list four-status navigation, counts and filter checks passed.');
+})().catch(error => { console.error(error); process.exitCode = 1; });

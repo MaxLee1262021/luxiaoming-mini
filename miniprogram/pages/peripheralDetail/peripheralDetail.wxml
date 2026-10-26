@@ -17,24 +17,20 @@
       <image class="cover" src="{{item.cover}}" mode="aspectFill" bindtap="previewImage" data-url="{{item.cover}}" />
       <view class="hero-mask"></view>
       <view class="hero-copy">
-        <text class="hero-kicker">鹿小鸣周边</text>
+        <text class="hero-kicker">麓小鸣周边</text>
         <text class="hero-title">{{item.name}}</text>
       </view>
     </view>
-    <view class="detail-card">
-      <view class="title-row">
-        <view class="title">{{item.name}}</view>
-        <view class="cate" wx:if="{{item.category}}">{{item.category}}</view>
+    <view wx:if="{{item.storeProductId && storeProductSupported}}" class="section store-product-section">
+      <view class="section-title">微信小店商品</view>
+      <view class="store-product-stage">
+        <store-product appid="{{storeAppId}}" product-id="{{item.storeProductId}}" product-promotion-link="{{item.storeProductPromotionLink}}" bindentererror="onStoreProductError" />
       </view>
-      <view class="price">¥{{item.price || 0}}</view>
-      <view class="desc">{{item.description || item.intro || '定制影像周边，可联系客服了解更多细节。'}}</view>
+      <view class="store-product-tip">商品图片、价格和购买入口由微信小店提供，点击商品卡即可购买。</view>
     </view>
-
-    <view class="section" wx:if="{{item.images && item.images.length}}">
-      <view class="section-title">商品图片</view>
-      <view class="image-grid">
-        <image wx:for="{{item.images}}" wx:key="*this" class="grid-img" src="{{item}}" mode="aspectFill" bindtap="previewImage" data-url="{{item}}" />
-      </view>
+    <view wx:elif="{{item.storeProductId}}" class="section store-product-section store-product-unavailable">
+      <view class="section-title">微信小店商品</view>
+      <view class="store-product-tip">{{storeProductUnavailableText}}</view>
     </view>
 
     <view class="section">

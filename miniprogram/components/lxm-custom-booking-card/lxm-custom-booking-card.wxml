@@ -9,7 +9,7 @@
       <view class="lxm-cbc__price-main">{{priceMain}}<text class="lxm-cbc__price-unit">/小时</text></view>
       <view class="lxm-cbc__price-add">{{priceAdd}}</view>
     </view>
-    <view class="lxm-cbc__note">提交需求后，鹿小鸣客服会通过企业微信与你确认档期与风格</view>
+    <view class="lxm-cbc__note">提交需求后，麓小鸣客服会通过企业微信与你确认档期与风格</view>
     <view class="lxm-cbc__btn" role="button" aria-label="{{buttonText}}">
       <text>{{buttonText}}</text>
       <lxm-icon type="arrow-right" size="18" color="white"></lxm-icon>

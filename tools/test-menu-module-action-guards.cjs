@@ -231,7 +231,7 @@ function testMyUsesFixedAvatarAndDoesNotExposeProfilePicker() {
   const markup = fs.readFileSync(path.join(root, 'miniprogram/pages/my/my.wxml'), 'utf8')
   const styles = fs.readFileSync(path.join(root, 'miniprogram/pages/my/my.wxss'), 'utf8')
   assert.match(markup, /src="\/images\/default-avatar\.jpg"/)
-  assert.match(markup, /<text class="user-nickname">鹿小鸣旅拍<\/text>/)
+  assert.match(markup, /<text class="user-nickname">麓小鸣旅拍<\/text>/)
   assert.doesNotMatch(markup, /chooseAvatar|bindchooseavatar|更换头像|refreshAvatar/)
   assert.match(styles, /\.user-avatar-wrap\s*\{[\s\S]*?margin-right:\s*104rpx;/)
   assert.match(styles, /\.user-detail\s*\{[\s\S]*?margin-right:\s*0;[\s\S]*?text-align:\s*left;/)

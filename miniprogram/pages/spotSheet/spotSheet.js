@@ -8,7 +8,7 @@ const spotFilter = require('../../service/spotFilter')
 const { hasCoordinates } = require('../../service/citySpot')
 const { isExplicitDemoMode } = require('../../config/env')
 const { buildUrlWithSource } = require('../../utils/query')
-const { isVideo, isVideoSingle, isPublicProduct, normalizePackage } = require('../../utils/product')
+const { isVideo, isVideoSingle, isPublicProduct, filterStorePeripherals, normalizePackage } = require('../../utils/product')
 
 Page({
   data: {
@@ -95,7 +95,7 @@ Page({
           allSeries: demoData.series || [],
           allAlbums: demoData.albums || [],
           allPackages: [...(demoData.packages || []), ...(demoData.videoProducts || [])],
-          peripherals: demoData.peripherals || [],
+          peripherals: filterStorePeripherals(demoData.peripherals || []),
           guides: Array.isArray(guideResult) && guideResult.length ? guideResult : (demoData.guides || [])
         }
       : {
@@ -107,7 +107,7 @@ Page({
                 return { ...normalized, _id: normalized._id || normalized.id || item.packageId || item.id }
               })
             : [],
-          peripherals: Array.isArray(peripheralData) ? peripheralData.filter(isPublicProduct) : [],
+          peripherals: Array.isArray(peripheralData) ? filterStorePeripherals(peripheralData).filter(isPublicProduct) : [],
           guides: Array.isArray(guideResult)
             ? guideResult.filter(isPublicProduct)
             : (Array.isArray(bookingData.guides) ? bookingData.guides.filter(isPublicProduct) : [])

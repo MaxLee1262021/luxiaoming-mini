@@ -2,6 +2,7 @@ const app = getApp()
 const demoData = require('../../utils/demoData')
 const peripheralApi = require('../../api/peripheral')
 const { buildUrlWithSource } = require('../../utils/query')
+const { filterStorePeripherals } = require('../../utils/product')
 
 Page({
   data: {
@@ -46,7 +47,7 @@ Page({
     try {
       const res = await peripheralApi.getPeripherals({ cate: this.data.currentCate || undefined })
       if (res && res.success) {
-        const list = res.data || []
+        const list = filterStorePeripherals(res.data || [])
         const patch = { peripherals: list, loading: false, degraded: false }
         if (initRing) {
           patch.allPeripherals = list
@@ -75,13 +76,14 @@ Page({
 
   applyDemoPeripherals(initRing = false, degraded = false) {
     const cate = this.data.currentCate || ''
-    const peripherals = cate ? demoData.peripherals.filter(item => item.cate === cate || item.category === cate) : demoData.peripherals
+    const linkedPeripherals = filterStorePeripherals(demoData.peripherals)
+    const peripherals = cate ? linkedPeripherals.filter(item => item.cate === cate || item.category === cate) : linkedPeripherals
     const patch = { peripherals, loading: false, degraded }
     if (initRing) {
-      patch.allPeripherals = demoData.peripherals
+      patch.allPeripherals = linkedPeripherals
       patch.stackRotation = 0
       patch.stackFront = 0
-      patch.stackLayers = this.buildStack(demoData.peripherals, 0)
+      patch.stackLayers = this.buildStack(linkedPeripherals, 0)
     }
     this.setData(patch)
   },

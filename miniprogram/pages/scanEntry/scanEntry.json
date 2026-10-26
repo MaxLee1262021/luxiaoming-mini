@@ -1,6 +1,6 @@
 {
   "navigationStyle": "custom",
-  "navigationBarTitleText": "鹿小鸣旅拍",
+  "navigationBarTitleText": "麓小鸣旅拍",
   "usingComponents": {
     "lxm-privacy-modal": "/components/lxm-privacy-modal/lxm-privacy-modal"
   }

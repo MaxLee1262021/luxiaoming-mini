@@ -1,4 +1,4 @@
-const { normalizePackage, sortByHotScore, filterVisibleProducts, isVideoSingle } = require('../utils/product')
+const { normalizePackage, sortByHotScore, filterVisibleProducts, filterStorePeripherals, isVideoSingle } = require('../utils/product')
 const { buildModuleConfigMap, normalizeModuleConfig } = require('./pageConfig')
 const { filterPhotoSeries } = require('../utils/catalog')
 const { buildTarget } = require('../utils/router')
@@ -193,7 +193,7 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
   const photoSeries = filterPhotoSeries(mergedSeries)
   const mergedAlbums = mergePreviewList(data.albums, previewData.albums || demoData.albums)
   const mergedGuides = mergePreviewList(data.guides, previewData.guides)
-  const mergedPeripherals = mergePreviewList(data.peripherals, previewData.peripherals)
+  const mergedPeripherals = filterStorePeripherals(mergePreviewList(data.peripherals, previewData.peripherals))
   const recommendationIds = collectPackageRecommendationIds(
     data.recommendations,
     data.pageConfig && data.pageConfig.recommendations,

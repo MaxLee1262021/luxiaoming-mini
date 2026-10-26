@@ -2,13 +2,14 @@ const orderApi = require('../api/order')
 const { validateAfterSaleReason, buildAfterSalePayload } = require('./afterSale')
 const media = require('./mediaFiles')
 const { isCancelled } = require('./fileUpload')
+const { canRefundDeposit } = require('../utils/order')
 
 const types = ['退款申请', '改期', '投诉反馈', '补发成片', '补拍', '其他问题']
 const data = {
-  afterSaleVisible: false, afterSaleTypes: types, afterSaleTypeIndex: 0,
+  afterSaleVisible: false, afterSaleTypes: types, afterSaleTypeIndex: 0, afterSaleDepositRefund: false,
   afterSaleReason: '', afterSaleFiles: [], afterSalePending: false, afterSaleSubmitting: false,
   afterSaleError: '', afterSaleRecords: [], afterSaleRecordsError: '', afterSaleRecordsLoading: false,
-  canRequestAfterSale: false, deliveryFiles: [], fileBusyId: '', fileProgress: 0, fileActionError: ''
+  canRequestAfterSale: false, canRequestDepositRefund: false, deliveryFiles: [], fileBusyId: '', fileProgress: 0, fileActionError: ''
 }
 
 const actions = {
@@ -16,14 +17,16 @@ const actions = {
     const order = this.data.order || {}
     const orderId = order._id || order.id
     if (!orderId || this.data.isDemo) return
-    this.setData({ afterSaleRecordsLoading: true, afterSaleRecordsError: '', canRequestAfterSale: false })
+    this.setData({ afterSaleRecordsLoading: true, afterSaleRecordsError: '', canRequestAfterSale: false, canRequestDepositRefund: false })
     try {
       const response = await orderApi.getMyAfterSales({ orderId })
+      if (!response || response.success === false || response.ok === false) throw new Error(response && (response.error || response.message) || '售后记录加载失败，请重试')
       const records = Array.isArray(response.data) ? response.data : []
       const active = records.some(item => !['completed', 'closed', 'done', '已完', '已完成', '已结案', '已结束'].includes(item.status))
       this.setData({
         afterSaleRecords: records.map(item => ({ ...item, attachments: (item.attachments || []).map(media.normalizeFile) })),
-        canRequestAfterSale: !!order.canAfterSale && !active
+        canRequestAfterSale: !!order.canAfterSale && !active,
+        canRequestDepositRefund: canRefundDeposit(order) && !active
       })
     } catch (error) {
       this.setData({ afterSaleRecordsError: error.message || '售后记录加载失败，请重试' })
@@ -31,29 +34,40 @@ const actions = {
   },
   openAfterSale() {
     if (!this.data.canRequestAfterSale || this.data.isDemo) return
-    this.setData({ afterSaleVisible: true, afterSaleReason: '', afterSaleFiles: [], afterSalePending: false, afterSaleError: '', afterSaleTypeIndex: 0 })
+    this.setData({ afterSaleVisible: true, afterSaleDepositRefund: false, afterSaleReason: '', afterSaleFiles: [], afterSalePending: false, afterSaleError: '', afterSaleTypeIndex: 0 })
+  },
+  openDepositRefund() {
+    if (!this.data.canRequestDepositRefund || !canRefundDeposit(this.data.order) || this.data.isDemo) return
+    this.setData({ afterSaleVisible: true, afterSaleDepositRefund: true, afterSaleReason: '', afterSaleFiles: [], afterSalePending: false, afterSaleError: '', afterSaleTypeIndex: 0 })
   },
   closeAfterSale() {
     if (this.data.afterSaleSubmitting) return
-    this.setData({ afterSaleVisible: false, afterSalePending: false, afterSaleFiles: [] })
+    this.setData({ afterSaleVisible: false, afterSaleDepositRefund: false, afterSalePending: false, afterSaleFiles: [] })
   },
   onAfterSaleReason(e) { this.setData({ afterSaleReason: e.detail.value }) },
   onAfterSaleType(e) { this.setData({ afterSaleTypeIndex: Number(e.detail.value) }) },
   onAfterSaleFiles(e) { this.setData({ afterSaleFiles: e.detail.files, afterSalePending: !!e.detail.pending }) },
   async submitAfterSale() {
     if (this.data.afterSaleSubmitting) return
+    const depositRefund = this.data.afterSaleDepositRefund
+    if (depositRefund && (!this.data.canRequestDepositRefund || !canRefundDeposit(this.data.order))) {
+      this.setData({ afterSaleError: '当前订单暂不能申请退定金，请刷新订单或联系客服。' })
+      return
+    }
     if (this.data.afterSalePending) { this.setData({ afterSaleError: '请等待上传完成，或移除上传失败的图片' }); return }
     const valid = validateAfterSaleReason(this.data.afterSaleReason)
     if (!valid.valid) { this.setData({ afterSaleError: valid.message }); return }
     this.setData({ afterSaleSubmitting: true, afterSaleError: '' })
     try {
-      await orderApi.submitAfterSale({
+      const response = await orderApi.submitAfterSale({
         ...buildAfterSalePayload(this.data.order, valid.reason),
-        type: types[this.data.afterSaleTypeIndex] || types[0],
+        type: depositRefund ? '定金退款' : (types[this.data.afterSaleTypeIndex] || types[0]),
+        ...(depositRefund ? { refundPhase: 'deposit' } : {}),
         attachmentFileIds: this.data.afterSaleFiles.map(file => file.fileId)
       })
-      this.setData({ afterSaleVisible: false, afterSaleFiles: [], afterSalePending: false })
-      wx.showToast({ title: '售后申请已提交', icon: 'success' })
+      if (!response || response.success === false || response.ok === false) throw new Error(response && (response.error || response.message) || '提交失败，请重试')
+      this.setData({ afterSaleVisible: false, afterSaleDepositRefund: false, afterSaleFiles: [], afterSalePending: false, canRequestAfterSale: false, canRequestDepositRefund: false })
+      wx.showToast({ title: depositRefund ? '退定金申请已提交' : '售后申请已提交', icon: 'success' })
       await this.loadOrder()
     } catch (error) { this.setData({ afterSaleError: error.message || '提交失败，请重试' }) }
     finally { this.setData({ afterSaleSubmitting: false }) }

@@ -5,6 +5,7 @@ const orderApi = require('../../api/order')
 const sourceStore = require('../../store/sourceStore')
 const userStore = require('../../store/userStore')
 const { buildUrlWithSource } = require('../../utils/query')
+const { ORDER_STATUS_FILTERS, normalizeOrderFilter } = require('../../utils/orderStatusFilters')
 
 Page({
   data: {
@@ -16,6 +17,7 @@ Page({
     authReady: false,
     authLoading: false,
     phone: '',
+    orderStatusFilters: ORDER_STATUS_FILTERS,
     orderCounts: {
       pendingConfirmation: 0,
       awaitingShoot: 0,
@@ -81,8 +83,8 @@ Page({
       }
       this.setData({
         orderCounts: {
-          pendingConfirmation: pick(business.pending_payment, data.pending_payment, data.pending, data.deposit),
-          awaitingShoot: pick(business.reserved, business.awaiting_shoot, data.awaiting_photographer, data.confirmed, data.awaiting_shoot),
+          pendingConfirmation: pick(business.reserved, data.reserved, data.pendingConfirmation, business.awaiting_photographer, data.awaiting_photographer, data.confirmed),
+          awaitingShoot: pick(business.awaiting_shoot, data.awaiting_shoot),
           shooting: pick(business.shooting, data.shooting, data.shot),
           completed: pick(business.completed, data.completed, data.delivered, data.paid)
         }
@@ -165,7 +167,7 @@ Page({
 
   goToOrders(e) {
     if (!this.ensureAuth()) return
-    const status = e.currentTarget.dataset.status
+    const status = normalizeOrderFilter(e.currentTarget.dataset.status)
     wx.navigateTo({ url: this.buildUrl('/pages/myOrders/myOrders', status ? { status } : {}) })
   },
 

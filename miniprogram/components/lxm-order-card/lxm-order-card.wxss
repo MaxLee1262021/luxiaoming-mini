@@ -67,6 +67,10 @@
 .status-pending_payment .status-dot-inner { background: var(--lxm-c-gold-press); }
 .status-awaiting_photographer { background: var(--lxm-c-gray-150); color: var(--lxm-c-red-ink); }
 .status-awaiting_photographer .status-dot-inner { background: var(--lxm-c-red); }
+.status-reserved { background: var(--lxm-c-gold-soft-3); color: var(--lxm-c-gold-deep); }
+.status-reserved .status-dot-inner { background: var(--lxm-c-gold-press); }
+.status-awaiting_shoot { background: var(--lxm-c-gray-150); color: var(--lxm-c-red-ink); }
+.status-awaiting_shoot .status-dot-inner { background: var(--lxm-c-red); }
 .status-shot { background: var(--lxm-c-gold-soft); color: var(--lxm-c-gold-deep); }
 .status-shot .status-dot-inner { background: var(--lxm-c-gold-deep); }
 .status-paid { background: var(--lxm-c-ink); color: var(--lxm-c-cream); }

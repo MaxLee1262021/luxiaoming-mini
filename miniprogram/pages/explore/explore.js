@@ -146,7 +146,7 @@ Page({
     const current = cityOptions.find(c => c.value === this.data.selectedCity)
     const cityName = current ? current.name : (this.data.selectedCityName || '旅拍')
     return {
-      title: `鹿小鸣旅拍｜${cityName}打卡点地图，来一场说走就走的城市旅拍`,
+      title: `麓小鸣旅拍｜${cityName}打卡点地图，来一场说走就走的城市旅拍`,
       path: this.data.selectedCity ? `/pages/explore/explore?cityId=${encodeURIComponent(this.data.selectedCity)}` : '/pages/explore/explore'
     }
   },

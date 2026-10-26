@@ -292,6 +292,8 @@
 .status-cancelled { background: var(--lxm-c-error-soft); color: var(--lxm-c-red-ink); }
 .status-pending_payment { background: var(--lxm-c-gold-soft-3); color: var(--lxm-c-gold-deep); }
 .status-awaiting_photographer { background: var(--lxm-c-gray-150); color: var(--lxm-c-red-ink); }
+.status-reserved { background: var(--lxm-c-gold-soft-3); color: var(--lxm-c-gold-deep); }
+.status-awaiting_shoot { background: var(--lxm-c-gray-150); color: var(--lxm-c-red-ink); }
 .status-shot { background: var(--lxm-c-gold-soft); color: var(--lxm-c-gold-deep); }
 .status-paid { background: var(--lxm-c-ink); color: var(--lxm-c-cream); }
 .status-delivered { background: var(--lxm-c-red-ink); color: var(--lxm-c-cream); }

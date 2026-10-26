@@ -1,7 +1,8 @@
 const app = getApp()
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
-const { normalizeOrder, normalizeCustomerStatus, BUSINESS_STATUS } = require('../../utils/order')
+const { normalizeOrder } = require('../../utils/order')
+const { ORDER_STATUS_FILTERS, normalizeOrderFilter, orderListStatus } = require('../../utils/orderStatusFilters')
 const AFTER_SALE_STATUS = 'after_sale'
 
 // Older deployments wrap paginated RPC results in `list` or `rows`, while the
@@ -27,11 +28,7 @@ Page({
     currentStatus: '',
     tabs: [
       { key: '', text: '全部订单' },
-      { key: BUSINESS_STATUS.PENDING_PAYMENT, text: '待支付' },
-      { key: BUSINESS_STATUS.AWAITING_PHOTOGRAPHER, text: '待安排' },
-      { key: BUSINESS_STATUS.SHOT, text: '已拍摄' },
-      { key: BUSINESS_STATUS.PAID, text: '已支付' },
-      { key: BUSINESS_STATUS.DELIVERED, text: '已交付' }
+      ...ORDER_STATUS_FILTERS
     ],
     orders: [],
     page: 1,
@@ -48,7 +45,7 @@ Page({
     this.setData({
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || '',
-      currentStatus: options.status || ''
+      currentStatus: normalizeOrderFilter(options.businessStatus || options.status)
     })
     this.loadOrders(true)
   },
@@ -71,9 +68,7 @@ Page({
         page: this.data.page,
         pageSize: isAfterSaleFilter ? 100 : this.data.pageSize
       }
-      // Keep the request on the long-lived `status` RPC field. The value is a
-      // canonical business status understood by the current RPC handler.
-      if (this.data.currentStatus && !isAfterSaleFilter) query.status = this.data.currentStatus
+      if (this.data.currentStatus && !isAfterSaleFilter) query.businessStatus = normalizeOrderFilter(this.data.currentStatus)
       const res = await orderApi.getMyOrders(query)
       // A failed order request must remain an error state. Do not show local
       // sample orders that could be mistaken for persisted customer orders.
@@ -101,7 +96,8 @@ Page({
       .filter(item => item && typeof item === 'object' && !Array.isArray(item))
       .map(item => {
         try {
-          return normalizeOrder(item)
+          const order = normalizeOrder(item)
+          return { ...order, listStatusKey: orderListStatus(order) }
         } catch (err) {
           console.warn('skip invalid order row', err)
           return null
@@ -118,52 +114,14 @@ Page({
   },
 
   matchCurrentStatus(order = {}) {
-    const currentStatus = this.data.currentStatus
+    const currentStatus = normalizeOrderFilter(this.data.currentStatus)
     if (!currentStatus) return true
     if (currentStatus === AFTER_SALE_STATUS) return order.isAfterSale === true
-    if (currentStatus === 'shooting') {
-      return order.workflowStage === 'shooting' || order.status === 'shooting' || order.customerStatusKey === BUSINESS_STATUS.AWAITING_PHOTOGRAPHER && order.workflowStage === 'shooting'
-    }
-    const canonicalAliases = {
-      pending: BUSINESS_STATUS.PENDING_PAYMENT,
-      deposit: BUSINESS_STATUS.PENDING_PAYMENT,
-      confirmed: BUSINESS_STATUS.AWAITING_PHOTOGRAPHER,
-      shooting: BUSINESS_STATUS.AWAITING_PHOTOGRAPHER,
-      editing: BUSINESS_STATUS.SHOT,
-      final: BUSINESS_STATUS.SHOT,
-      completed: BUSINESS_STATUS.DELIVERED
-    }
-    const expected = canonicalAliases[currentStatus] || currentStatus
-    if (order.customerStatusKey) {
-      // Keep old deep links such as `status=completed` useful while the
-      // visible tabs use the stricter five-state vocabulary.
-      if (currentStatus === 'completed' && order.customerStatusKey === BUSINESS_STATUS.PAID) return true
-      return order.customerStatusKey === expected
-    }
-    const stage = order.workflowStage
-    const stageGroups = {
-      [BUSINESS_STATUS.PENDING_PAYMENT]: ['awaiting_confirmation', 'awaiting_deposit'],
-      [BUSINESS_STATUS.AWAITING_PHOTOGRAPHER]: ['awaiting_dispatch', 'awaiting_shoot', 'shooting'],
-      [BUSINESS_STATUS.SHOT]: ['selection_pending', 'awaiting_delivery', 'awaiting_final_payment'],
-      [BUSINESS_STATUS.PAID]: ['paid'],
-      [BUSINESS_STATUS.DELIVERED]: currentStatus === 'completed' ? ['paid', 'delivered', 'completed'] : ['delivered', 'completed']
-    }
-    if (stage && stageGroups[expected]) return stageGroups[expected].includes(stage)
-    const status = normalizeCustomerStatus(order.status)
-    const groups = {
-      pending: ['pending', 'new', 'contacted'],
-      deposit: ['deposit_pending'],
-      confirmed: ['confirmed', 'deposit_paid', 'assigned'],
-      shooting: ['shooting'],
-      editing: ['editing', 'final_pending'],
-      final: ['awaiting_final_payment'],
-      completed: ['paid', 'completed', 'delivered']
-    }
-    return (groups[currentStatus] || [currentStatus]).includes(status)
+    return orderListStatus(order) === currentStatus
   },
 
   filterOrders(e) {
-    const status = e.currentTarget.dataset.status || ''
+    const status = normalizeOrderFilter(e.currentTarget.dataset.status)
     if (this.data.currentStatus === status) return
     this.setData({ currentStatus: status })
     this.loadOrders(true)

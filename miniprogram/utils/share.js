@@ -3,7 +3,7 @@
 // 未定义的页面由 app.js 全局兜底注入，保证右上角菜单「转发 / 分享到朋友圈」全站可用。
 // 注意：onShareAppMessage 必须返回 { title, path }，path 建议带来源参数以便溯源。
 
-const BRAND_TITLE = '鹿小鸣旅拍｜把城市拍成你的旅行封面'
+const BRAND_TITLE = '麓小鸣旅拍｜把城市拍成你的旅行封面'
 
 function getCurrentRoute() {
   try {

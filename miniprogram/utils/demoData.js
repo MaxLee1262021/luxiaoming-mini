@@ -651,8 +651,8 @@ const guides = [
 ]
 
 const peripherals = [
-  { _id: 'demo-peripheral-album', name: '旅拍精装相册', cate: '相册', category: '相册', image: cover, cover, price: 99, isHot: true, isHotSale: true, description: '适合把本次旅拍成片做成纪念相册。', specs: ['A4/A5', '硬壳', '皮面'], images: [cover, coverAlt, coverFallback] },
-  { _id: 'demo-peripheral-frame', name: '城市封面装裱', cate: '相框', category: '相框', image: cover, cover, price: 129, isHot: true, description: '适合地标大片和情侣纪念照装裱。', specs: ['实木', 'A3/A4', '立式'], images: [cover, coverAlt] },
+  { _id: 'demo-peripheral-album', name: '旅拍精装相册', cate: '相册', category: '相册', image: cover, cover, price: 99, storeProductId: '10001778657765', isHot: true, isHotSale: true, description: '适合把本次旅拍成片做成纪念相册。', specs: ['A4/A5', '硬壳', '皮面'], images: [cover, coverAlt, coverFallback] },
+  { _id: 'demo-peripheral-frame', name: '城市封面装裱', cate: '相框', category: '相框', image: cover, cover, price: 129, storeProductId: '10001778528683', isHot: true, description: '适合地标大片和情侣纪念照装裱。', specs: ['实木', 'A3/A4', '立式'], images: [cover, coverAlt] },
   { _id: 'demo-peripheral-print', name: '高清照片冲印', cate: '打印', category: '打印', image: coverAlt, cover: coverAlt, price: 39, description: '精选照片高清冲印，可搭配旅拍订单咨询。', specs: ['哑光', '亮面', 'A4'], images: [coverAlt, cover] },
   { _id: 'demo-peripheral-fridge', name: 'DIY 冰箱贴', cate: '冰箱贴', category: '冰箱贴', image: cover, cover, price: 29, isNew: true, description: '把旅拍瞬间做成磁性冰箱贴，随手贴。', specs: ['磁性', '圆/方', '定制图'], images: [cover, coverAlt] },
   { _id: 'demo-peripheral-acrylic', name: '立体亚克力摆件', cate: '亚克力', category: '亚克力', image: coverAlt, cover: coverAlt, price: 89, isHot: true, description: 'UV 打印立体摆件，桌面小风景。', specs: ['圆/方', 'UV打印', '立式'], images: [coverAlt, coverFallback] },
@@ -740,7 +740,7 @@ function findSeriesBySpot(spotId) {
 
 function getHomeData() {
   return {
-    shopInfo: { name: '鹿小鸣城市旅拍' },
+    shopInfo: { name: '麓小鸣城市旅拍' },
     activityText: '长沙旅拍预约中 | 地标写真、闺蜜写真、亲子旅拍、夜景短视频',
     banners: [
       { _id: 'demo-banner-1', type: 'image', url: cover, targetType: 'spot', targetId: 'demo-spot-dufu' },
@@ -760,7 +760,7 @@ function getHomeData() {
 
 // 探索页轮播兜底（后台未配置时显示）：与首页轮播「单独一套」，这里只用品牌文案占位
 const exploreBanners = [
-  { _id: 'demo-exp-1', type: 'image', url: cover, title: '鹿小鸣，记录城市与你的故事', targetType: 'none', targetId: '', linkUrl: '' },
+  { _id: 'demo-exp-1', type: 'image', url: cover, title: '麓小鸣，记录城市与你的故事', targetType: 'none', targetId: '', linkUrl: '' },
   { _id: 'demo-exp-2', type: 'image', url: coverAlt, title: '长沙旅拍样片持续上新中', targetType: 'none', targetId: '', linkUrl: '' },
   { _id: 'demo-exp-3', type: 'image', url: coverFallback, title: '新客首单立减 ¥30', targetType: 'none', targetId: '', linkUrl: '' }
 ]

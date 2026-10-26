@@ -137,7 +137,7 @@ Page({
     if (prefillSeriesId) query.push('seriesId=' + prefillSeriesId)
     const queryStr = query.join('&')
     return {
-      title: requestedSpot ? `鹿小鸣旅拍｜${requestedSpot}约拍预约进行中` : '鹿小鸣旅拍｜城市旅拍预约，欢迎来撩',
+      title: requestedSpot ? `麓小鸣旅拍｜${requestedSpot}约拍预约进行中` : '麓小鸣旅拍｜城市旅拍预约，欢迎来撩',
       path: '/pages/bookingInfo/bookingInfo' + (queryStr ? '?' + queryStr : '')
     }
   },

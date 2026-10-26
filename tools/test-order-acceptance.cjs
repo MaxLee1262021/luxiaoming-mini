@@ -28,19 +28,23 @@ function matches(filter, workflowStage, extra = {}) {
   return pageDefinition.matchCurrentStatus.call(pageFor(filter), { workflowStage, ...extra });
 }
 
-// AC-04: the mini-program must use the same disjoint customer status sets as
-// the server. In particular, a completed order must not disappear after it is
-// persisted with its terminal workflow stage.
-assert.equal(matches("pending", "awaiting_confirmation"), true);
-assert.equal(matches("pending", "awaiting_dispatch"), false);
+// Personal-center links and order-list filters use the same four groups.
+// Unpaid applications are outside formal reserved orders.
+assert.equal(matches("reserved", "awaiting_dispatch"), true);
+assert.equal(matches("reserved", "awaiting_confirmation"), false);
+assert.equal(matches("pending", "awaiting_confirmation"), false);
+assert.equal(matches("pending", "awaiting_dispatch"), true);
 assert.equal(matches("confirmed", "awaiting_dispatch"), true);
-assert.equal(matches("confirmed", "awaiting_shoot"), true);
+assert.equal(matches("confirmed", "awaiting_shoot"), false);
 assert.equal(matches("completed", "paid"), true);
 assert.equal(matches("completed", "delivered"), true);
 assert.equal(matches("completed", "completed"), true);
 assert.equal(matches("completed", "awaiting_final_payment"), false);
-assert.equal(matches("pending_payment", "awaiting_confirmation"), true);
+assert.equal(matches("pending_payment", "awaiting_confirmation"), false);
 assert.equal(matches("awaiting_photographer", "awaiting_dispatch"), true);
+assert.equal(matches("awaiting_photographer", "awaiting_shoot"), false);
+assert.equal(matches("shooting", "shooting"), true);
+assert.equal(matches("shooting", "awaiting_shoot"), false);
 assert.equal(matches("shot", "selection_pending"), true);
 assert.equal(matches("paid", "paid"), true);
 assert.equal(matches("delivered", "delivered"), true);
@@ -73,7 +77,7 @@ assert.equal(cancelRuleDisplay.cancelRuleText, "服务确认或收款核对开�
 assert.equal(cancelRuleDisplay.cancelRule, "before_service_confirmation_and_payment_intent");
 assert.equal(order.normalizeOrder({ ...application, id: "application-no-cancel-grant", canCancel: undefined }).canCancel, false);
 
-// An offline selection confirmation is the gate for final payment. Delivery
+// Shooting completion and the server grant gate final payment. Delivery
 // files remain hidden until the balance is confirmed and delivery is released.
 const unpublished = order.normalizeOrder({
   id: "delivery-draft-1",
@@ -85,9 +89,10 @@ const unpublished = order.normalizeOrder({
   depositFinanceStatus: "confirmed",
   finalDue: 70,
   selectionStatus: "confirmed",
+  canPayFinal: true,
   deliverFiles: [{ fileId: "private-file", name: "draft.jpg" }],
 });
-assert.equal(unpublished.statusText, "已拍摄");
+assert.equal(unpublished.statusText, "拍摄中");
 assert.equal(unpublished.canPay, true);
 assert.deepEqual(unpublished.deliverFiles, []);
 
@@ -101,6 +106,7 @@ const published = order.normalizeOrder({
   depositFinanceStatus: "confirmed",
   finalDue: 70,
   selectionStatus: "confirmed",
+  canPayFinal: true,
   deliveryRecord: { method: "mini_program" },
   deliveryPublished: true,
   deliverFiles: [{ fileId: "published-file", name: "final.jpg" }],
@@ -124,21 +130,22 @@ const delivered = order.normalizeOrder({
   deliveryRecord: { method: "mini_program" },
   deliverFiles: [{ fileId: "published-file", name: "final.jpg" }],
 });
-assert.equal(delivered.statusText, "已交付");
+assert.equal(delivered.statusText, "已完成");
 assert.deepEqual(delivered.deliverFiles.map((file) => file.fileId), ["published-file"]);
 
-// The customer-facing contract has exactly five active states. Technical
+// The customer-facing contract has four formal states. Technical
 // workflow stages remain available for operations but are collapsed here.
-const fiveStates = [
+const customerStates = [
   ["awaiting_confirmation", "待支付"],
-  ["awaiting_dispatch", "待安排摄影师"],
-  ["awaiting_shoot", "待安排摄影师"],
-  ["selection_pending", "已拍摄"],
-  ["awaiting_final_payment", "已拍摄"],
-  ["paid", "已支付"],
-  ["delivered", "已交付"]
+  ["awaiting_dispatch", "待确认"],
+  ["awaiting_shoot", "待拍摄"],
+  ["shooting", "拍摄中"],
+  ["selection_pending", "拍摄中"],
+  ["awaiting_final_payment", "拍摄中"],
+  ["paid", "已完成"],
+  ["delivered", "已完成"]
 ];
-for (const [workflowStage, label] of fiveStates) {
+for (const [workflowStage, label] of customerStates) {
   assert.equal(order.normalizeOrder({ workflowStage, status: workflowStage }).statusText, label);
 }
 
@@ -151,9 +158,10 @@ const finalAfterOfflineSelection = order.normalizeOrder({
   depositPaid: 30,
   depositFinanceStatus: "confirmed",
   finalDue: 70,
-  selectionStatus: "confirmed"
+  selectionStatus: "confirmed",
+  canPayFinal: true
 });
-assert.equal(finalAfterOfflineSelection.customerStatusKey, "shot");
+assert.equal(finalAfterOfflineSelection.customerStatusKey, "shooting");
 assert.equal(finalAfterOfflineSelection.canPay, true);
 
 // The test-payment control is a server grant, never a client-side switch.
