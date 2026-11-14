@@ -10,7 +10,7 @@
   <view class="home-top {{headerCompact ? 'compact' : ''}}" style="--nav-top: {{navTopPx}}px; --capsule-safe-right: {{capsuleSafeRightPx}}px;">
     <view class="brand-header">
       <view class="brand-left">
-        <view class="brand-logo">鹿</view>
+        <view class="brand-logo">麓</view>
         <view class="brand-copy">
           <text class="brand-name">麓小鸣旅拍</text>
         </view>
@@ -18,7 +18,7 @@
     </view>
 
     <view class="search-entry {{searchFocused ? 'focused' : ''}}">
-      <view class="mini-logo">鹿</view>
+      <view class="mini-logo">麓</view>
       <lxm-icon class="search-icon" type="search" size="20" color="red"></lxm-icon>
       <view class="search-keyword-wrap">
         <input
@@ -53,20 +53,20 @@
   </view>
 
   <view class="banner-wrap">
-    <swiper class="banner-swiper" indicator-dots="{{false}}" autoplay="{{bannerAutoplay}}" interval="4000" circular bindchange="onBannerChange" current="{{bannerIndex}}">
+    <swiper class="banner-swiper" indicator-dots="{{false}}" autoplay="{{bannerAutoplay}}" interval="4000" duration="400" circular disable-touch="{{false}}" bindchange="onBannerChange" current="{{bannerIndex}}">
       <block wx:for="{{banners}}" wx:key="_id">
         <swiper-item>
           <view class="banner-click-area" bindtap="goBanner" data-index="{{index}}">
-            <video wx:if="{{item.type === 'video'}}" class="banner-video" src="{{item.url}}" poster="{{item.cover || '/images/placeholder.png'}}" object-fit="cover" muted loop autoplay="{{index === bannerIndex}}" controls="{{false}}" show-center-play-btn="{{false}}" catchtap="goBanner" data-index="{{index}}" bindplay="onVideoPlay" bindpause="onVideoPause" id="video-{{index}}"></video>
-            <image wx:else class="banner-img" src="{{item.url || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+            <video wx:if="{{item.type === 'video'}}" class="banner-video" src="{{item.url}}" poster="{{item.cover || '/images/placeholder.png'}}" object-fit="cover" muted loop autoplay="{{index === bannerIndex}}" controls="{{false}}" show-center-play-btn="{{false}}" catchtap="goBanner" data-index="{{index}}" id="video-{{index}}"></video>
+            <image wx:else class="banner-img" src="{{item.url || '/images/placeholder.png'}}" mode="aspectFill" lazy-load="{{index > 0}}" />
+            <view class="banner-copy" catchtap="goBanner" data-index="{{index}}">
+              <text class="banner-kicker">麓小鸣城市旅拍</text>
+              <text class="banner-title">把长沙拍成你的旅行封面</text>
+            </view>
           </view>
         </swiper-item>
       </block>
     </swiper>
-    <view class="banner-copy" bindtap="goBanner" data-index="{{bannerIndex}}">
-      <text class="banner-kicker">麓小鸣城市旅拍</text>
-      <text class="banner-title">把长沙拍成你的旅行封面</text>
-    </view>
     <view class="banner-dots">
       <view wx:for="{{banners}}" wx:key="_id" class="banner-dot {{index === bannerIndex ? 'active' : ''}}"></view>
     </view>
@@ -105,128 +105,118 @@
         <text class="feature-desc">旅拍灵感 · 机位与路线</text>
         <view class="feature-link">去看看<lxm-icon type="arrow-right" size="20" color="white"></lxm-icon></view>
       </view>
-      <view class="feature-card goods-feature goods-store-card" aria-label="影像定制微信小店">
+      <view class="feature-card goods-feature" bindtap="goPeripheralList">
         <text class="feature-kicker">好物</text>
-        <text class="feature-name">影像定制</text>
+        <text class="feature-name">影像周边</text>
         <view class="feature-desc">相册 · 相框 · 冲印 · DIY纪念</view>
-        <!-- 整张官方卡片在原周边位置等比缩放，不改内部样式、不裁切内容。 -->
-        <view wx:if="{{storeHomeSupported}}" class="goods-store-stage" style="height: {{storeHomeHeight}}px;">
-          <view class="goods-store-natural" style="transform: scale({{storeHomeScale}});">
-            <store-home class="goods-store-home" appid="{{storeAppId}}" />
-          </view>
-        </view>
-        <view wx:else class="feature-link">{{storeHomeUnavailableText}}</view>
+        <view class="feature-link">点击查看<lxm-icon type="arrow-right" size="20" color="red"></lxm-icon></view>
       </view>
     </view>
   </view>
 
-  <!-- 首页打卡点热榜：排名卡横滑（去「全部」），点选后下方三分类货架限定在该打卡点下 -->
+  <!-- 首页打卡点热榜：横滑追加点位，点击切换下方关联商品 -->
   <view class="spot-tabs" wx:if="{{spotTabs.length}}">
     <view class="spot-tabs-head">
-      <text class="spot-tabs-title">打卡点热榜</text>
-      <text class="spot-tabs-tip">按热度排名</text>
+      <view class="spot-tabs-copy">
+        <text class="spot-tabs-title">打卡点热榜</text>
+        <text class="spot-tabs-tip">按热度排名</text>
+      </view>
     </view>
-    <scroll-view class="spot-tabs-scroll" scroll-x show-scrollbar="{{false}}">
+    <scroll-view class="spot-tabs-scroll" scroll-x show-scrollbar="{{false}}" lower-threshold="40" bindscrolltolower="onSpotReachEnd">
       <view
         wx:for="{{spotTabs}}"
         wx:key="_id"
         class="rank-card {{activeSpotId === item._id ? 'on' : ''}}"
         data-id="{{item._id}}"
         bindtap="onSpotTabTap"
+        role="button"
+        aria-label="查看{{item.name}}的商品"
       >
         <text class="rank-num {{item.rank <= 3 ? 'r' + item.rank : ''}}">{{item.rank}}</text>
-        <image wx:if="{{item.cover}}" class="rank-cover" src="{{item.cover}}" mode="aspectFill" />
+        <image wx:if="{{item.cover}}" class="rank-cover" src="{{item.cover}}" mode="aspectFill" lazy-load />
         <view wx:else class="rank-cover rank-cover--ph"></view>
         <text class="rank-name">{{item.name}}</text>
       </view>
+      <view wx:if="{{spotLoadError}}" class="spot-tabs-status" bindtap="onSpotReachEnd" role="button" aria-label="重新加载打卡点">{{spotLoadError}}</view>
+      <view wx:elif="{{spotLoadingMore || !spotHasMore}}" class="spot-tabs-status">{{spotLoadingMore ? '加载中…' : '已全部加载'}}</view>
     </scroll-view>
   </view>
 
-  <!-- 选中打卡点下有商品：显示三分类货架；无商品：统一显示约拍定制空态卡 -->
-  <block wx:if="{{!spotNoProducts}}">
-    <view class="booking-strip lxm-panel" wx:if="{{bookingAlbums.length && moduleConfig.bookingAlbums.visible !== false}}">
-      <view class="strip-head">
-        <view>
-          <text class="strip-title">照片留影</text>
-          <text class="strip-sub" wx:if="{{activeSpotName}}">{{activeSpotName}}</text>
-        </view>
-      </view>
-      <scroll-view wx:if="{{filteredAlbums.length}}" class="strip-scroll" scroll-x show-scrollbar="{{false}}">
-        <block wx:for="{{filteredAlbums}}" wx:key="albumId">
-          <lxm-album-card
-            mode="compact"
-            item="{{item}}"
-            data-id="{{item.albumId || item._id}}"
-            data-album-id="{{item.albumId || item._id}}"
-            data-series-id="{{item.seriesId}}"
-            data-spot-id="{{item.spotId}}"
-            bind:tap="goBookingAlbum"
-          />
-        </block>
-      </scroll-view>
-      <view wx:else class="strip-empty">{{activeSpotName ? '该打卡点下暂无照片留影' : '新的照片留影正在整理中'}}</view>
+  <view class="home-spot-products" wx:if="{{activeSpotId}}">
+    <view wx:if="{{spotProductLoading}}" class="home-product-state">
+      <text>正在加载{{activeSpotName}}的商品…</text>
     </view>
-
-    <view class="section video-product-section lxm-panel" wx:if="{{videoPackages.length && moduleConfig.videoProducts.visible !== false && (!activeSpotId || filteredVideos.length)}}">
-      <lxm-section-header
-        title="视频摄像"
-        more-text="{{moduleConfig.videoProducts.moreText || ''}}"
-        bind:more="goVideoExplore"
-      />
-      <scroll-view class="video-product-scroll" scroll-x show-scrollbar="{{false}}" wx:if="{{filteredVideos.length}}">
-        <block wx:for="{{filteredVideos}}" wx:key="_id">
-          <lxm-video-card
-            item="{{item}}"
-            mode="product"
-            variant="{{item.videoCardVariant}}"
-            data-id="{{item._id}}"
-            data-product-id="{{item._id}}"
-            data-spot-id="{{item.spotId}}"
-            bind:tap="goVideoProduct"
-          />
-        </block>
-      </scroll-view>
-      <view wx:else class="strip-empty">{{activeSpotName ? '该打卡点下暂无视频摄像' : '新的视频摄像正在整理中'}}</view>
+    <view wx:elif="{{spotProductError}}" class="home-product-state">
+      <text>{{spotProductError}}</text>
+      <button class="home-product-retry" bindtap="retrySpotProducts">重新加载</button>
     </view>
-
-    <view class="section lxm-panel" wx:if="{{hotPackages.length && moduleConfig.hotPackages.visible !== false && (!activeSpotId || filteredPackages.length)}}">
-      <view class="section-header">
-        <view>
-          <text class="section-title">旅拍套餐</text>
-          <text class="strip-sub" wx:if="{{activeSpotName}}">{{activeSpotName}}</text>
+    <block wx:else>
+      <view class="home-product-section" wx:if="{{moduleConfig.bookingAlbums.visible !== false && filteredAlbums.length}}">
+        <view class="home-product-heading">
+          <text class="home-product-title">{{moduleConfig.bookingAlbums.title || '照片留影'}}</text>
+          <text class="home-product-spot">{{activeSpotName}}</text>
         </view>
-      </view>
-      <scroll-view class="package-scroll" scroll-x show-scrollbar="{{false}}" wx:if="{{filteredPackages.length}}">
-        <block wx:for="{{filteredPackages}}" wx:key="_id">
-          <view class="pkg-scroll-item">
-            <lxm-package-card
-              item="{{item}}"
-              data-id="{{item._id}}"
-              data-package-id="{{item._id}}"
-              data-spot-id="{{item.spotId}}"
-              bind:tap="goPackage"
-            />
+        <scroll-view class="home-product-scroll home-album-scroll" scroll-x show-scrollbar="{{false}}">
+          <view class="home-product-track">
+            <lxm-album-card wx:for="{{filteredAlbums}}" wx:key="_id" item="{{item}}" mode="compact" bind:tap="onAlbumTap" />
           </view>
-        </block>
-      </scroll-view>
-      <lxm-empty-state
-        wx:else
-        type="package"
-        title="{{activeSpotName ? '该打卡点下暂无旅拍套餐' : '旅拍套餐整理中'}}"
-        desc="可以先查看全部打卡点"
-        button-text="看打卡点"
-        bind:action="goAllSpots"
-      />
-    </view>
-  </block>
+        </scroll-view>
+      </view>
 
-  <lxm-custom-booking-card
-    wx:else
-    spotId="{{activeSpotId}}"
-    spotName="{{activeSpotName}}"
-    context="该打卡点暂未上架照片留影 / 视频摄像产品，想来这里拍？可直接发起约拍预约"
-    bind:booking="goCustomBooking"
-  />
+      <view class="home-product-section" wx:if="{{moduleConfig.videoProducts.visible !== false && filteredVideos.length}}">
+        <view class="home-product-heading">
+          <text class="home-product-title">{{moduleConfig.videoProducts.title || '视频摄像'}}</text>
+          <text class="home-product-spot">{{activeSpotName}}</text>
+        </view>
+        <scroll-view class="home-product-scroll" scroll-x show-scrollbar="{{false}}">
+          <view class="home-product-track">
+            <lxm-video-card wx:for="{{filteredVideos}}" wx:key="_id" item="{{item}}" mode="product" variant="single" bind:tap="onVideoTap" />
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="home-product-section" wx:if="{{moduleConfig.hotPackages.visible !== false && filteredPackages.length}}">
+        <view class="home-product-heading">
+          <text class="home-product-title">{{moduleConfig.hotPackages.title || '旅拍套餐'}}</text>
+          <text class="home-product-spot">{{activeSpotName}}</text>
+        </view>
+        <view class="home-package-grid">
+          <lxm-package-card wx:for="{{filteredPackages}}" wx:key="_id" item="{{item}}" bind:tap="onPackageTap" />
+        </view>
+      </view>
+
+      <lxm-custom-booking-card
+        wx:if="{{!filteredAlbums.length && !filteredVideos.length && !filteredPackages.length && filteredPeripherals.length}}"
+        title="专属定制"
+        spotId="{{activeSpotId}}"
+        spotName="{{activeSpotName}}"
+        bind:booking="goCustomBooking"
+      />
+
+      <view class="home-product-section" wx:if="{{moduleConfig.peripherals.visible !== false && filteredPeripherals.length}}">
+        <view class="home-product-heading">
+          <text class="home-product-title">{{moduleConfig.peripherals.title || '影像周边'}}</text>
+          <text class="home-product-spot">{{activeSpotName}}</text>
+        </view>
+        <scroll-view class="home-product-scroll" scroll-x show-scrollbar="{{false}}">
+          <view class="home-product-track home-peripheral-track">
+            <view wx:for="{{filteredPeripherals}}" wx:key="_id" class="peripheral-card" bindtap="onPeripheralTap" data-id="{{item._id}}" role="button" aria-label="查看{{item.name}}">
+              <image class="peripheral-cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+              <view class="peripheral-info">
+                <text class="peripheral-name">{{item.name}}</text>
+                <text class="peripheral-price" wx:if="{{item.hasPrice}}">¥{{item.priceText}}</text>
+              </view>
+            </view>
+          </view>
+        </scroll-view>
+      </view>
+
+      <view class="home-product-state" wx:if="{{!filteredAlbums.length && !filteredVideos.length && !filteredPackages.length && !filteredPeripherals.length}}">
+        <text>{{activeSpotName}}暂未上架商品</text>
+        <text class="home-product-state-tip">可以看看其他打卡点</text>
+      </view>
+    </block>
+  </view>
 
 </block>
 

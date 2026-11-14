@@ -1,11 +1,9 @@
 const app = getApp()
-const demoData = require('../../utils/demoData')
 const collectionApi = require('../../api/collection')
 const { getBookingData } = require('../../api/booking')
 const { buildRelatedPhotoCollections } = require('../../service/relatedPhotoCollections')
 const { buildUrlWithSource } = require('../../utils/query')
 const { isVideoSingle } = require('../../service/videoProductDetail')
-const { isExplicitDemoMode } = require('../../config/env')
 const { normalizeAlbumPresentation } = require('../../utils/albumPresentation')
 const { openCustomerService } = require('../../service/customerService')
 
@@ -75,7 +73,7 @@ Page({
     spots: [],
     loading: true,
     error: '',
-    degraded: false // 照片留影数据拉取失败、正在展示预览数据时置 true（降级提示条）
+    degraded: false // 照片留影数据拉取失败、显示加载失败提示
   },
 
   onLoad(options = {}) {
@@ -91,8 +89,7 @@ Page({
     if (seriesId || options.albumId) {
       this.loadCollection(seriesId, options.albumId)
     } else {
-      if (isExplicitDemoMode()) this.applyCollectionData(demoData.getPhotoCollection(), true)
-      else this.setData({ loading: false, error: '缺少照片留影信息' })
+      this.setData({ loading: false, error: '缺少照片留影信息' })
     }
   },
 
@@ -109,21 +106,11 @@ Page({
         this.applyCollectionData(res.data || {})
         this.setData({ degraded: false })
       } else {
-        if (isExplicitDemoMode()) {
-          this.applyCollectionData(demoData.getPhotoCollection({ seriesId, albumId, spotId: this.data.currentSpotId }), true)
-          this.setData({ degraded: false })
-        } else {
-          this.setData({ error: (res && (res.error || res.message)) || '照片留影内容暂不可用，请稍后重试', degraded: false })
-        }
+        this.setData({ error: (res && (res.error || res.message)) || '照片留影内容暂不可用，请稍后重试', degraded: false })
       }
     } catch (err) {
       console.error('load photo collection failed', err)
-      if (isExplicitDemoMode()) {
-        this.applyCollectionData(demoData.getPhotoCollection({ seriesId, albumId, spotId: this.data.currentSpotId }), true)
-        this.setData({ degraded: true })
-      } else {
-        this.setData({ error: '照片留影内容暂不可用，请稍后重试', degraded: false })
-      }
+      this.setData({ error: '照片留影内容暂不可用，请稍后重试', degraded: false })
     } finally {
       this.setData({ loading: false })
     }
@@ -152,37 +139,32 @@ Page({
     this.loadCollection(this._lastLoadArgs[0], this._lastLoadArgs[1])
   },
 
-  applyCollectionData(data = {}, isDemo = false) {
-    const fallback = isDemo ? demoData.getPhotoCollection({
-      seriesId: data.series && data.series._id,
-      albumId: this.data.pendingAlbumId,
-      spotId: this.data.currentSpotId || data.currentSpotId || ''
-    }) : {}
+  applyCollectionData(data = {}) {
     const rawPackages = Array.isArray(data.packages) && data.packages.length
       ? data.packages
-      : (Array.isArray(fallback.packages) ? fallback.packages : [])
+      : []
     const packages = normalizePackageCatalog(rawPackages)
     const rawFeaturedPackages = Array.isArray(data.featuredPackages) && data.featuredPackages.length
       ? data.featuredPackages
-      : (Array.isArray(fallback.featuredPackages) ? fallback.featuredPackages : [])
+      : []
     const featuredPackages = resolveCatalogPackages(rawFeaturedPackages, packages)
     const featuredPackage = featuredPackages[0] || null
     const rawSpotPackages = Array.isArray(data.spotPackages) && data.spotPackages.length
       ? data.spotPackages
-      : (Array.isArray(fallback.spotPackages) ? fallback.spotPackages : packages)
+      : packages
     const spotPackages = resolveCatalogPackages(
       rawSpotPackages,
       packages,
       featuredPackage ? [featuredPackage._id] : []
     )
     const hasPackageRecommendations = !!(featuredPackage || spotPackages.length)
-    const currentSpotId = this.data.currentSpotId || data.currentSpotId || (data.currentCollection && data.currentCollection.spotId) || fallback.currentSpotId || ''
+    const currentSpotId = this.data.currentSpotId || data.currentSpotId || (data.currentCollection && data.currentCollection.spotId) || ''
     const filterVideosBySpot = (list = []) => {
       if (!currentSpotId) return list
       return (list || []).filter(item => item.spotId === currentSpotId || (Array.isArray(item.spotIds) && item.spotIds.includes(currentSpotId)))
     }
-    const videos = filterVideosBySpot(Array.isArray(data.videos) ? data.videos : (fallback.videos || []))
-    const rawCollections = (data.collections && data.collections.length) ? data.collections : (fallback.collections || [])
+    const videos = filterVideosBySpot(Array.isArray(data.videos) ? data.videos : [])
+    const rawCollections = (data.collections && data.collections.length) ? data.collections : []
     const collections = rawCollections.map(item => ({
       ...normalizeAlbumPresentation(item),
       collectionKey: this.getCollectionKey(item)
@@ -195,19 +177,16 @@ Page({
     const focusCollection = focusAlbumId
       ? collections.find(item => item.collectionKey === focusAlbumId || item.albumId === focusAlbumId || item._id === focusAlbumId)
       : null
-    const fallbackCollectionId = fallback.currentCollection && (fallback.currentCollection._id || fallback.currentCollection.albumId)
     const detailCollection = activeCollection ||
-      (fallbackCollectionId ? collections.find(item => item.collectionKey === fallbackCollectionId || item.albumId === fallbackCollectionId || item._id === fallbackCollectionId) : null) ||
       data.currentCollection ||
-      fallback.currentCollection ||
       null
     const isAlbumDetail = !!(pending && detailCollection)
-    // 拍摄说明：album 数据优先（shootingNotes 字符串拆成数组），没数据时用统一默认值兜底
-    const shootingNotesRaw = detailCollection ? (detailCollection.shootingNotes || '') : ''
+    // 拍摄说明：album 数据优先（shootingNotes 字符串拆成数组），未配置时留空
+    const shootingNotesRaw = detailCollection ? (detailCollection.shootingNotes || detailCollection.shootingDescription || '') : ''
     const fromData = shootingNotesRaw
-      ? shootingNotesRaw.split(/[；;\n]/).map(s => s.trim()).filter(Boolean)
+      ? (Array.isArray(shootingNotesRaw) ? shootingNotesRaw : String(shootingNotesRaw).split(/[；;\n]/)).map(s => String(s).trim()).filter(Boolean)
       : []
-    const instructions = fromData.length > 0 ? fromData : demoData.DEFAULT_SHOOTING_INSTRUCTIONS
+    const instructions = fromData
     const normalizedCollection = detailCollection
       ? Object.assign({}, normalizeAlbumPresentation(detailCollection), {
         collectionKey: this.getCollectionKey(detailCollection), shootingNotes: shootingNotesRaw, instructions
@@ -218,7 +197,7 @@ Page({
       ? [{ _id: normalizedCollection.spotId, name: normalizedCollection.spotName || '' }]
       : []
     const relatedCollections = normalizedCollection
-      ? buildRelatedPhotoCollections(normalizedCollection, collections, this._relatedCatalog || (isDemo ? demoData.getBookingData() : {}))
+      ? buildRelatedPhotoCollections(normalizedCollection, collections, this._relatedCatalog || {})
       : []
 
     this.setData({
@@ -385,7 +364,7 @@ Page({
   goPeripheralDetail(e) {
     const id = e.currentTarget.dataset.id
     if (!id) return
-    wx.navigateTo({ url: this.buildUrl('/pages/peripheralDetail/peripheralDetail', { id }) })
+    wx.navigateTo({ url: this.buildUrl('/pages/peripherals/peripherals', { id }) })
   },
 
   contactService() {

@@ -263,6 +263,14 @@ button {
   white-space: nowrap;
 }
 
+.album-stack-series {
+  display: block;
+  margin-top: 8rpx;
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-sm);
+  line-height: 1.5;
+}
+
 .album-stack-desc {
   margin: 10rpx 0 0;
   font-size: var(--lxm-fz-sm);

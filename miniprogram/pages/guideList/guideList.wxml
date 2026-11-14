@@ -1,5 +1,5 @@
 <view class="guide-list-page">
-  <lxm-nav-bar showBack="{{true}}" title="{{title}}" placeholder="{{true}}" />
+  <lxm-nav-bar showBack="{{true}}" title="{{title}}" theme="light" placeholder="{{true}}" />
   <lxm-privacy-modal />
   <lxm-toast id="lxmToast" />
 
@@ -35,16 +35,18 @@
       </view>
     </view>
 
-    <scroll-view wx:if="{{chips.length > 1}}" class="gl-chips" scroll-x enable-flex show-scrollbar="{{false}}">
-      <view
-        class="gl-chip {{activeChip === item ? 'on' : ''}}"
-        wx:for="{{chips}}"
-        wx:key="*this"
-        role="button"
-        aria-label="筛选分类：{{item}}"
-        data-cat="{{item}}"
-        bindtap="onChipTap"
-      >{{item}}</view>
+    <scroll-view wx:if="{{chips.length > 1}}" class="gl-chips" scroll-x show-scrollbar="{{false}}">
+      <view class="gl-chips-track">
+        <view
+          class="gl-chip {{activeChip === item ? 'on' : ''}}"
+          wx:for="{{chips}}"
+          wx:key="*this"
+          role="button"
+          aria-label="筛选分类：{{item}}"
+          data-cat="{{item}}"
+          bindtap="onChipTap"
+        >{{item}}</view>
+      </view>
     </scroll-view>
 
     <view wx:if="{{filteredGuides.length}}" class="gl-waterfall">

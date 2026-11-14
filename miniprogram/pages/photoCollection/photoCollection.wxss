@@ -161,6 +161,13 @@
   color: var(--lxm-c-ink);
 }
 
+.package-series {
+  margin-top: 12rpx;
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-sm);
+  line-height: 1.5;
+}
+
 .quick-facts {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -217,13 +224,6 @@
   align-items: center;
   justify-content: space-between;
   margin-top: 24rpx;
-}
-
-.origin-price {
-  margin-right: 10rpx;
-  color: var(--lxm-c-muted);
-  font-size: var(--lxm-fz-sm);
-  text-decoration: line-through;
 }
 
 .sale-price {

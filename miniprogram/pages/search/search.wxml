@@ -83,7 +83,9 @@
       </view>
     </view>
     <scroll-view scroll-x class="video-product-scroll" show-scrollbar="{{false}}">
-      <lxm-video-card wx:for="{{videos}}" wx:key="_id" item="{{item}}" mode="product" variant="{{item.videoCardVariant}}" bind:tap="goVideo" />
+      <view class="video-product-track">
+        <lxm-video-card wx:for="{{videos}}" wx:key="_id" item="{{item}}" mode="product" variant="{{item.videoCardVariant}}" bind:tap="goVideo" />
+      </view>
     </scroll-view>
   </view>
 

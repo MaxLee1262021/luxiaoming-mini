@@ -13,10 +13,14 @@ const navigation = [];
 let responseData = [];
 let directResponse = false;
 let counts = {};
+let requestHandler;
+let nextTimerId = 0;
+const timers = new Map();
 
 const api = {
   async getMyOrders(query) {
     requests.push(query);
+    if (requestHandler) return requestHandler(query);
     return directResponse ? responseData : { success: true, data: responseData };
   },
   async getOrderStatusCount() { return { success: true, data: counts }; }
@@ -39,7 +43,13 @@ function loadPage(name, extraDependencies = {}) {
       return dependencies[request];
     },
     wx: { navigateTo(options) { navigation.push(options.url); } },
-    console, Promise
+    console, Promise,
+    setTimeout(callback, delay) {
+      const id = ++nextTimerId;
+      timers.set(id, { callback, delay });
+      return id;
+    },
+    clearTimeout(id) { timers.delete(id); }
   }, { filename: name + '.js' });
   assert.ok(definition, name + ' must register');
   return definition;
@@ -166,5 +176,110 @@ for (const stale of [
   await orders.loadOrders(true);
   assert.deepEqual(plain(requests.at(-1)), { page: 1, pageSize: 100 });
   assert.deepEqual(plain(orders.data.orders.map(item => item.id)), ['after-sale-1']);
+
+  // A visible list follows backend changes even when the customer stays on
+  // this page; returning from details refreshes immediately without requiring
+  // a pull gesture. The first onShow must not duplicate onLoad's request.
+  const live = page(ordersDefinition);
+  responseData = [rows[2]];
+  await live.onLoad();
+  const initialRequestCount = requests.length;
+  live.onShow();
+  assert.equal(requests.length, initialRequestCount);
+  assert.equal(timers.size, 1);
+  const runSync = async () => {
+    const [id, timer] = timers.entries().next().value;
+    timers.delete(id);
+    assert.equal(timer.delay, 15000);
+    await timer.callback();
+  };
+  responseData = [rows[3]];
+  await runSync();
+  assert.equal(live.data.orders[0].statusText, '已完成');
+  live.onHide();
+  assert.equal(timers.size, 0, 'hidden pages must not keep polling');
+  responseData = [rows[0]];
+  await live.onShow();
+  assert.equal(live.data.orders[0].statusText, '待确认');
+
+  // Quiet synchronization keeps loaded pages, and failed synchronization
+  // leaves the last successful list visible until a subsequent retry.
+  const firstPageRows = Array.from({ length: 10 }, (_, index) => ({ ...rows[2], id: 'live-' + index }));
+  requestHandler = async query => ({ success: true, data: query.page === 1 ? firstPageRows : [rows[0]] });
+  await live.loadOrders(true);
+  await live.loadOrders(false);
+  assert.equal(live.data.orders.length, 11);
+  firstPageRows[0] = { ...rows[3], id: 'live-0' };
+  await runSync();
+  assert.equal(live.data.orders.length, 11);
+  assert.equal(live.data.orders[0].statusText, '已完成');
+  assert.equal(live.data.page, 3);
+  const lastSuccessfulRows = plain(live.data.orders);
+  requestHandler = async () => ({ success: false, error: 'temporarily unavailable' });
+  const previousConsoleError = console.error;
+  try {
+    console.error = () => {};
+    await runSync();
+  } finally {
+    console.error = previousConsoleError;
+  }
+  assert.deepEqual(plain(live.data.orders), lastSuccessfulRows);
+  assert.equal(live.data.error, '');
+  let finishHiddenSync;
+  requestHandler = () => new Promise(resolve => { finishHiddenSync = resolve; });
+  const hiddenSync = runSync();
+  live.onHide();
+  finishHiddenSync({ success: true, data: [rows[3]] });
+  await hiddenSync;
+  assert.equal(timers.size, 0, 'finishing a request after onHide must not restart polling');
+  live.onUnload();
+  assert.equal(timers.size, 0, 'unloaded pages must not keep polling');
+
+  // Rapid tab switches start the new query immediately. A delayed response
+  // for an old tab cannot erase the completed orders or finish its loading UI.
+  const pending = [];
+  requestHandler = () => new Promise(resolve => pending.push(resolve));
+  const switching = page(ordersDefinition);
+  switching.setData({ currentStatus: 'reserved' });
+  const oldRequest = switching.loadOrders(true);
+  const latestRequest = switching.filterOrders({ currentTarget: { dataset: { status: 'completed' } } });
+  assert.equal(pending.length, 2);
+  pending[0]({ success: true, data: [rows[0]] });
+  await oldRequest;
+  assert.equal(switching.data.loading, true);
+  pending[1]({ success: true, data: [rows[3]] });
+  await latestRequest;
+  assert.deepEqual(plain(switching.data.orders.map(item => item.id)), ['completed-1']);
+  assert.equal(switching.data.loading, false);
+  switching.setData({ currentStatus: 'reserved' });
+  const lateOldRequest = switching.loadOrders(true);
+  const fastLatestRequest = switching.filterOrders({ currentTarget: { dataset: { status: 'completed' } } });
+  pending[3]({ success: true, data: [rows[3]] });
+  await fastLatestRequest;
+  pending[2]({ success: true, data: [rows[0]] });
+  await lateOldRequest;
+  assert.deepEqual(plain(switching.data.orders.map(item => item.id)), ['completed-1'], 'late old responses must not replace the new tab');
+
+  // A full server page may have fewer local matches; pagination follows the
+  // received rows so later completed orders can still be loaded.
+  requestHandler = undefined;
+  responseData = Array.from({ length: 10 }, (_, index) => ({ ...rows[index % 2 ? 0 : 3], id: 'mixed-' + index }));
+  await switching.loadOrders(true);
+  assert.equal(switching.data.orders.length, 5);
+  assert.equal(switching.data.hasMore, true);
+  responseData = [rows[3]];
+  await switching.loadOrders(false);
+  assert.equal(requests.at(-1).page, 2);
+  assert.equal(switching.data.orders.length, 6);
+  assert.equal(switching.data.hasMore, false);
+
+  requestHandler = () => new Promise(resolve => pending.push(resolve));
+  const unloaded = page(ordersDefinition);
+  const unfinishedRequest = unloaded.loadOrders(true);
+  unloaded.onUnload();
+  unloaded.setData = () => assert.fail('an unloaded page must ignore late responses');
+  pending.at(-1)({ success: true, data: [rows[3]] });
+  await unfinishedRequest;
+  requestHandler = undefined;
   console.log('Personal center and order-list four-status navigation, counts and filter checks passed.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

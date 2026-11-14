@@ -8,9 +8,8 @@
     <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
   </view>
   <block wx:else>
-  <!-- 加载失败降级提示：已回退预览数据，可重试拉真实数据 -->
   <view wx:if="{{degraded}}" class="lxm-degrade-bar">
-    <text class="lxm-degrade-bar__txt">内容加载失败，照片暂时展示预览内容</text>
+    <text class="lxm-degrade-bar__txt">照片内容加载失败，请稍后重试</text>
     <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载照片内容">重新加载</view>
   </view>
   <swiper class="cover-swiper" indicator-dots autoplay interval="3000" circular wx:if="{{!isAlbumDetail && series.samples && series.samples.length}}">
@@ -37,28 +36,27 @@
         <view class="sold-pill {{currentCollection.isHotSale ? 'is-hot-sale' : ''}}" wx:if="{{currentCollection.isHot || currentCollection.isMainPush || currentCollection.isHotSale}}">{{currentCollection.isHotSale ? '爆款预约' : '热门预约'}}</view>
       </view>
       <view class="package-title">{{currentCollection.name || currentCollection.seriesName}}</view>
+      <view class="package-series" wx:if="{{currentCollection.seriesName}}">风格系列 · {{currentCollection.seriesName}}</view>
       <view class="quick-facts">
         <view class="quick-fact">
-          <text class="fact-value">{{currentCollection.photoCount || (currentCollection.sampleUrls && currentCollection.sampleUrls.length) || 0}}</text>
+          <text class="fact-value">{{currentCollection.photoCount || 0}}</text>
           <text class="fact-label">张照片</text>
         </view>
         <view class="quick-fact">
-          <text class="fact-value">{{currentCollection.spotName || '长沙'}}</text>
-          <text class="fact-label">打卡点</text>
+          <text class="fact-value">{{currentCollection.retouchText}}</text>
+          <text class="fact-label">修图</text>
         </view>
         <view class="quick-fact">
-          <text class="fact-value">{{currentCollection.seriesName || '精选'}}</text>
-          <text class="fact-label">风格系列</text>
+          <text class="fact-value">{{currentCollection.makeupText}}</text>
+          <text class="fact-label">妆造</text>
         </view>
       </view>
       <view class="tag-row">
         <text class="tag primary">照片留影</text>
-        <text class="tag" wx:if="{{currentCollection.spotName}}">{{currentCollection.spotName}}</text>
-        <text class="tag" wx:if="{{currentCollection.seriesName}}">{{currentCollection.seriesName}}</text>
+        <text class="tag" wx:for="{{currentCollection.displayTags}}" wx:key="*this">{{item}}</text>
       </view>
       <view class="price-row">
         <view>
-          <text class="origin-price" wx:if="{{currentCollection.originalPrice}}">¥{{currentCollection.originalPrice}}</text>
           <text class="sale-price">¥{{currentCollection.price || 0}}</text>
         </view>
       </view>
@@ -187,7 +185,6 @@
       <view class="peripheral-card" bindtap="goPeripheralDetail" data-id="{{item._id}}">
         <image src="{{item.image || item.cover || '/images/placeholder.png'}}" mode="aspectFill" class="peripheral-img" lazy-load />
         <text class="peripheral-name">{{item.name}}</text>
-        <text class="peripheral-price">¥{{item.price}}</text>
       </view>
     </block>
   </scroll-view>

@@ -1,6 +1,11 @@
 const { normalizeToGcj02 } = require('../utils/coord')
 const { hasCoordinates } = require('./citySpot')
 
+function getSpotCover(item = {}) {
+  return [item.cover, item.coverUrl, item.coverImage, item.image]
+    .find(value => typeof value === 'string' && value.trim())?.trim() || '/images/placeholder.png'
+}
+
 function normalizeSpot(item = {}) {
   // 坐标纠偏：把点位经纬度统一转成微信地图所需的 GCJ-02，避免漂移
   const configuredCoordinates = hasCoordinates(item)
@@ -11,7 +16,7 @@ function normalizeSpot(item = {}) {
     ...item,
     latitude: coord.latitude,
     longitude: coord.longitude,
-    cover: item.cover || item.coverUrl || item.image || '/images/placeholder.png',
+    cover: getSpotCover(item),
     tags: Array.isArray(item.tags) ? item.tags : [],
     district: item.district || inferDistrict(item.address || item.name || '')
   }
@@ -58,6 +63,7 @@ function filterSpots(spots = [], filters = {}) {
 }
 
 module.exports = {
+  getSpotCover,
   normalizeSpot,
   buildDistrictOptions,
   filterSpots

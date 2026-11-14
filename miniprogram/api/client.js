@@ -1,6 +1,6 @@
 // 网络传输层：小程序所有后台请求统一走这里。
 // 通过 wx.request 请求自托管后台的 POST /api/rpc/{name}（后台地址见 config/env.js）。
-// openid：由 login() 获取（wx.login 换取，开发期用本地匿名 openid），
+// openid：由 login() 获取（wx.login 与真实后台换取），
 //         之后每次请求自动注入请求体，后台据此判定订单归属与权限。
 const { API_BASE, API_ERROR } = require('../config/env')
 
@@ -10,9 +10,7 @@ let _loginPromise = null
 const LOGGED_OUT_KEY = 'lxm_user_logged_out'
 
 // Browsing content is intentionally public on the server. Requiring a WeChat
-// session before these calls makes the storefront silently fall back to demo
-// data whenever login is not configured, even though the package catalog is
-// available. Stateful customer operations remain outside this allowlist.
+// session is required only for customer operations; public catalogs always use real API responses.
 const PUBLIC_BROWSING_RPCS = new Set([
   'getHomeData', 'getSpots', 'getBookingData', 'getSeriesList',
   'getSeriesDetail', 'getPhotoCollection', 'getPeripherals', 'getGuides',
@@ -34,6 +32,9 @@ function isLoggedOut() {
 
 function clearLogoutMarker() {
   try { wx.removeStorageSync(LOGGED_OUT_KEY) } catch (e) {}
+  // Phone authorization can finish without another app onShow. Flush entry
+  // events retained during explicit logout only after that intentional login.
+  Promise.resolve().then(() => require('../service/merchantShare').flush()).catch(() => {})
 }
 
 function clearSession() {
@@ -111,16 +112,31 @@ function callRaw(name, data, { clearOnUnauthorized = true } = {}) {
         const result = res.data
         if (res.statusCode && res.statusCode >= 400) {
           if (res.statusCode === 401 && clearOnUnauthorized) clearSession()
-          return reject(new Error((result && (result.error || result.message)) || ('服务器错误 ' + res.statusCode)))
+          return reject(rpcResponseError(result, res.statusCode, '服务器错误 ' + res.statusCode))
         }
         if (result && result.success === false) {
-          return reject(new Error(result.message || result.error || (name + ' 请求失败')))
+          return reject(rpcResponseError(result, res.statusCode, name + ' 请求失败'))
         }
         resolve(normalizeMediaUrls(result))
       },
-      fail: (err) => reject(new Error((err && err.errMsg) || '网络请求失败'))
+      fail: (err) => {
+        const error = new Error((err && err.errMsg) || '网络请求失败')
+        if (err && (err.code !== undefined || err.errCode !== undefined)) error.code = err.code ?? err.errCode
+        if (err && err.statusCode) error.statusCode = Number(err.statusCode)
+        reject(error)
+      }
     })
   })
+}
+
+function rpcResponseError(result, httpStatus, fallback) {
+  const body = result && typeof result === 'object' ? result : {}
+  const error = new Error(body.error || body.message || body.msg || fallback)
+  if (body.code !== undefined) error.code = body.code
+  // An actual HTTP failure takes precedence over any status in its body.
+  const status = Number(httpStatus) >= 400 ? Number(httpStatus) : Number(body.statusCode || httpStatus)
+  if (Number.isFinite(status) && status > 0) error.statusCode = status
+  return error
 }
 
 // 对外统一接口：callCloud(name, data)

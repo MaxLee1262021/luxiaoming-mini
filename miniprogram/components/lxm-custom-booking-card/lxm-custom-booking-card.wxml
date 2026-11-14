@@ -5,7 +5,7 @@
     <text class="lxm-cbc__sub">{{subtitle}}</text>
   </view>
   <view class="lxm-cbc__body">
-    <view class="lxm-cbc__price">
+    <view wx:if="{{priceMain}}" class="lxm-cbc__price">
       <view class="lxm-cbc__price-main">{{priceMain}}<text class="lxm-cbc__price-unit">/小时</text></view>
       <view class="lxm-cbc__price-add">{{priceAdd}}</view>
     </view>

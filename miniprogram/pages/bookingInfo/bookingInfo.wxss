@@ -319,6 +319,30 @@ page {
 .notice-row { display: flex; align-items: center; padding: 20rpx 24rpx; font-size: var(--lxm-fz-base); }
 .notice-row:active { opacity: 0.65; }
 .notice-link { color:var(--lxm-c-red-ink); font-weight: var(--lxm-fw-bold); }
+.booking-config-state {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  margin: 20rpx 24rpx;
+  padding: 22rpx 24rpx;
+  border-radius: var(--lxm-r-md);
+  background: var(--lxm-c-error-soft);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  line-height: 1.6;
+}
+.booking-config-state text { flex: 1; }
+.booking-config-retry {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 12rpx 20rpx;
+  border-radius: var(--lxm-r-pill);
+  background: var(--lxm-c-surface);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-sm);
+  line-height: 1.5;
+}
+.booking-config-retry::after { border: none; }
 .submit-btn {
   margin: 20rpx 24rpx;
   background: var(--lxm-gradient-primary);

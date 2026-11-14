@@ -13,7 +13,7 @@
       class="card-cover"
       lazy-load
     />
-    <view class="card-cover-badge" wx:if="{{item.price !== undefined && item.price !== ''}}">¥{{item.minPrice || item.price}}起</view>
+    <view class="card-cover-badge" wx:if="{{showCoverPrice && item.price !== undefined && item.price !== ''}}">¥{{item.minPrice || item.price}}起</view>
   </view>
 
   <view class="card-body">
@@ -26,13 +26,13 @@
     <view class="card-compose" wx:if="{{compositionTags.length}}">
       <text class="compose-tag" wx:for="{{compositionTags}}" wx:for-item="ct" wx:key="*this">{{ct}}</text>
     </view>
+    <text class="card-item-count" wx:if="{{itemCount}}">{{itemCount}} 件商品 · {{typeCount}} 种类型</text>
 
-    <!-- 套餐卡（含组合标签）隐藏 serviceTags 行，避免显示“X分钟拍摄/精修X张”；单品卡仍显示自身标签 -->
-    <view class="card-tags" wx:if="{{tags.length && compositionTags.length === 0}}">
+    <view class="card-tags" wx:if="{{showDetails && tags.length}}">
       <text class="tag" wx:for="{{tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
     </view>
 
-    <view class="card-desc" wx:if="{{item.description && layout !== 'vertical'}}">{{item.description}}</view>
+    <view class="card-desc" wx:if="{{showDetails && description}}">{{description}}</view>
 
     <view class="card-selected-tag" wx:if="{{selectable && selected}}">已选</view>
 

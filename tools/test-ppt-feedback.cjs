@@ -9,16 +9,16 @@ const checks = [
     const css = read('pages/index/index.wxss')
     return !/home-city|cityOptions|城市切换/.test(wxml) && /headerCompact/.test(js) && /scrollTop > 104/.test(js) && /home-top\.compact/.test(css)
   }],
-  ['S2 热榜数字/图片/名称及点位联动', () => {
+  ['S2 热榜数字/图片/名称及首页关联商品切换', () => {
     const wxml = read('pages/index/index.wxml')
     const js = read('pages/index/index.js')
-    return /rank-num/.test(wxml) && /rank-cover/.test(wxml) && /rank-name/.test(wxml) && /strip-sub[^>]*wx:if="\{\{activeSpotName\}\}"/.test(wxml) && /activeSpotName/.test(js)
+    return /rank-num/.test(wxml) && /rank-cover/.test(wxml) && /rank-name/.test(wxml) && /bindtap="onSpotTabTap"/.test(wxml) && /return this\.loadSpotProducts\(\)/.test(js) && /<lxm-album-card/.test(wxml) && /<lxm-video-card/.test(wxml) && /<lxm-package-card/.test(wxml) && /filteredPeripherals/.test(wxml)
   }],
-  ['S3 卡片标签和套餐容器', () => {
+  ['S3 照片标签、视频文字区营销标签和详情套餐容器', () => {
     const album = read('components/lxm-album-card/lxm-album-card.wxml')
-    const video = read('components/lxm-video-card/lxm-video-card.wxss')
-    const index = read('pages/index/index.wxss')
-    return /class="album-type"/.test(album) && /\.album-type[\s\S]*left:\s*10rpx[\s\S]*top:\s*10rpx/.test(read('components/lxm-album-card/lxm-album-card.wxss')) && /\.video-marketing-badge[\s\S]*left:\s*24rpx/.test(video) && /height:\s*540rpx/.test(index)
+    const video = read('components/lxm-video-card/lxm-video-card.wxml')
+    const sheet = read('pages/spotSheet/spotSheet.wxss')
+    return /class="album-type"/.test(album) && /\.album-type[\s\S]*left:\s*10rpx[\s\S]*top:\s*10rpx/.test(read('components/lxm-album-card/lxm-album-card.wxss')) && /class="video-labels"[\s\S]*class="video-marketing-badge/.test(video) && /\.package-scroll[\s\S]*height:\s*520rpx/.test(sheet)
   }],
   ['S4 照片单图预览和相关推荐', () => {
     const wxml = read('pages/photoCollection/photoCollection.wxml')
@@ -32,10 +32,10 @@ const checks = [
     const js = read('pages/videoProductDetail/videoProductDetail.js')
     return /hero-swiper/.test(wxml) && /hero-video/.test(wxml) && /height:\s*660rpx/.test(css) && /previewVideo/.test(js)
   }],
-  ['S6 套餐隐藏服务和规格并保留清单跳转', () => {
+  ['S6 套餐展示配置标签、隐藏重复规格并保留清单跳转', () => {
     const wxml = read('pages/photoPackageDetail/photoPackageDetail.wxml')
     const service = read('service/packageDetail.js')
-    return !/套餐服务|item-card__specs|serviceTags|packageBenefits/.test(wxml) && !service.includes('resolveItemSpecs') && /goIncludedItem/.test(wxml)
+    return !/套餐服务|item-card__specs/.test(wxml) && /wx:for="\{\{serviceTags\}\}"/.test(wxml) && !service.includes('resolveItemSpecs') && /goIncludedItem/.test(wxml)
   }],
   ['S7 打卡点横滑卡片留出安全空间', () => {
     const css = read('pages/spotSheet/spotSheet.wxss')

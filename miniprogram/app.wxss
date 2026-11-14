@@ -458,9 +458,17 @@ button[disabled] {
    确保两处视觉与交互完全一致，避免碎片化。
    ============================================================ */
 .video-product-scroll {
-  height: 330rpx;
+  height: auto;
   padding-left: 28rpx;
   white-space: nowrap;
+}
+
+/* 横向 scroll-view 由正常文档流中的单行内容撑高，长标题和标签可完整展开。 */
+.video-product-track {
+  display: inline-flex;
+  align-items: flex-start;
+  padding-bottom: 12rpx;
+  white-space: normal;
 }
 
 .video-product-card {

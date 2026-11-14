@@ -1,16 +1,10 @@
-const demoData = require('../utils/demoData')
 const { callCloud } = require('./client')
 const homeApi = require('./home')
-const { isExplicitDemoMode } = require('../config/env')
 const { normalizePackage, normalizePackageList, isVideo, filterVisibleProducts } = require('../utils/product')
 const { isVideoSingle } = require('../service/videoProductDetail')
+const { publicGuides } = require('../utils/guideContent')
 
-// 搜索热词兜底：后台 getSearchConfig 未就绪 / 请求失败时使用，保证页面不白屏。
-const DEFAULT_HOT_KEYWORDS = ['橘子洲旅拍', 'IFS夜景视频摄像', '岳麓山亲子', '太平老街古风', '闺蜜写真', '城市漫步']
-
-// 搜索配置：热词（全站搜索同源：搜索页热门 + 首页搜索框占位词/下拉热门）。
-// 自托管后台 `getSearchConfig` RPC 就绪后返回 siteConfig('global').search.hotWords；
-// 未接后台 / 请求失败时由调用方回退内置默认热词，页面零回归。
+// 搜索热词由真实后台配置提供。
 function getSearchConfig(params = {}) {
   return callCloud('getSearchConfig', params)
 }
@@ -62,19 +56,10 @@ function normalizeCatalog(data = {}) {
     packages: packages.filter(item => !isVideo(item)),
     videos,
     series: Array.isArray(data.series) ? data.series : [],
-    guides: Array.isArray(data.guides) ? data.guides : []
+    guides: publicGuides(data.guides)
   }
 }
 
-function demoCatalog() {
-  return normalizeCatalog({
-    spots: demoData.spots,
-    packages: demoData.packages,
-    videoProducts: demoData.videoProducts,
-    series: demoData.series,
-    guides: demoData.guides
-  })
-}
 
 async function getCatalogFromServer() {
   const result = await homeApi.getHomeData()
@@ -99,41 +84,13 @@ function normalizeSearchVideoItem(item = {}) {
 }
 
 async function getSearchHome() {
-  const routes = [
-    {
-      id: 'route-night',
-      title: '夜景高光短视频路线',
-      desc: 'IFS 国金中心 - 黄兴路 - 杜甫江阁',
-      tag: '视频摄像',
-      spotIds: ['demo-spot-ifs', 'demo-spot-huangxing', 'demo-spot-dufu']
-    },
-    {
-      id: 'route-family',
-      title: '亲子自然光旅拍路线',
-      desc: '橘子洲 - 岳麓山 - 湘江边',
-      tag: '亲子',
-      spotIds: ['demo-spot-orange', 'demo-spot-yuelu']
-    },
-    {
-      id: 'route-citywalk',
-      title: '城市漫步街拍路线',
-      desc: '太平老街 - 黄兴路 - IFS',
-      tag: '写真',
-      spotIds: ['demo-spot-taiping', 'demo-spot-huangxing', 'demo-spot-ifs']
-    }
-  ]
+  const routes = []
 
-  let catalog
-  try {
-    catalog = await getCatalogFromServer()
-  } catch (error) {
-    if (!isExplicitDemoMode()) throw error
-    catalog = demoCatalog()
-  }
+  const catalog = await getCatalogFromServer()
   const promotedPackages = catalog.packages.filter(item => item.isHot || item.isHotSale || item.isMainPush || item.mainPush || item.isFeatured)
 
-  // 热词优先从后台配置取，失败 / 为空时回退内置默认（与老页面一致，零回归）
-  let hotKeywords = DEFAULT_HOT_KEYWORDS
+  // 热词只使用后台返回的配置。
+  let hotKeywords = []
   try {
     const res = await getSearchConfig()
     const hotWords = res && res.success && res.data && Array.isArray(res.data.hotWords)
@@ -141,7 +98,7 @@ async function getSearchHome() {
       : []
     if (hotWords.length) hotKeywords = hotWords
   } catch (err) {
-    console.warn('getSearchConfig fallback', err)
+    console.warn('getSearchConfig failed', err)
   }
 
   return {
@@ -152,7 +109,7 @@ async function getSearchHome() {
       spots: catalog.spots.slice(0, 6),
       packages: (promotedPackages.length ? promotedPackages : catalog.packages).slice(0, 6),
       videos: catalog.videos.slice(0, 3),
-      guides: catalog.guides.filter(item => item.isHot).slice(0, 3)
+      guides: catalog.guides.filter(item => item.isTop || item.isHot).slice(0, 3)
     }
   }
 }
@@ -169,13 +126,7 @@ async function search({ keyword = '' } = {}) {
     return getSearchHome()
   }
 
-  let source
-  try {
-    source = await getCatalogFromServer()
-  } catch (error) {
-    if (!isExplicitDemoMode()) throw error
-    source = demoCatalog()
-  }
+  const source = await getCatalogFromServer()
 
   return {
     success: true,

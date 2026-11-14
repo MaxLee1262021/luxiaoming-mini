@@ -1,16 +1,13 @@
-const demoData = require('../utils/demoData')
 const bookingUtils = require('../utils/booking')
-const { mergeByIdentity } = require('../utils/list')
 const { filterStorePeripherals } = require('../utils/product')
 
-function mergeBookingData(data = {}, { allowFallback = false } = {}) {
-  const fallback = allowFallback ? demoData.getBookingData() : {}
+function mergeBookingData(data = {}) {
   return {
-    spots: allowFallback ? mergeByIdentity(data.spots, fallback.spots) : (Array.isArray(data.spots) ? data.spots : []),
-    allSeries: allowFallback ? mergeByIdentity(data.allSeries, fallback.allSeries) : (Array.isArray(data.allSeries) ? data.allSeries : []),
-    allPackages: allowFallback ? mergeByIdentity(data.allPackages || data.hotPackages, fallback.allPackages || fallback.hotPackages) : (Array.isArray(data.allPackages) ? data.allPackages : (Array.isArray(data.hotPackages) ? data.hotPackages : [])),
-    allAlbums: allowFallback ? mergeByIdentity(data.albums, fallback.albums) : (Array.isArray(data.albums) ? data.albums : []),
-    allPeripherals: filterStorePeripherals(Array.isArray(data.allPeripherals) ? data.allPeripherals : (allowFallback ? (fallback.allPeripherals || demoData.peripherals || []) : []))
+    spots: Array.isArray(data.spots) ? data.spots : [],
+    allSeries: Array.isArray(data.allSeries) ? data.allSeries : [],
+    allPackages: Array.isArray(data.allPackages) ? data.allPackages : (Array.isArray(data.hotPackages) ? data.hotPackages : []),
+    allAlbums: Array.isArray(data.albums) ? data.albums : (Array.isArray(data.allAlbums) ? data.allAlbums : []),
+    allPeripherals: filterStorePeripherals(Array.isArray(data.allPeripherals) ? data.allPeripherals : [])
   }
 }
 
@@ -19,14 +16,9 @@ function findPrefillSelection({ data = {}, prefill = {} } = {}) {
     ? (data.allPackages || []).find(item => item._id === prefill.packageId) || {}
     : {}
   const album = prefill.albumId
-    ? (data.allAlbums || []).find(item => item._id === prefill.albumId || item.albumId === prefill.albumId) || {
-      _id: prefill.albumId,
-      albumId: prefill.albumId,
-      seriesId: prefill.seriesId,
-      name: '照片单品商品',
-      price: Number(prefill.albumPrice || 0)
-    }
+    ? (data.allAlbums || []).find(item => item._id === prefill.albumId || item.albumId === prefill.albumId) || {}
     : {}
+  if (!(pkg._id || pkg.id || album._id || album.id || album.albumId)) return { item: {}, spotId: '' }
   const seriesId = prefill.seriesId || pkg.seriesId || album.seriesId || ''
   const series = (data.allSeries || []).find(item => item._id === seriesId) || {}
   const spotId = prefill.spotId || pkg.spotId || (Array.isArray(pkg.spotIds) && pkg.spotIds[0]) || album.spotId || (Array.isArray(series.spotIds) && series.spotIds[0]) || ''
@@ -38,7 +30,7 @@ function findPrefillSelection({ data = {}, prefill = {} } = {}) {
       spot,
       album,
       pkg,
-      defaultPrice: Number(prefill.albumPrice || album.price || 0)
+      defaultPrice: Number(album.price || 0)
     }),
     spotId
   }

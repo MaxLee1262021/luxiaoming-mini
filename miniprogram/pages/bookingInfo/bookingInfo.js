@@ -1,5 +1,4 @@
 const app = getApp()
-const demoData = require('../../utils/demoData')
 const bookingApi = require('../../api/booking')
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
@@ -11,7 +10,6 @@ const bookingConfig = require('../../service/bookingConfig')
 const userStore = require('../../store/userStore')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
 const analytics = require('../../utils/analytics')
-const { isExplicitDemoMode } = require('../../config/env')
 const { paymentFailure, logPaymentFailure } = require('../../utils/paymentFeedback')
 
 function requestWechatPayment(paymentParams = {}) {
@@ -56,9 +54,11 @@ Page({
     bookingRequestKey: '',
     items: [],
     totalPrice: 0,
-    depositRatio: 0.3,
+    pricingUnavailable: true,
+    depositUnavailable: true,
+    depositRatio: null,
     depositDue: 0,
-    depositPercent: 30,
+    depositPercent: 0,
     prefillSeriesId: '',
     prefillPackageId: '',
     prefillAlbumId: '',
@@ -86,7 +86,6 @@ Page({
     sheetProducts: [],
     authReady: false,
     authLoading: false,
-    showDevBypass: false,
     userInfo: {},
     pageConfig: {},
     moduleVisible: {
@@ -98,8 +97,10 @@ Page({
     loading: true,
     degraded: false,
     dataUnavailable: false,
+    bookingConfigLoading: false,
+    bookingConfigError: '',
     bookingMode: 'consult',
-    // 约拍定制定价 / 预约须知：默认值与原硬编码一致，后台 getBookingConfig RPC 就绪后自动替换
+    // 约拍定制定价 / 预约须知：仅展示后台配置，未加载时保持空值
     bookingConfig: bookingConfig.getConfig()
   },
 
@@ -124,7 +125,8 @@ Page({
     this.applyPageConfig()
     this.refreshAuthState()
     this.loadBookingData()
-    this.loadBookingConfig()
+    this._bookingConfigInitialShowPending = true
+    this.loadBookingConfig(true)
   },
 
   // 预约页专属分享：带上当前选中项目与打卡点，方便好友直接进入同款预约
@@ -156,10 +158,15 @@ Page({
   },
 
   onShow() {
-    let env = ''
-    try { env = (wx.getAccountInfoSync().miniProgram || {}).envVersion || '' } catch (e) {}
-    this.setData({ showDevBypass: env === 'develop' })
     this.refreshAuthState()
+    // 首次 onShow 与 onLoad 共用已发起的请求；从其他页面返回时才恢复缺失配置。
+    if (this._bookingConfigInitialShowPending) {
+      this._bookingConfigInitialShowPending = false
+      return
+    }
+    if (this.data.submitting || this.data.paymentSubmitting || this.data.bookingConfigLoading) return
+    const cfg = this.data.bookingConfig || {}
+    if (this.data.bookingConfigError || !cfg.bookingNotice || !cfg.bookingNoticeVersion) return this.loadBookingConfig(true)
   },
 
   buildUrl(path, params = {}) {
@@ -214,11 +221,6 @@ Page({
     }
   },
 
-  onDevBypass() {
-    userStore.saveUser({ phone: '13800000000' })
-    this.refreshAuthState()
-    wx.showToast({ title: '已进入测试模式', icon: 'none' })
-  },
 
   async loadBookingData() {
     try {
@@ -227,18 +229,13 @@ Page({
         this.applyBookingData(res.data || {}, false)
         this.setData({ degraded: false, dataUnavailable: false })
       } else {
-        if (isExplicitDemoMode()) {
-          this.applyBookingData(demoData.getBookingData(), true)
-          this.setData({ degraded: true, dataUnavailable: false })
-        } else {
-          this.applyBookingData({}, false)
-          this.setData({ degraded: true, dataUnavailable: true })
-        }
+        this.applyBookingData({}, false)
+        this.setData({ degraded: true, dataUnavailable: true })
       }
     } catch (err) {
       console.error('load booking data failed', err)
-      this.applyBookingData(isExplicitDemoMode() ? demoData.getBookingData() : {}, isExplicitDemoMode())
-      this.setData({ degraded: true, dataUnavailable: !isExplicitDemoMode() })
+      this.applyBookingData({})
+      this.setData({ degraded: true, dataUnavailable: true })
     } finally {
       this.setData({ loading: false })
     }
@@ -246,26 +243,45 @@ Page({
 
   // 降级提示条「重新加载」：重新拉真实预约数据，成功后提示条自动消失
   onRetryLoad() {
+    if (this.data.submitting || this.data.paymentSubmitting) return Promise.resolve()
     this.setData({ loading: true })
-    this.loadBookingData()
+    return Promise.all([this.loadBookingData(), this.loadBookingConfig(true)])
   },
 
-  // 预约配置（约拍定价/须知）：拉真实配置，失败回退默认值（service 层已缓存，全站共享）
-  async loadBookingConfig() {
+  retryBookingConfig() {
+    if (this.data.submitting || this.data.paymentSubmitting || this.data.bookingConfigLoading) return Promise.resolve()
+    return this.loadBookingConfig(true)
+  },
+
+  // 预约配置（约拍定价/须知）：拉真实配置，失败提示重试（service 层已缓存，全站共享）
+  async loadBookingConfig(refresh = false) {
+    if (this.data.submitting || this.data.paymentSubmitting) return
+    const requestVersion = this._bookingConfigRequestVersion = (this._bookingConfigRequestVersion || 0) + 1
+    this.setData({ bookingConfigLoading: true, bookingConfigError: '' })
+    if (refresh) this.setData({ bookingConfig: bookingConfig.EMPTY_CONFIG, depositRatio: null, depositUnavailable: true, agreed: false })
     try {
-      const cfg = await bookingConfig.ensureLoaded()
-      this.setData({ bookingConfig: cfg }, () => {
+      const cfg = await bookingConfig.ensureLoaded(refresh)
+      if (requestVersion !== this._bookingConfigRequestVersion) return
+      const ready = !!(cfg.bookingNotice && cfg.bookingNoticeVersion)
+      this.setData({
+        bookingConfig: cfg,
+        bookingConfigError: ready ? '' : '预约须知暂未就绪，暂时无法提交。请稍后重试或联系客服。'
+      }, () => {
         // 配置可能晚于 initPrefill 到达：就绪后重算约拍定制价与合计，保证展示与提交口径一致
         this.updateCustomItemPrice()
         this.updateTotalPrice()
       })
     } catch (err) {
-      console.warn('booking config load fallback', err)
+      if (requestVersion !== this._bookingConfigRequestVersion) return
+      console.warn('booking config load failed', err)
+      this.setData({ bookingConfigError: '预约信息加载失败，请重新加载后再提交。' })
+    } finally {
+      if (requestVersion === this._bookingConfigRequestVersion) this.setData({ bookingConfigLoading: false })
     }
   },
 
-  applyBookingData(data = {}, allowFallback = false) {
-    const bookingData = bookingDataService.mergeBookingData(data, { allowFallback })
+  applyBookingData(data = {}) {
+    const bookingData = bookingDataService.mergeBookingData(data)
     const spots = bookingData.spots
     const allSeries = bookingData.allSeries
     const allPackages = bookingData.allPackages
@@ -365,7 +381,10 @@ Page({
       const basketItems = wx.getStorageSync('lxm_booking_basket') || []
       wx.removeStorageSync('lxm_booking_basket')
       if (basketItems.length) {
-        const items = basketItems.filter(item => !bookingPicker.isPeripheralItem(item))
+        const items = basketItems.filter(item => !bookingPicker.isPeripheralItem(item) && !item.custom).map(item => {
+          const result = bookingDataService.findPrefillSelection({ data: { spots: this.data.spotOptions, allSeries: this.data.allSeries, allPackages: this.data.allPackages, allAlbums: this.data.allAlbums }, prefill: { packageId: item.packageId, albumId: item.albumId, seriesId: item.seriesId, spotId: item.spotId } })
+          return result.item
+        }).filter(item => item.custom || item.packageId || item.albumId)
         if (items.length !== basketItems.length) {
           wx.showToast({ title: '周边仅支持咨询，已从预约中移除', icon: 'none' })
         }
@@ -416,7 +435,7 @@ Page({
       }
     })
     const item = result.item
-    if (!item.packageId && !item.albumId && !item.seriesId) {
+    if (!item.packageId && !item.albumId) {
       wx.showToast({ title: '未找到预约商品，请重新选择', icon: 'none' })
       return
     }
@@ -505,12 +524,16 @@ Page({
   },
 
   updateTotalPrice() {
-    const totalPrice = bookingUtils.sumItemsPrice(this.data.items)
-    const configuredRatio = bookingConfig.getConfig().depositRatio || this.data.depositRatio || 0.3
-    const depositRatio = Number.isFinite(Number(configuredRatio)) ? Number(configuredRatio) : 0.3
+    const items = this.data.items || []
+    const pricingUnavailable = items.some(item => item.price === undefined || item.price === null || String(item.price).trim() === '' || !Number.isFinite(Number(item.price)))
+    const totalPrice = pricingUnavailable ? null : bookingUtils.sumItemsPrice(items)
+    const configuredRatio = bookingConfig.getConfig().depositRatio
+    const depositRatio = bookingConfig.normalizeDepositRatio(configuredRatio)
     const depositDue = bookingUtils.sumDepositDue(this.data.items, depositRatio)
     this.setData({
       totalPrice,
+      pricingUnavailable,
+      depositUnavailable: depositDue === null,
       depositRatio,
       depositDue,
       depositPercent: totalPrice > 0 ? Math.round((depositDue / totalPrice) * 100) : Math.round(depositRatio * 100)
@@ -553,7 +576,7 @@ Page({
     const count = this.data.participantCount || 1
     const items = (this.data.items || []).map(item => {
       if (!item.custom) return item
-      return { ...item, price: bookingConfig.calcCustomPrice(count), participantCount: count }
+      return { ...item, price: bookingConfig.calcCustomPrice(count), depositRatio: bookingConfig.getConfig().depositRatio, participantCount: count }
     })
     this.setData({ items })
   },
@@ -562,7 +585,7 @@ Page({
   showNotice() {
     wx.showModal({
       title: '预约须知',
-      content: (this.data.bookingConfig && this.data.bookingConfig.bookingNotice) || bookingConfig.DEFAULT_CONFIG.bookingNotice,
+      content: (this.data.bookingConfig && this.data.bookingConfig.bookingNotice) || '预约须知暂未配置，请稍后重试',
       showCancel: false
     })
   },
@@ -679,14 +702,17 @@ Page({
     try {
       // The server validates the latest notice version. The config request is
       // asynchronous on page load, so wait for it before constructing the
-      // payload instead of submitting the built-in fallback version.
+      // payload with the current database version.
       let currentBookingConfig = this.data.bookingConfig || bookingConfig.getConfig()
       try {
         currentBookingConfig = await bookingConfig.ensureLoaded()
         if (currentBookingConfig !== this.data.bookingConfig) this.setData({ bookingConfig: currentBookingConfig })
       } catch (err) {
-        console.warn('booking config unavailable before submit', err)
+        throw new Error('预约配置加载失败，请重试后提交')
       }
+      if (!currentBookingConfig.bookingNotice || !currentBookingConfig.bookingNoticeVersion) throw new Error('预约须知暂未配置，请联系客服')
+      if ((this.data.items || []).some(item => item.custom && bookingConfig.calcCustomPrice(this.data.participantCount || 1) === null)) throw new Error('约拍定制定价暂未配置，请联系客服')
+      if (bookingUtils.sumDepositDue(this.data.items, currentBookingConfig.depositRatio) === null) throw new Error('商品价格或定金配置缺失，请联系客服')
       // Keep a manually entered contact phone as a convenience without
       // overwriting the verified WeChat phone stored on the profile.
       userStore.saveUser({ lastContactPhone: this.data.phone })

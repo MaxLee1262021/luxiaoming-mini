@@ -4,6 +4,8 @@
   box-sizing: border-box;
   background: var(--lxm-c-bg);
   color: var(--lxm-c-ink);
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .state-page {
@@ -68,6 +70,8 @@
   margin-top: 18rpx;
   color: var(--lxm-c-gray-750);
   font-size: var(--lxm-fz-sm);
+  flex-wrap: wrap;
+  gap: 12rpx;
 }
 
 .payment-amount {
@@ -309,7 +313,8 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 70rpx;
+  flex: 1;
+  min-width: 0;
 }
 
 .step-dot {
@@ -335,7 +340,9 @@
 .step-label {
   color: var(--lxm-c-gray-650);
   font-size: 20rpx;
-  white-space: nowrap;
+  white-space: normal;
+  text-align: center;
+  line-height: 1.5;
 }
 
 .progress-step.active .step-label {
@@ -344,7 +351,7 @@
 }
 
 .progress-line {
-  flex: 1;
+  flex: 0 1 18rpx;
   height: 4rpx;
   margin: 0 -8rpx 32rpx;
   background: var(--lxm-c-gray-400);
@@ -392,6 +399,7 @@
 
 .info-row text:last-child {
   flex: 1;
+  min-width: 0;
   text-align: right;
 }
 
@@ -428,6 +436,15 @@
   font-size: var(--lxm-fz-base);
   border-radius: 999rpx;
   font-weight: 900;
+}
+
+.after-sale-entry-actions {
+  margin-top: 24rpx;
+}
+
+.after-sale-entry-actions .deliver-btn {
+  min-width: 0;
+  padding: 0;
 }
 
 .footer-action {
@@ -598,3 +615,25 @@
 .after-sale-record { padding: 16rpx 0; border-bottom: 1rpx solid var(--lxm-c-gray-200); }
 .evidence-preview { margin: 8rpx 12rpx 8rpx 0; }
 .after-sale-submit { background: var(--lxm-gradient-primary); color: var(--lxm-c-surface); box-shadow: var(--lxm-shadow-red); }
+
+.order-product {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12rpx 20rpx;
+  padding: 20rpx 0;
+  border-top: 1rpx solid var(--lxm-c-gray-200);
+}
+.order-product__main { flex: 1 1 65%; min-width: 0; }
+.order-product__name { display: block; color: var(--lxm-c-ink); font-size: var(--lxm-fz-base); font-weight: 900; line-height: 1.5; }
+.order-product__meta { display: block; margin-top: 6rpx; color: var(--lxm-c-gray-650); font-size: var(--lxm-fz-xs); line-height: 1.55; }
+.order-product__price { max-width: 100%; margin-left: auto; color: var(--lxm-c-red-ink); font-size: var(--lxm-fz-sm); line-height: 1.5; }
+.timeline-copy { min-width: 0; }
+.delivered-file-copy, .delivered-file-actions, .file-download-progress { flex-wrap: wrap; }
+
+@media (max-width: 360px) {
+  .info-row { gap: 14rpx; }
+  .info-row text:first-child { width: 100rpx; }
+  .state-btn { max-width: 100%; height: auto; min-height: 68rpx; line-height: 1.5; padding: 18rpx; box-sizing: border-box; }
+  .contact-btn, .booking-btn, .act-btn { height: auto; min-height: 88rpx; line-height: 1.5; padding: 18rpx 12rpx; }
+}

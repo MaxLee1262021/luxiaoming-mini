@@ -14,21 +14,21 @@ Component({
     buttonText: { type: String, value: '立即定制' }
   },
   data: {
-    // 价格展示（默认与内置配置一致；后台 getBookingConfig 就绪后自动跟随，不阻塞渲染）
-    priceMain: '¥200',
-    priceAdd: '每加1人 +¥100/小时'
+    // 价格展示（仅展示真实后台已配置的价格）
+    priceMain: '',
+    priceAdd: ''
   },
   lifetimes: {
     attached() {
-      // 展示价跟随后台配置：拉取成功则更新，失败/未接后台保留默认，零回归
+      // 展示价跟随后台配置：拉取成功则更新，未配置或失败时隐藏报价
       bookingConfig.ensureLoaded().then(cfg => {
         const { single, extraPerPerson } = (cfg && cfg.customPrice) || {}
         if (!single && single !== 0) return
         this.setData({
           priceMain: '¥' + single,
-          priceAdd: '每加1人 +¥' + extraPerPerson + '/小时'
+          priceAdd: extraPerPerson === null ? '' : '每加1人 +¥' + extraPerPerson + '/小时'
         })
-      })
+      }).catch(() => { this.setData({ priceMain: '', priceAdd: '' }) })
     }
   },
   methods: {

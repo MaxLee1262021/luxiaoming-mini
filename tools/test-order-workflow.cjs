@@ -40,7 +40,11 @@ test("booking can be submitted without a customer-selected shooting time", () =>
     time: "上午",
     items: [{ packageId: "pkg-1", price: 699 }]
   });
-  assert.equal(Object.prototype.hasOwnProperty.call(payload, "date"), false);
+  assert.equal(payload.date, "2099-01-01");
+  assert.equal(payload.timePeriod, "上午");
+  const noTime = booking.buildBookingPayload({ items: [{ packageId: "pkg-1", price: 699 }] });
+  assert.equal(noTime.date, "");
+  assert.equal(noTime.timePeriod, "");
   assert.equal(Object.prototype.hasOwnProperty.call(payload, "time"), false);
   assert.equal(Object.prototype.hasOwnProperty.call(payload, "expectedDate"), false);
   assert.equal(Object.prototype.hasOwnProperty.call(payload, "expectedTimePeriod"), false);

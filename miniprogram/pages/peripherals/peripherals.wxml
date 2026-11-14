@@ -1,5 +1,5 @@
 <view class="peripherals-page">
-  <lxm-nav-bar showBack="{{true}}" theme="light" placeholder="{{true}}" />
+  <lxm-nav-bar title="影像周边" showBack="{{true}}" theme="light" placeholder="{{true}}" />
   <lxm-privacy-modal />
 
   <view class="lxm-skeleton-wrap" wx:if="{{loading}}">
@@ -13,22 +13,14 @@
   </view>
 
   <block wx:else>
-    <!-- 加载失败降级提示：已回退预览数据，可重试拉真实数据 -->
-    <view wx:if="{{degraded}}" class="lxm-degrade-bar">
-      <text class="lxm-degrade-bar__txt">内容加载失败，周边暂时展示预览内容</text>
+      <view wx:if="{{degraded}}" class="lxm-degrade-bar">
+      <text class="lxm-degrade-bar__txt">商品加载失败，请稍后重试</text>
       <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载周边">重新加载</view>
     </view>
 
-    <!-- ===== 工艺定制引言 ===== -->
-    <view class="custom-hero">
-      <text class="custom-kicker">专属定制</text>
-      <text class="custom-title">定制你的专属周边</text>
-      <text class="custom-sub">把旅拍记忆做成可触摸的礼物</text>
-    </view>
-
     <!-- ===== 卡片堆叠展示柜（主推位，层层叠放）===== -->
-    <view class="stack-stage" bindtouchstart="onStackTouchStart" bindtouchmove="onStackTouchMove" bindtouchend="onStackTouchEnd">
-      <view class="stack-hint">滑动点选 · 层层看全部周边</view>
+    <view wx:if="{{allPeripherals.length}}" class="stack-stage" bindtouchstart="onStackTouchStart" bindtouchmove="onStackTouchMove" bindtouchend="onStackTouchEnd">
+      <view class="stack-hint">左右滑动 · 点选查看周边</view>
       <view class="stack-center">
         <view
           wx:for="{{stackLayers}}"
@@ -39,31 +31,79 @@
           data-index="{{item._index}}"
         >
           <view class="stack-cover">
-            <image class="stack-img" src="{{item.image || item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+            <image class="stack-img" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
             <view class="stack-badge hot" wx:if="{{item.isHot}}">热卖</view>
             <view class="stack-badge sale" wx:elif="{{item.isHotSale}}">爆款</view>
             <view class="stack-badge new" wx:elif="{{item.isNew}}">新品</view>
           </view>
           <view class="stack-info">
             <text class="stack-name">{{item.name}}</text>
-            <view class="stack-specs">
-              <text class="stack-spec" wx:for="{{item.specs}}" wx:for-item="s" wx:key="*this">{{s}}</text>
-            </view>
-            <view class="stack-foot">
-              <view class="stack-btn" catchtap="goStackDetail" data-id="{{item._id}}">详情</view>
+            <view class="stack-specs" wx:if="{{item.specs.length}}">
+              <text class="stack-spec" wx:for="{{item.stackSpecs}}" wx:for-item="s" wx:key="*this">{{s}}</text>
             </view>
           </view>
         </view>
       </view>
-      <view class="stack-nav prev" bindtap="rotateRing" data-dir="-1">‹</view>
-      <view class="stack-nav next" bindtap="rotateRing" data-dir="1">›</view>
+      <view wx:if="{{allPeripherals.length > 1}}" class="stack-nav prev" bindtap="rotateRing" data-dir="-1" role="button" aria-label="上一个周边">‹</view>
+      <view wx:if="{{allPeripherals.length > 1}}" class="stack-nav next" bindtap="rotateRing" data-dir="1" role="button" aria-label="下一个周边">›</view>
       <view class="stack-dots">
         <view
           wx:for="{{allPeripherals}}"
           wx:key="_id"
           class="stack-dot {{index === stackFront ? 'active' : ''}}"
+          data-index="{{index}}"
+          catchtap="onStackTap"
+          role="button"
+          aria-label="查看{{item.name}}"
         ></view>
       </view>
+    </view>
+    <lxm-empty-state wx:else type="package" title="周边整理中" desc="可咨询客服了解影像周边" />
+
+    <view class="peripheral-detail" wx:if="{{featuredPeripheral}}" aria-live="polite">
+      <text class="detail-eyebrow">当前周边</text>
+      <text class="detail-name">{{featuredPeripheral.name}}</text>
+      <view class="detail-price" wx:if="{{featuredPeripheral.hasPrice}}">
+        <text class="detail-price-label">商品售价</text>
+        <text class="detail-price-value">¥{{featuredPeripheral.priceText}}</text>
+      </view>
+      <view class="detail-chips" wx:if="{{featuredPeripheral.category || featuredPeripheral.tags.length}}">
+        <text class="detail-chip category" wx:if="{{featuredPeripheral.category}}">{{featuredPeripheral.category}}</text>
+        <text class="detail-chip" wx:for="{{featuredPeripheral.tags}}" wx:key="*this">{{item}}</text>
+      </view>
+      <view class="detail-section" wx:if="{{featuredPeripheral.specs.length}}">
+        <text class="detail-label">商品规格</text>
+        <view class="detail-chips">
+          <text class="detail-chip spec" wx:for="{{featuredPeripheral.specs}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+      <view class="detail-section" wx:if="{{featuredPeripheral.description}}">
+        <text class="detail-label">商品说明</text>
+        <text class="detail-description">{{featuredPeripheral.description}}</text>
+      </view>
+      <view class="detail-section" wx:if="{{featuredPeripheral.deliveryCycle}}">
+        <text class="detail-label">交付周期</text>
+        <text class="detail-description">{{featuredPeripheral.deliveryCycle}}</text>
+      </view>
+      <view class="detail-section" wx:if="{{featuredPeripheral.services.length}}">
+        <text class="detail-label">服务说明</text>
+        <view class="detail-chips">
+          <text class="detail-chip spec" wx:for="{{featuredPeripheral.services}}" wx:key="*this">{{item}}</text>
+        </view>
+      </view>
+      <view class="detail-section" wx:if="{{featuredPeripheral.gallery.length}}">
+        <text class="detail-label">商品图集</text>
+        <view class="detail-gallery">
+          <view class="gallery-item" wx:for="{{featuredPeripheral.gallery}}" wx:key="key" data-index="{{index}}" bindtap="previewPeripheralMedia" role="button" aria-label="预览{{item.type === 'video' ? '视频' : '图片'}}{{index + 1}}">
+            <image wx:if="{{item.type === 'image' || item.poster}}" class="gallery-image" src="{{item.type === 'video' ? item.poster : item.url}}" mode="aspectFill" lazy-load />
+            <view wx:if="{{item.type === 'video'}}" class="gallery-video"><text class="gallery-play">▶</text><text>视频</text></view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="consult-bar">
+      <button class="consult-button" bindtap="contactService">咨询客服</button>
     </view>
   </block>
 </view>

@@ -24,6 +24,10 @@
         <view class="sold-pill" wx:elif="{{selectedPackage.isHot}}">热门预约</view>
       </view>
       <view class="package-title">{{selectedPackage.name}}</view>
+      <view class="package-description" wx:if="{{packageDescription}}">{{packageDescription}}</view>
+      <view class="package-tags" wx:if="{{serviceTags.length}}">
+        <text class="package-tag" wx:for="{{serviceTags}}" wx:key="*this">{{item}}</text>
+      </view>
       <view class="combo-metrics">
         <view class="combo-metric">
           <text class="combo-metric__value">{{packageStats.itemCount}}</text>
@@ -62,9 +66,10 @@
           <view class="item-card__dot item-card__dot--{{item.typeClass}}"></view>
           <view class="item-card__main">
             <view class="item-card__name">{{item.name}}</view>
+            <view class="item-card__type">{{item.typeLabel}} · ×{{item.quantity}}</view>
           </view>
           <view class="item-card__meta">
-            <text class="item-card__price">{{item.priceText}}</text>
+            <text wx:if="{{item.type !== 'peripheral'}}" class="item-card__price">{{item.priceText}}</text>
             <text class="item-card__arrow">›</text>
           </view>
         </view>

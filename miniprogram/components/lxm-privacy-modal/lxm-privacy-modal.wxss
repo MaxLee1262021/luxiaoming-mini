@@ -47,7 +47,8 @@ button {
 }
 
 .privacy-body {
-  flex: 1;
+  flex: 0 1 auto;
+  min-height: 0;
   max-height: 48vh;
 }
 
@@ -59,14 +60,33 @@ button {
 }
 
 .privacy-link {
-  margin-top: 18rpx;
+  flex-shrink: 0;
+  justify-content: flex-start;
+  width: 100%;
+  min-height: 88rpx;
+  margin: 18rpx 0 0;
+  padding: 12rpx 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--lxm-c-red-ink);
   font-size: var(--lxm-fz-base);
   font-weight: 700;
   text-decoration: underline;
 }
 
+.privacy-link::after {
+  border: 0;
+}
+
+.privacy-error {
+  flex-shrink: 0;
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-xs);
+  line-height: 1.5;
+}
+
 .privacy-actions {
+  flex-shrink: 0;
   display: flex;
   gap: 20rpx;
   margin-top: 30rpx;
@@ -74,6 +94,8 @@ button {
 
 .privacy-btn {
   flex: 1;
+  min-width: 0;
+  padding: 0;
   height: 88rpx;
   line-height: 88rpx;
   margin: 0;

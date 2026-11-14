@@ -23,7 +23,9 @@ function captureSource(options = {}) {
     sourceType: options.sourceType || sceneParams.sourceType || sceneParams.channel || stored.sourceType || '',
     codeId: options.codeId || sceneParams.codeId || stored.codeId || '',
     placementType: options.placementType || sceneParams.placementType || stored.placementType || '',
-    placementLabel: options.placementLabel || sceneParams.placementLabel || stored.placementLabel || ''
+    placementLabel: options.placementLabel || sceneParams.placementLabel || stored.placementLabel || '',
+    cityId: options.cityId || sceneParams.cityId || stored.cityId || '',
+    city: options.city || sceneParams.city || stored.city || ''
   }
 
   if (source.shopId || source.scene || source.distributorId || source.sourceType || source.codeId) {

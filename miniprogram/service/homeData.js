@@ -1,8 +1,14 @@
 const { normalizePackage, sortByHotScore, filterVisibleProducts, filterStorePeripherals, isVideoSingle } = require('../utils/product')
 const { buildModuleConfigMap, normalizeModuleConfig } = require('./pageConfig')
 const { filterPhotoSeries } = require('../utils/catalog')
-const { buildTarget } = require('../utils/router')
+const { buildTarget, normalizeRouteKey } = require('../utils/router')
+const { normalizeExternalUrl } = require('../utils/externalLink')
 const { normalizeAlbumPresentation } = require('../utils/albumPresentation')
+const { normalizePeripheral } = require('../utils/peripheralPresentation')
+const { getSpotCover } = require('./spotFilter')
+const { publicGuides } = require('../utils/guideContent')
+
+const HOME_SPOT_PAGE_SIZE = 20
 
 function mergePreviewList(list = [], fallback = []) {
   const seen = {}
@@ -60,15 +66,20 @@ function isRemovedQuickNav(item = {}) {
 
 function isVideoBanner(item = {}) {
   const type = String(item.type || item.mediaType || item.fileType || '').toLowerCase()
-  const url = String(item.videoUrl || item.url || item.fileID || item.fileId || item.src || '')
+  const url = String(bannerField(item, 'url', item.videoUrl || item.fileID || item.fileId || item.src || ''))
   return type === 'video' || /\.(mp4|mov|m4v|webm|m3u8)(\?|$)/i.test(url)
+}
+
+// 显式清空的新字段优先，避免重新读取后恢复旧素材、旧目标或旧链接。
+function bannerField(item, key, fallback = '') {
+  return Object.prototype.hasOwnProperty.call(item, key) ? (item[key] || '') : fallback
 }
 
 function normalizeBanner(item = {}) {
   const isVideo = isVideoBanner(item)
-  const url = isVideo
-    ? (item.videoUrl || item.url || item.fileID || item.fileId || item.src || '')
-    : (item.imageUrl || item.url || item.fileID || item.fileId || item.src || item.cover || '')
+  const url = bannerField(item, 'url', isVideo
+    ? (item.videoUrl || item.fileID || item.fileId || item.src || '')
+    : (item.imageUrl || item.fileID || item.fileId || item.src || item.cover || ''))
   return {
     ...item,
     _id: item._id || item.id || url,
@@ -76,37 +87,46 @@ function normalizeBanner(item = {}) {
     mediaType: isVideo ? 'video' : 'image',
     url,
     cover: item.cover || item.poster || item.imageUrl || item.thumbnail || '/images/placeholder.png',
-    linkUrl: item.linkUrl || item.jumpUrl || item.targetUrl || item.path || item.pagePath || '',
-    targetType: item.targetType || item.linkType || item.jumpType || '',
-    targetId: item.targetId || item.linkId || item.jumpId || item.packageId || item.seriesId || item.spotId || item.guideId || ''
+    linkUrl: bannerField(item, 'linkUrl', item.jumpUrl || item.targetUrl || item.path || item.pagePath || ''),
+    targetType: bannerField(item, 'targetType', item.linkType || item.jumpType || ''),
+    targetId: bannerField(item, 'targetId', item.linkId || item.jumpId || item.packageId || item.seriesId || item.spotId || item.guideId || '')
   }
 }
 
 function normalizeBanners(list = []) {
-  return (list || []).map(item => normalizeBanner(item)).filter(item => item.url)
+  return (Array.isArray(list) ? list : []).filter(item => item && typeof item === 'object')
+    .map(item => normalizeBanner(item)).filter(item => item.url)
 }
 
 function buildBookingAlbums(albums = [], series = [], spots = []) {
-  const seriesIds = new Set((series || []).map(item => item._id))
-  return (albums || []).filter(album => seriesIds.has(album.seriesId)).map(album => {
-    const albumId = album._id || album.albumId || ''
-    const currentSeries = series.find(item => item._id === album.seriesId) || {}
-    const spotId = album.spotId || (Array.isArray(currentSeries.spotIds) && currentSeries.spotIds[0]) || ''
-    const currentSpot = spots.find(item => item._id === spotId) || {}
-    const sampleUrls = album.sampleUrls || album.samples || []
+  const seriesById = new Map()
+  const spotsById = new Map()
+  series.forEach(item => {
+    const id = String(item._id || item.id)
+    if (!seriesById.has(id)) seriesById.set(id, item)
+  })
+  spots.forEach(item => {
+    if (!spotsById.has(item._id)) spotsById.set(item._id, item)
+  })
+  return filterVisibleProducts(albums || []).map(album => {
+    const albumId = album._id || album.id || album.albumId || ''
+    const currentSeries = seriesById.get(String(album.seriesId || '')) || {}
+    const inheritedSpotId = album.spotBindingExplicit === true ? '' : (Array.isArray(currentSeries.spotIds) && currentSeries.spotIds[0]) || ''
+    const spotId = album.spotId || (Array.isArray(album.spotIds) && album.spotIds[0]) || inheritedSpotId || ''
+    const currentSpot = spotsById.get(spotId) || {}
     const normalizedAlbum = normalizeAlbumPresentation(album)
     return {
       ...normalizedAlbum,
       _id: albumId,
       albumId,
-      seriesId: album.seriesId || currentSeries._id || '',
+      seriesId: album.seriesId || currentSeries._id || currentSeries.id || '',
       spotId,
       spotName: album.spotName || currentSpot.name || '',
       seriesName: album.seriesName || currentSeries.name || '',
-      cover: album.cover || album.coverImage || sampleUrls[0] || '/images/placeholder.png',
-      sampleCount: normalizedAlbum.photoCount || sampleUrls.length || 0
+      cover: normalizedAlbum.cover || '/images/placeholder.png',
+      sampleCount: normalizedAlbum.photoCount
     }
-  }).filter(item => item.albumId && item.seriesId)
+  }).filter(item => item.albumId)
 }
 
 function buildSpotCardGradient(spot = {}, index = 0) {
@@ -143,8 +163,10 @@ function buildSpotCardGradient(spot = {}, index = 0) {
 }
 
 function buildHomeSpots(spots = []) {
-  return sortByHotScore(spots).slice(0, 8).map((spot, index) => ({
+  // 分页列表沿用服务端的排名顺序，追加时只补齐卡片展示字段。
+  return spots.map((spot, index) => ({
     ...spot,
+    cover: getSpotCover(spot),
     cardGradient: buildSpotCardGradient(spot, index)
   }))
 }
@@ -187,47 +209,83 @@ function pickHomeVideoItems(list = [], limit = 4) {
   return sortByHotScore(list).filter(isVideoSingle).slice(0, limit)
 }
 
-function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
-  const mergedSpots = mergePreviewList(data.spots, previewData.spots)
-  const mergedSeries = mergePreviewList(data.series, previewData.series)
+// 旧接口保留完整候选目录在逻辑层，先按点位过滤，再限制横滑预览数量。
+// 新接口的 spotProducts 已在服务端按点位筛选，完整展示该点商品。
+function buildHomeSpotShelf(data = {}, spotId = '', scoped = false, complete = scoped) {
+  const series = Array.isArray(data.series) ? data.series : []
+  const seriesById = new Map(series.map(item => [String(item._id || item.id || ''), item]))
+  const boundIds = item => [item.spotId, ...(Array.isArray(item.spotIds) ? item.spotIds : [])]
+    .filter(value => value !== undefined && value !== null && String(value).trim()).map(String)
+  const cityValues = [data.cityId, data.city].filter(Boolean).map(String)
+  const declaredCities = item => [item.cityId, item.city, item.cityName, ...(Array.isArray(item.cityIds) ? item.cityIds : []),
+    ...(Array.isArray(item.cities) ? item.cities : [])].filter(Boolean)
+    .flatMap(value => typeof value === 'object' ? [value._id, value.id, value.name, value.code].filter(Boolean) : [value]).map(String)
+  const spotsById = new Map((data.spots || []).map(item => [String(item._id || item.id || ''), item]))
+  const matchesCity = item => {
+    if (scoped || !cityValues.length) return true
+    const declared = declaredCities(item)
+    // 旧完整目录不处理城市参数；全城通用周边也只能在其所属城市展示。
+    const cities = declared.length ? declared : boundIds(item).flatMap(id => declaredCities(spotsById.get(id) || {}))
+    return !cities.length || cities.some(value => cityValues.includes(value))
+  }
+  const matches = item => {
+    if (!matchesCity(item)) return false
+    if (scoped || !spotId) return true
+    const ids = boundIds(item)
+    if (ids.length) return ids.includes(String(spotId))
+    if (item.spotBindingExplicit === true) return true
+    const owner = seriesById.get(String(item.seriesId || ''))
+    const inherited = owner ? boundIds(owner) : []
+    return (!owner || matchesCity(owner)) && (!inherited.length || inherited.includes(String(spotId)))
+  }
+  const allPackages = mergeManyLists(data.packages, data.allPackages, data.hotPackages)
+    .filter(item => filterVisibleProducts([item]).length)
+  const albums = buildBookingAlbums(filterVisibleProducts(data.albums || []).filter(matches), series, data.spots || [])
+  const packages = sortByHotScore(allPackages.filter(matches).map(normalizePackage)
+    .filter(item => item.displayType === 'photo' && !isVideoSingle(item)))
+  const videos = sortByHotScore(mergeManyLists(data.videoSingles, data.videoProducts, allPackages.filter(isVideoSingle))
+    .filter(isVideoSingle).filter(item => filterVisibleProducts([item]).length).filter(matches).map(normalizeHomeVideoItem))
+  const peripherals = filterStorePeripherals(data.peripherals || []).filter(item => {
+    if (!matchesCity(item)) return false
+    if (scoped || !spotId || item.mode === '全城通用') return true
+    const ids = boundIds(item)
+    return !ids.length || ids.includes(String(spotId))
+  }).map(normalizePeripheral)
+  return {
+    albums: complete ? albums : albums.slice(0, 10),
+    videos: complete ? videos : videos.slice(0, 4),
+    packages: complete ? packages : packages.slice(0, 6),
+    peripherals: complete ? peripherals : peripherals.slice(0, 10)
+  }
+}
+
+function buildHomeViewData(data = {}) {
+  const mergedSpots = Array.isArray(data.spots) ? data.spots : []
+  const mergedSeries = Array.isArray(data.series) ? data.series : []
   const photoSeries = filterPhotoSeries(mergedSeries)
-  const mergedAlbums = mergePreviewList(data.albums, previewData.albums || demoData.albums)
-  const mergedGuides = mergePreviewList(data.guides, previewData.guides)
-  const mergedPeripherals = filterStorePeripherals(mergePreviewList(data.peripherals, previewData.peripherals))
+  const mergedAlbums = Array.isArray(data.albums) ? data.albums : []
+  const mergedGuides = publicGuides(data.guides)
+  const mergedPeripherals = filterStorePeripherals(Array.isArray(data.peripherals) ? data.peripherals : [])
   const recommendationIds = collectPackageRecommendationIds(
     data.recommendations,
     data.pageConfig && data.pageConfig.recommendations,
-    data.homeConfig,
-    previewData.recommendations,
-    previewData.pageConfig && previewData.pageConfig.recommendations
+    data.homeConfig
   )
   // Different RPC generations expose packages under different keys. Merge all
   // of them, then apply the public visibility contract before normalizing.
   const allPackages = mergeManyLists(
     data.packages,
     data.allPackages,
-    data.hotPackages,
-    previewData.packages,
-    previewData.allPackages,
-    previewData.hotPackages
+    data.hotPackages
   ).filter(item => filterVisibleProducts([item]).length).map(item => {
     const normalized = normalizePackage(item)
     const id = packageIdentity(normalized)
-    // 后端 getHomeData 若未返回 includedItems，先用 demoData 同 id 套餐兜底，避免首页组合标签为空
-    if (!normalized.includedItems || !normalized.includedItems.length) {
-      const demoPkg = (demoData.packages || []).find(p => packageIdentity(p) === id)
-      if (demoPkg && demoPkg.includedItems) {
-        normalized.includedItems = demoPkg.includedItems
-      }
-    }
     return { ...normalized, _id: id }
   })
   // 短视频单品：兼容后端 getHomeData 的 videoSingles 推荐字段（与 videoProducts 同源，去重合并）
   const explicitVideoProducts = mergeManyLists(
     data.videoProducts,
-    data.videoSingles,
-    previewData.videoProducts,
-    previewData.videoSingles
+    data.videoSingles
   ).filter(isVideoSingle).filter(item => filterVisibleProducts([item]).length)
   // 「热门套餐」只展示可公开的旅拍套餐。后台可能只设置 isMainPush，
   // 也可能通过首页 recommendations 配置，因此不能只依赖 isHot。
@@ -249,10 +307,22 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
     allPackages.filter(isVideoSingle)
   ).filter(item => filterVisibleProducts([item]).length).map(normalizeHomeVideoItem)
   const homeVideoProducts = pickHomeVideoItems(videoPackages, 4)
-  const homeModules = normalizeModuleConfig(data.modules || previewData.modules)
-  const homeSpots = buildHomeSpots(mergedSpots)
+  const configuredModules = (data.modules || []).map(item => item && ({
+    ...item,
+    visible: item.visible !== false && item.enabled !== false
+  }))
+  const homeModules = normalizeModuleConfig(configuredModules)
+  // 首页模板通过 moduleConfig[key].visible 判断显隐。可见列表会过滤关闭的
+  // 板块，因此需在映射中保留 false，避免缺项又被模板当作默认显示。
+  const moduleConfig = buildModuleConfigMap([
+    ...homeModules,
+    ...configuredModules.filter(item => item && item.visible === false)
+  ])
+  const homeSpots = buildHomeSpots(data.spotPagination
+    ? mergedSpots
+    : sortByHotScore(mergedSpots).slice(0, HOME_SPOT_PAGE_SIZE))
   const homeSeries = buildHomeSeries(photoSeries, mergedSpots, mergedAlbums, allPackages)
-  const rawQuickNav = data.quickNav || previewData.quickNav
+  const rawQuickNav = data.quickNav
   // The home page already exposes the map banner and ranked spot shelf; remove
   // the redundant "all spots" shortcut even when an older backend config still
   // returns it.
@@ -261,11 +331,11 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
     : []
 
   return {
-    shopInfo: data.shopInfo || previewData.shopInfo || {},
-    activityText: data.activityText || previewData.activityText || '',
-    banners: normalizeBanners(mergePreviewList(data.banners, previewData.banners)).slice(0, 6),
+    shopInfo: data.shopInfo || {},
+    activityText: data.activityText || '',
+    banners: normalizeBanners(data.banners || []).slice(0, 6),
     // 探索页轮播：与首页轮播「单独一套」，后台在 homeConfig.exploreBanners 独立配置
-    exploreBanners: normalizeBanners(mergePreviewList(data.exploreBanners, previewData.exploreBanners)).slice(0, 6),
+    exploreBanners: normalizeBanners(data.exploreBanners || []).slice(0, 6),
     // 首页快捷入口：后台可配置的"导航"（tabBar 不可运行时改，故用首页快捷入口承载）
     quickNav,
     spots: homeSpots,
@@ -278,7 +348,7 @@ function buildHomeViewData(data = {}, previewData = {}, demoData = {}) {
     videoPackages: homeVideoProducts,
     peripherals: mergedPeripherals,
     homeModules,
-    moduleConfig: buildModuleConfigMap(homeModules),
+    moduleConfig,
     loading: false
   }
 }
@@ -301,19 +371,28 @@ function getHomePackageDetailPath(pkg = {}) {
 }
 
 function getBannerTarget(banner = {}) {
-  const directUrl = banner.linkUrl || ''
-  if (directUrl) {
-    return {
-      method: (directUrl.includes('/pages/explore/explore') || directUrl.includes('/pages/my/my')) ? 'switchTab' : 'navigateTo',
-      url: directUrl
-    }
+  if (!banner) return null
+  const type = normalizeRouteKey(banner.targetType || '')
+  if (['none', 'static'].includes(type)) return null
+  const directUrl = typeof banner.linkUrl === 'string' ? banner.linkUrl.trim() : ''
+  if (type === 'external' || (!type && /^https:\/\//i.test(directUrl))) {
+    const url = normalizeExternalUrl(directUrl)
+    return url ? { method: 'navigateTo', path: '/pages/webview/webview', params: { url } } : null
   }
-  // 统一从路由表取目标（首页 Banner 与快捷入口共用 utils/router）
-  return buildTarget(String(banner.targetType || ''), banner.targetId || '')
+  // 已配置的内容目标优先，旧链接不能覆盖新选择的商品或旅拍灵感。
+  if (type) return buildTarget(type, banner.targetId || '')
+  // 只为未配置类型的旧素材保留小程序内页面直链。
+  if (!/^\/pages\/[a-z\d_/-]+(?:\?[^#]*)?$/i.test(directUrl)) return null
+  const pathname = directUrl.split('?')[0]
+  const isTab = ['/pages/index/index', '/pages/explore/explore', '/pages/my/my'].includes(pathname)
+  return { method: isTab ? 'switchTab' : 'navigateTo', url: directUrl }
 }
 
 module.exports = {
+  HOME_SPOT_PAGE_SIZE,
   buildBookingAlbums,
+  buildHomeSpots,
+  buildHomeSpotShelf,
   buildHomeViewData,
   findHomePackage,
   getBannerTarget,

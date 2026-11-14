@@ -1,4 +1,9 @@
+const { normalizeAlbumPresentation } = require('../../utils/albumPresentation')
+
 Component({
+  data: {
+    album: {}
+  },
   properties: {
     item: {
       type: Object,
@@ -60,7 +65,7 @@ Component({
           marketingBadgeClass = 'is-hot'
         }
       }
-      this.setData({ marketingBadge, marketingBadgeClass })
+      this.setData({ album: normalizeAlbumPresentation(item || {}), marketingBadge, marketingBadgeClass })
     }
   },
 

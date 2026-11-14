@@ -1,4 +1,5 @@
 const { normalizePackageList, normalizePackage, buildVideoFields, buildPackageBenefits, isVideoSingle, filterVisibleProducts } = require('../utils/product')
+const { displayTags, displayText, displayVideoDuration, shootingInstructions } = require('../utils/productDisplay')
 
 function resolveItemPrice(item = {}, context = {}) {
   const declared = Number(item.price)
@@ -49,21 +50,30 @@ function normalizeIncludedItems(items = [], context = {}) {
 
 // isVideoSingle 统一从 utils/product 引入（单一真相源），不再本地重写
 
-function pickVideoUrl(item = {}) {
-  return item.videoUrl || item.previewVideoUrl || item.url || item.src || ''
+function pickMediaUrl(item = {}) {
+  return [item.videoUrl, item.previewVideoUrl, item.url, item.src].map(displayText).find(Boolean) || ''
 }
 
-function normalizeVideoSample(item = {}, fallback = {}) {
-  const url = pickVideoUrl(item) || pickVideoUrl(fallback)
+function normalizeVideoSample(value = {}, fallback = {}, hint = 'video') {
+  const item = typeof value === 'string' ? { url: value } : (value || {})
+  const url = pickMediaUrl(item)
+  // File suffixes take precedence over the product's video category. A photo
+  // incorrectly placed in a videos array must still render as an image.
+  const knownImage = /\.(?:jpe?g|png|webp|gif|bmp|svg|avif|heic)(?:[?#]|$)/i.test(url) || /^data:image\//i.test(url)
+  const knownVideo = /\.(?:mp4|mov|m4v|webm|avi)(?:[?#]|$)/i.test(url)
+  const declaredType = String(item.mediaType || item.mimeType || item.type || '').toLowerCase()
+  const type = knownImage ? 'image' : knownVideo ? 'video' : /^(?:image|photo)/.test(declaredType) ? 'image'
+    : /^video/.test(declaredType) ? 'video' : hint
   return {
     ...item,
     _id: item._id || item.id || item.videoId || fallback.videoId || fallback._id,
     title: item.title || item.name || fallback.name || '视频摄像样片',
-    cover: item.cover || item.poster || fallback.cover || '/images/placeholder.png',
+    cover: type === 'image' && url ? url : item.cover || item.poster || fallback.cover || '',
     url,
-    videoUrl: url,
-    type: 'video',
-    durationText: item.durationText || item.videoDuration || fallback.videoDuration || '',
+    videoUrl: type === 'video' ? url : '',
+    type,
+    durationText: type === 'video' ? displayVideoDuration(item.videoDuration) || displayVideoDuration(item.durationText)
+      || displayVideoDuration(fallback.videoDuration) || displayVideoDuration(fallback.durationText) : '',
     spotName: item.spotName || fallback.spotName || ''
   }
 }
@@ -100,10 +110,22 @@ function buildVideoProductDetail(data = {}, params = {}) {
     item._id !== (linkedVideo && linkedVideo._id)
     && (item.seriesId === product.seriesId || item.spotId === product.spotId)
   ))
-  const samples = [
+  const ownMedia = [
+    normalizeVideoSample(product, product),
+    ...(Array.isArray(product.images) ? product.images : []).map(item => normalizeVideoSample(item, product, 'image')),
+    ...(Array.isArray(product.videos) ? product.videos : []).map(item => normalizeVideoSample(item, product, 'video'))
+  ].filter(item => item.url)
+  const samples = (ownMedia.length ? ownMedia : [
     normalizeVideoSample(linkedVideo || product, product),
     ...sameSceneVideos
-  ].filter((item, index, list) => item && item.cover && list.findIndex(target => target._id === item._id) === index).slice(0, 6)
+  ]).filter((item, index, list) => item && (item.url || item.cover)
+    && list.findIndex(target => (target.url || target.cover) === (item.url || item.cover)) === index)
+    .map((item, index) => ({ ...item, _id: `${product._id}-media-${index}` }))
+  const duration = displayVideoDuration(product.videoDuration) || displayVideoDuration(product.durationText)
+  const finishedCount = displayText(product.finishedVideoCount ?? product.videoCount ?? product.deliverCount)
+  const videoFields = buildVideoFields({ ...product, videoDuration: duration,
+    finishedVideoCount: /^\d+(?:\.\d+)?$/.test(finishedCount) ? `${finishedCount} 条` : finishedCount })
+  if (typeof product.makeupIncluded === 'boolean') videoFields.push({ label: '妆造服务', value: product.makeupIncluded ? '包含' : '不含' })
 
   const recommendations = allPackages
     .filter(item => item._id !== product._id && item.isVideo && isVideoSingle(item))
@@ -118,7 +140,9 @@ function buildVideoProductDetail(data = {}, params = {}) {
     spot,
     samples,
     recommendations,
-    videoFields: buildVideoFields(product),
+    displayTags: displayTags(product.tags, product.serviceTags, product.styleTags),
+    instructions: shootingInstructions(product.shootingNotes ?? product.shootingDescription ?? product.shootingNote ?? product.intro ?? product.description),
+    videoFields,
     packageBenefits: buildPackageBenefits(product),
     includedItems: normalizeIncludedItems(selectedProduct && selectedProduct.includedItems, {
       videoProducts: data.videoProducts || data.videoSingles || [],

@@ -47,6 +47,7 @@ function loadPage(name) {
   const dependencies = {
     '../../api/order': api, '../../utils/order': orderUtils,
     '../../utils/orderStatusFilters': filters, '../../utils/query': queryUtils,
+    '../../utils/productDisplay': require('../miniprogram/utils/productDisplay'),
     '../../service/bookingConfig': { getConfig() { return {}; } },
     '../../service/orderFileActions': { data: {}, actions: { async loadAfterSales() {} } },
     '../../service/mediaFiles': { normalizeFile: value => value }
@@ -115,7 +116,12 @@ function loadPage(name) {
     ['shooting', '拍摄中', { ...paidDeposit, businessStatus: 'shooting', workflowStage: 'shooting', status: 'shooting', shootingStartedAt: '2026-10-26T09:00:00Z', canRefundDeposit: false, canPayFinal: true, paymentPhase: 'final' }],
     ['shooting', '拍摄中', { ...paidDeposit, businessStatus: 'shooting', workflowStage: 'awaiting_final_payment', shootingCompleted: true, shootingCompletedAt: '2026-10-26T10:00:00Z', selectionStatus: 'pending', canRefundDeposit: false, canPayFinal: true, paymentPhase: 'final' }],
     ['completed', '已完成', { ...paidDeposit, businessStatus: 'completed', workflowStage: 'paid', status: 'paid', shootingCompleted: true, finalPaid: 70, finalPaymentStatus: 'confirmed', canRefundDeposit: false }],
-    ['completed', '已完成', { ...paidDeposit, businessStatus: 'completed', workflowStage: 'completed', status: 'completed', shootingCompleted: true, finalPaid: 70, finalPaymentStatus: 'confirmed', canRefundDeposit: false }]
+    ['completed', '已完成', { ...paidDeposit, businessStatus: 'completed', workflowStage: 'completed', status: 'completed', shootingCompleted: true, finalPaid: 70, finalPaymentStatus: 'confirmed', canRefundDeposit: false }],
+    // Service-workbench completion can retain legacy workflow and payment
+    // fields. The customer's completed tab must keep the server's result.
+    ['completed', '已完成', { ...paidDeposit, businessStatus: 'completed', workflowStage: 'awaiting_shoot', status: 'deposit_paid', canRefundDeposit: false }],
+    ['completed', '已完成', { ...paidDeposit, businessStatus: 'completed', workflowStage: 'completed', status: 'deposit_paid', shootingCompleted: true, canRefundDeposit: false }],
+    ['shooting', '拍摄中', { ...paidDeposit, businessStatus: 'shooting', workflowStage: 'awaiting_final_payment', status: 'completed', shootingCompleted: true, finalPaid: 70, finalPaymentStatus: 'confirmed', paymentReviewRequired: true, canPayFinal: false, canRefundDeposit: false }]
   ];
   for (const [key, text, payload] of scenarios) {
     publicOrder = payload;
@@ -134,7 +140,7 @@ function loadPage(name) {
     assert.equal(requests.at(-1).businessStatus, key);
     const filter = filters.ORDER_STATUS_FILTERS.find(item => item.key === key);
     assert.equal(my.data.orderCounts[filter.countKey], 1);
-    if (key === 'shooting') assert.equal(detail.data.order.canPayFinal, payload.shootingCompleted === true);
+    if (key === 'shooting') assert.equal(detail.data.order.canPayFinal, payload.shootingCompleted === true && payload.paymentReviewRequired !== true);
     if (key === 'completed') {
       assert.equal(detail.data.order.canPay, false);
       assert.equal(detail.data.order.deliveryVisible, false, 'delivery is independent of order completion');
@@ -142,6 +148,30 @@ function loadPage(name) {
     }
   }
   assert.equal(orderUtils.normalizeOrder({ ...scenarios[3][2], canPayFinal: false }).canPayFinal, false);
+  const completedWithStaleActions = {
+    ...paidDeposit, businessStatus: 'completed', workflowStage: 'awaiting_final_payment',
+    shootingCompleted: true, canPayFinal: true, paymentPhase: 'final', canCancel: true
+  };
+  assert.equal(orderUtils.normalizeOrder(completedWithStaleActions).canPay, false);
+  assert.equal(orderUtils.canCancelOrder(completedWithStaleActions), false);
+  assert.equal(orderUtils.paymentConfirmed(completedWithStaleActions, 'final'), false, 'completion must not invent a payment confirmation');
+  assert.equal(orderUtils.normalizeOrder({ ...completedWithStaleActions, status: 'cancelled' }).businessStatusKey, 'cancelled');
+  assert.equal(orderUtils.normalizeOrder({ ...completedWithStaleActions, deleted: true }).businessStatusKey, 'cancelled');
+  assert.equal(orderUtils.normalizeOrder({ ...completedWithStaleActions, paymentReviewRequired: true, businessStatus: 'shooting' }).canPay, false);
+  const zeroBalance = {
+    ...paidDeposit, businessStatus: 'shooting', workflowStage: 'awaiting_final_payment',
+    totalAmount: 30, finalDue: 0, shootingCompleted: true, canConfirmCompletion: true
+  };
+  const zeroOrder = orderUtils.normalizeOrder(zeroBalance);
+  assert.equal(zeroOrder.canConfirmCompletion, true);
+  assert.equal(zeroOrder.canPay, false);
+  assert.equal(zeroOrder.nextAction, '确认订单完成');
+  assert.match(orderUtils.getOrderStatusDesc('shooting', zeroOrder), /无需支付尾款/);
+  for (const patch of [
+    { finalDue: 70 }, { shootingCompleted: false }, { canConfirmCompletion: false },
+    { paymentReviewRequired: true }, { afterSaleActive: true }, { businessStatus: 'completed' },
+    { status: 'cancelled' }, { depositPaid: 0 }, { finalPaymentStatus: 'confirmed' }
+  ]) assert.equal(orderUtils.normalizeOrder({ ...zeroBalance, ...patch }).canConfirmCompletion, false, JSON.stringify(patch));
   const detailMarkup = fs.readFileSync(path.join(miniRoot, 'pages/orderDetail/orderDetail.wxml'), 'utf8');
   assert.match(detailMarkup, /wx:for="\{\{orderStatusFilters\}\}"/);
   assert.doesNotMatch(detailMarkup, /step-label">(?:已支付|已交付|已拍摄)/);

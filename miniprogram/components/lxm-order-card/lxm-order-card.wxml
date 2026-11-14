@@ -2,7 +2,7 @@
   <view class="order-hd">
     <view class="status-tag status-{{item.customerStatusKey || item.status}}">
       <view class="status-dot-inner"></view>
-      <text>{{item.statusText}}</text>
+      <text>{{item.canPayFinal ? '待付尾款' : item.canConfirmCompletion ? '待确认完成' : item.statusText}}</text>
     </view>
     <text class="order-no">{{item.orderNo || item._id}}</text>
   </view>
@@ -17,8 +17,9 @@
   <view class="order-type">{{item.type === 'video' ? '视频摄像' : '照片留影'}}</view>
   <view class="order-payment" wx:if="{{item.canPayDeposit && item.depositDue > 0}}">待付订金 ¥{{item.depositDue}}</view>
   <view class="order-payment" wx:elif="{{item.canPayFinal && item.finalDue > 0}}">待付尾款 ¥{{item.finalDue}}</view>
+  <view class="order-payment" wx:elif="{{item.canConfirmCompletion}}">拍摄已完成，本单无需支付尾款</view>
 
   <view class="btn-row">
-    <view class="detail-btn" catchtap="emitDetail">查看详情</view>
+    <view class="detail-btn" catchtap="emitDetail">{{item.canPayFinal ? '支付尾款' : item.canConfirmCompletion ? '确认完成' : '查看详情'}}</view>
   </view>
 </view>

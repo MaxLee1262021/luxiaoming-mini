@@ -8,7 +8,6 @@
     <view class="lxm-skeleton lxm-skeleton-block lxm-skeleton-block--short"></view>
   </view>
   <block wx:else>
-  <!-- 加载失败提示：只有显式演示模式才展示本地预览数据 -->
   <view wx:if="{{degraded}}" class="lxm-degrade-bar">
     <text class="lxm-degrade-bar__txt">拍摄项目暂时无法加载，请重试后再提交预约</text>
     <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载拍摄项目">重新加载</view>
@@ -58,7 +57,7 @@
           </view>
           <view class="stepper-hint">含拍摄本人，最多可选 10 人；约拍定制将按人数阶梯计价</view>
         </view>
-        <view class="selected-price" wx:if="{{item.custom}}">¥{{item.price || 0}}（{{participantCount}} 人）</view>
+        <view class="selected-price" wx:if="{{item.custom}}">{{item.price === null || item.price === undefined ? '待配置' : '¥' + item.price}}（{{participantCount}} 人）</view>
         <view class="selected-rule" wx:if="{{item.custom}}">{{item.pricingRule || '价格面议'}}</view>
         <view class="selected-price" wx:else>¥{{item.price || 0}}</view>
       </view>
@@ -124,7 +123,7 @@
         </view>
       <view class="fee-total">
         <text>合计</text>
-        <text class="total-price">¥{{totalPrice}}</text>
+        <text class="total-price">{{pricingUnavailable ? '待配置' : '¥' + totalPrice}}</text>
       </view>
     </view>
 
@@ -132,19 +131,25 @@
       <view class="card-title">预约方式</view>
       <view class="mode-option active">
         <view class="mode-head">
-          <text class="mode-name">定金预约</text>
-          <text class="mode-fee">需支付 ¥{{depositDue}}</text>
+          <text class="mode-name">{{!depositUnavailable && depositDue === 0 ? '直接预约' : '定金预约'}}</text>
+          <text class="mode-fee">{{depositUnavailable ? '定金待配置' : (depositDue === 0 ? '本次无需定金' : '需支付 ¥' + depositDue)}}</text>
           <view class="mode-check"><lxm-icon type="check" size="22" color="white"></lxm-icon></view>
         </view>
-        <view class="mode-desc">定金按当前预约项目总价的 {{depositPercent}}% 计算。提交后调起定金支付（微信支付），支付 ¥{{depositDue}} 后生成预约单。</view>
+        <view class="mode-desc" wx:if="{{!depositUnavailable && depositDue > 0}}">定金按当前预约项目总价的 {{depositPercent}}% 计算。提交后调起定金支付（微信支付），支付 ¥{{depositDue}} 后生成预约单。</view>
+        <view class="mode-desc" wx:elif="{{!depositUnavailable && depositDue === 0}}">本次无需支付定金，提交后生成预约单。</view>
         <view class="deposit-row">
           <text>本次应付定金</text>
-          <text class="deposit-amount">¥{{depositDue}}</text>
+          <text class="deposit-amount">{{depositUnavailable ? '待配置' : '¥' + depositDue}}</text>
         </view>
       </view>
     </view>
 
     <view class="booking-payment-hint" wx:if="{{paymentMessage}}">{{paymentMessage}}</view>
+
+    <view class="booking-config-state" wx:if="{{bookingConfigLoading || bookingConfigError}}" role="status">
+      <text>{{bookingConfigLoading ? '正在加载预约信息…' : bookingConfigError}}</text>
+      <button wx:if="{{!bookingConfigLoading && bookingConfigError}}" class="booking-config-retry" bindtap="retryBookingConfig" disabled="{{submitting || paymentSubmitting}}">重新加载</button>
+    </view>
 
     <view class="notice-row" wx:if="{{moduleVisible.notice}}" bindtap="toggleAgree">
       <view class="checkbox"><lxm-icon wx:if="{{agreed}}" type="check" size="20" color="red"></lxm-icon></view>
@@ -161,8 +166,8 @@
     />
   </block>
   <view class="booking-submit-bar">
-    <button class="submit-btn" bindtap="submitBooking" loading="{{submitting || paymentSubmitting}}" disabled="{{submitting || paymentSubmitting || dataUnavailable}}" aria-label="提交预约">
-      {{paymentSubmitting ? '支付处理中...' : (submitting ? '提交中...' : ('提交预约并支付定金 ¥' + depositDue))}}
+    <button class="submit-btn" bindtap="submitBooking" loading="{{submitting || paymentSubmitting || bookingConfigLoading}}" disabled="{{submitting || paymentSubmitting || bookingConfigLoading || bookingConfigError || dataUnavailable || pricingUnavailable || depositUnavailable || !bookingConfig.bookingNotice || !bookingConfig.bookingNoticeVersion}}" aria-label="提交预约">
+      {{paymentSubmitting ? '支付处理中...' : (submitting ? '提交中...' : (bookingConfigLoading ? '预约信息加载中…' : (bookingConfigError || !bookingConfig.bookingNotice || !bookingConfig.bookingNoticeVersion ? '预约信息未就绪' : (depositUnavailable ? '预约配置待完善' : (depositDue === 0 ? '提交预约' : '提交预约并支付定金 ¥' + depositDue)))))}}
     </button>
   </view>
 </block>

@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'lxm_site_page_config'
+const STORAGE_KEY = 'lxm_site_page_config_live_v2'
 
 function normalizePageModules(pageModules = {}) {
   return pageModules && typeof pageModules === 'object' ? pageModules : {}

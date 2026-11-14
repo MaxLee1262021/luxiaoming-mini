@@ -4,6 +4,8 @@
  * 不再两份各写一份 routeMap。targetType → 页面路径 + 打开方式（navigateTo / switchTab）。
  */
 
+const { buildUrl: buildRouteUrl } = require('./query')
+
 const ROUTES = {
   // 详情 / 列表（带 id 的用 PARAM_KEY 映射参数名）
   spot:          { path: '/pages/spotSheet/spotSheet', method: 'navigateTo' },
@@ -27,7 +29,7 @@ const ROUTES = {
   photos:        { path: '/pages/search/search', method: 'navigateTo' },
   photo_list:    { path: '/pages/search/search', method: 'navigateTo' },
   photo_collection: { path: '/pages/photoCollection/photoCollection', method: 'navigateTo' },
-  peripheral:    { path: '/pages/peripheralDetail/peripheralDetail', method: 'navigateTo' },
+  peripheral:    { path: '/pages/peripherals/peripherals', method: 'navigateTo' },
   peripherals:   { path: '/pages/peripherals/peripherals', method: 'navigateTo' },
   explore:       { path: '/pages/explore/explore', method: 'switchTab' },
   guide:         { path: '/pages/guideDetail/guideDetail', method: 'navigateTo' },
@@ -49,7 +51,8 @@ const PARAM_KEY = {
   video_single: 'productId',
   video: 'productId',
   guide: 'id',
-  peripheral: 'id'
+  peripheral: 'id',
+  peripherals: 'id'
 }
 
 // 统一处理下划线、短横线和驼峰写法，避免后台 targetType 变体静默失配。
@@ -71,12 +74,14 @@ function buildTarget(type = '', id = '') {
   const route = ROUTE_BY_KEY[key]
   if (!route) return null
   const paramKey = PARAM_BY_KEY[key]
+  const hasId = !!String(id || '').trim()
   // 保留旧版 `video` 入口的列表语义；配置了 targetId 时才直达视频详情。
-  if (key === 'video' && !String(id || '').trim()) {
+  if (key === 'video' && !hasId) {
     return { method: 'switchTab', path: '/pages/explore/explore', params: {} }
   }
-  if (paramKey && !String(id || '').trim()) return null
-  const params = (paramKey && id) ? { [paramKey]: id } : {}
+  // 周边为展示列表：有 id 时选中对应作品，未配置 id 时也可正常打开。
+  if (paramKey && !hasId && !['peripheral', 'peripherals'].includes(key)) return null
+  const params = (paramKey && hasId) ? { [paramKey]: id } : {}
   return { method: route.method || 'navigateTo', path: route.path, params }
 }
 
@@ -87,7 +92,7 @@ function navigateToType(type = '', id = '', buildUrl) {
   if (target.method === 'switchTab') {
     wx.switchTab({ url: target.path })
   } else {
-    const url = typeof buildUrl === 'function' ? buildUrl(target.path, target.params) : target.path
+    const url = typeof buildUrl === 'function' ? buildUrl(target.path, target.params) : buildRouteUrl(target.path, target.params)
     wx.navigateTo({ url })
   }
   return true

@@ -11,7 +11,7 @@
     </block>
   </view>
 
-  <scroll-view class="order-list" scroll-y enable-back-to-top refresher-enabled bindrefresherrefresh="onRefresh" refresher-triggered="{{refreshing}}">
+  <scroll-view class="order-list" scroll-y enable-back-to-top bindscrolltolower="onReachBottom" refresher-enabled bindrefresherrefresh="onRefresh" refresher-triggered="{{refreshing}}">
     <view wx:if="{{error}}" class="order-error">
       <view>{{error}}</view>
       <button class="order-error-btn" bindtap="onRetryLoad">重新加载</button>

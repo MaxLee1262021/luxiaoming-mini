@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict')
+const fs = require('node:fs')
+const path = require('node:path')
 const { buildRelatedPhotoCollections } = require('../miniprogram/service/relatedPhotoCollections')
 
 const current = { _id: 'album-current', seriesId: 'series-a', spotId: 'spot-a', name: '当前照片', price: 699, photoCount: 6 }
@@ -73,6 +75,11 @@ async function run() {
   assert.equal(new URL(navigations.at(-1), 'https://mini.test').searchParams.get('seriesId'), rec.seriesId)
   page.goBookingFromCollectionBottom()
   assert.equal(new URL(navigations.at(-1), 'https://mini.test').searchParams.get('albumId'), current._id)
+  page.goPeripheralDetail({ currentTarget: { dataset: { id: 'gift&1' } } })
+  assert.equal(navigations.at(-1), '/pages/peripherals/peripherals?id=gift%261&shopId=shop-source')
+  const markup = fs.readFileSync(path.resolve(__dirname, '../miniprogram/pages/photoCollection/photoCollection.wxml'), 'utf8')
+  assert.doesNotMatch(markup, /peripheral-price/)
+  assert.match(markup, /currentCollection\.price/, 'Photography prices must remain visible')
 
   // 目录中的最新下架状态优先于详情中的旧副本。
   assert.deepEqual(buildRelatedPhotoCollections(current, [sameSeries], {

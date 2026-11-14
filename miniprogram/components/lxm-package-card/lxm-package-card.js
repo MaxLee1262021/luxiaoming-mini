@@ -1,3 +1,5 @@
+const { displayTags, displayText, includedItemStats } = require('../../utils/productDisplay')
+
 Component({
   properties: {
     item: {
@@ -33,6 +35,15 @@ Component({
       type: Number,
       value: 0
     },
+    // 是否展示服务标签与套餐说明。
+    showDetails: {
+      type: Boolean,
+      value: true
+    },
+    showCoverPrice: {
+      type: Boolean,
+      value: true
+    },
     // 可选标签（如「主推」「限时」），由调用方传入 item.tags
     tags: {
       type: Array,
@@ -42,12 +53,15 @@ Component({
 
   data: {
     // 套餐组合内容标签：含 照片 / 视频 / 周边（从 item.includedItems 派生）
-    compositionTags: []
+    compositionTags: [],
+    itemCount: 0,
+    typeCount: 0,
+    description: ''
   },
 
   observers: {
     'item': function (item) {
-      const tags = (item && (item.tags || item.displayTags || [])) || []
+      const tags = displayTags(item && item.serviceTags, item && item.tags, item && item.displayTags)
       // 营销角标：爆款 > 主推 > 热门（后台 isHotSale/isMainPush/isHot 控制，前端统一角标）
       let marketingBadge = ''
       let marketingBadgeClass = ''
@@ -66,12 +80,12 @@ Component({
       // 套餐组合内容标签：从 includedItems 派生「照片 / 视频 / 周边」，去重保序
       const map = { album: '照片', video: '视频', peripheral: '周边' }
       const comp = []
-      const items = (item && item.includedItems) || []
+      const items = (item && (Array.isArray(item.includedItems) ? item.includedItems : item.items)) || []
       items.forEach(it => {
         const label = map[it.type]
         if (label && comp.indexOf(label) === -1) comp.push(label)
       })
-      this.setData({ tags: tags.slice(0, 3), marketingBadge, marketingBadgeClass, compositionTags: comp })
+      this.setData({ tags, marketingBadge, marketingBadgeClass, compositionTags: comp, description: displayText(item && (item.description ?? item.intro)), ...includedItemStats(items) })
     }
   },
 

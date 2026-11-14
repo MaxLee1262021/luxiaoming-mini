@@ -27,7 +27,7 @@
         <text class="order-no">{{order.orderNo || order._id}}</text>
         <text class="copy-text">复制</text>
       </view>
-      <view class="status-tag status-{{order.customerStatusKey || order.status}}">{{order.statusText}}</view>
+      <view class="status-tag status-{{order.customerStatusKey || order.status}}">{{order.canPayFinal ? '待付尾款' : order.canConfirmCompletion ? '待确认完成' : order.statusText}}</view>
     </view>
 
     <view class="progress-section" wx:if="{{order.customerStatusKey !== 'pending_payment' && order.customerStatusKey !== 'cancelled' && order.workflowStage !== 'cancelled' && !order.isAfterSale}}">
@@ -50,12 +50,24 @@
 
     <view class="info-card">
       <view class="card-title">{{order.snapshotLabel}}</view>
-      <view class="info-row"><text>旅拍套餐</text><text class="highlight">{{order.packageName}} ¥{{order.packagePrice}}</text></view>
+      <view class="info-row"><text>预约项目</text><text class="highlight">{{order.packageName}} ¥{{order.packagePrice}}</text></view>
       <view class="info-row" wx:if="{{order.spotName}}"><text>打卡点</text><text>{{order.spotName}}</text></view>
       <view class="info-row" wx:if="{{order.seriesName}}"><text>拍摄风格</text><text>{{order.seriesName}}</text></view>
       <view class="info-row"><text>{{order.scheduleLabel}}</text><text>{{order.date || '客服/摄影师确认中'}} {{order.timePeriod}}</text></view>
       <view class="snapshot-hint">{{order.scheduleHint}}</view>
-      <view class="info-row"><text>类型</text><text>{{order.type === 'video' ? '视频摄像' : '照片留影'}}</text></view>
+      <view class="info-row"><text>类型</text><text>{{productTypeSummary || (order.type === 'video' ? '视频摄像' : '照片留影')}}</text></view>
+    </view>
+
+    <view class="info-card" wx:if="{{productItemsDisplay.length}}">
+      <view class="card-title">商品明细</view>
+      <view class="order-product" wx:for="{{productItemsDisplay}}" wx:key="key">
+        <view class="order-product__main">
+          <text class="order-product__name">{{item.name}}</text>
+          <text class="order-product__meta">{{item.typeLabel}} · ×{{item.quantity}}</text>
+          <text class="order-product__meta" wx:if="{{item.spotName || item.seriesName}}">{{item.spotName}}{{item.spotName && item.seriesName ? ' · ' : ''}}{{item.seriesName}}</text>
+        </view>
+        <text class="order-product__price" wx:if="{{item.priceText}}">单价 {{item.priceText}}</text>
+      </view>
     </view>
 
     <view class="info-card amount-card">
@@ -65,7 +77,6 @@
         <view class="info-row"><text>定金应收</text><text>¥{{order.depositDue || 0}}</text></view>
         <view class="info-row"><text>已确认定金</text><text>¥{{order.depositPaid || 0}}</text></view>
         <view class="snapshot-hint" wx:if="{{order.depositPaid > 0}}">{{order.depositRefundHint}}</view>
-        <button wx:if="{{canRequestDepositRefund}}" class="deliver-btn" bindtap="openDepositRefund">申请退定金</button>
         <view class="info-row" wx:if="{{order.hasConfirmedSnapshot || order.selectionConfirmed || order.finalDue > 0}}"><text>尾款应收</text><text>¥{{order.finalDue || 0}}</text></view>
         <view class="info-row" wx:if="{{order.hasConfirmedSnapshot || order.selectionConfirmed || order.finalPaid > 0}}"><text>已确认尾款</text><text>¥{{order.finalPaid || 0}}</text></view>
         <view class="info-row" wx:if="{{order.hasConfirmedSnapshot || order.selectionConfirmed}}"><text>待收金额</text><text class="highlight">¥{{order.dueAmount || 0}}</text></view>
@@ -86,25 +97,29 @@
     </view>
 
     <view class="payment-card" wx:if="{{order.canPay}}">
-      <view class="card-title">{{order.paymentSimulationEnabled ? '模拟支付' : '微信支付'}}</view>
+      <view class="card-title">{{order.paymentPhase === 'final' ? '支付尾款' : '支付订金'}}</view>
       <view class="payment-row" wx:if="{{(order.paymentPhase || 'deposit') === 'deposit'}}"><text>本次应付订金</text><text class="payment-amount">¥{{order.depositDue}}</text></view>
       <view class="payment-row" wx:if="{{order.paymentPhase === 'final'}}"><text>本次应付尾款</text><text class="payment-amount">¥{{order.finalDue}}</text></view>
-      <view class="payment-hint">{{paymentMessage || (order.paymentSimulationEnabled ? '当前为审核期模拟支付，点击后会自动确认到账。' : '确认金额后可在微信内完成支付，支付结果将由服务端确认。')}}</view>
-      <button class="payment-btn" loading="{{paymentSubmitting}}" disabled="{{paymentSubmitting}}" bindtap="handlePaymentTap" data-phase="{{order.paymentPhase}}">{{order.paymentSimulationEnabled ? '模拟支付' : (paymentStatus === 'pending' ? '继续微信支付' : '微信支付')}}</button>
-      <view class="test-payment-hint" wx:if="{{order.canRunTestPayment}}">仅测试环境：此操作会调用测试支付服务，不会发起微信支付。</view>
-      <button class="test-payment-btn" wx:if="{{order.canRunTestPayment}}" loading="{{testPaymentSubmitting}}" disabled="{{testPaymentSubmitting}}" bindtap="runTestPayment">测试支付（仅测试环境）</button>
+      <view class="payment-hint">{{paymentMessage || (order.paymentPhase === 'final' ? '拍摄已完成。点击支付尾款即确认本次拍摄并同意支付尾款，到账后订单完成。' : '确认金额后可在微信内完成支付，支付结果将由服务端确认。')}}</view>
+      <button class="payment-btn" loading="{{paymentSubmitting}}" disabled="{{paymentSubmitting}}" bindtap="handlePaymentTap" data-phase="{{order.paymentPhase}}">{{order.paymentPhase === 'final' ? '尾款支付' : paymentStatus === 'pending' ? '继续微信支付' : '支付订金'}}</button>
     </view>
 
-    <view class="info-card selection-hint-card" wx:if="{{order.customerStatusKey === 'shooting' && !order.canPay}}">
+    <view class="payment-card" wx:if="{{order.canConfirmCompletion}}">
+      <view class="card-title">确认拍摄完成</view>
+      <view class="payment-hint">拍摄已完成，本单无需支付尾款。确认后订单完成。</view>
+      <button class="payment-btn" loading="{{paymentSubmitting}}" disabled="{{paymentSubmitting}}" bindtap="confirmCompletion">确认完成订单</button>
+    </view>
+
+    <view class="info-card selection-hint-card" wx:if="{{order.customerStatusKey === 'shooting' && !order.canPay && !order.canConfirmCompletion}}">
       <view class="card-title">{{order.shootingCompleted ? '拍摄已完成' : '拍摄进行中'}}</view>
       <view class="deliver-desc">{{order.shootingCompleted ? '拍摄已完成，等待尾款确认后完成订单。' : '拍摄完成后可支付尾款，确认本次拍摄并完成订单。'}}</view>
+      <button class="deliver-btn" bindtap="retry">刷新订单状态</button>
     </view>
 
     <view class="payment-card payment-pending-card" wx:if="{{paymentStatus === 'pending' && order.workflowStage !== 'awaiting_deposit' && order.workflowStage !== 'awaiting_final_payment'}}">
       <view class="card-title">支付处理中</view>
-      <view class="payment-hint">{{order.paymentSimulationEnabled ? '模拟支付结果正在确认，可继续点击完成回填。' : '微信支付结果正在确认，可继续支付或刷新状态。'}}</view>
-      <button wx:if="{{order.paymentSimulationEnabled}}" class="payment-btn" loading="{{paymentSubmitting}}" bindtap="handlePaymentTap">模拟支付</button>
-      <button wx:else class="payment-btn" loading="{{paymentSubmitting}}" bindtap="continueWechatPayment">继续微信支付</button>
+      <view class="payment-hint">微信支付结果正在确认，可继续支付或刷新状态。</view>
+      <button class="payment-btn" loading="{{paymentSubmitting}}" bindtap="continueWechatPayment">{{order.paymentPhase === 'final' ? '尾款支付' : '继续微信支付'}}</button>
     </view>
 
     <view class="info-card timeline-card" wx:if="{{order.statusLogs && order.statusLogs.length}}">
@@ -136,9 +151,9 @@
       <button class="cancel-order-btn" bindtap="openCancel">取消本次预约</button>
     </view>
 
-    <view class="info-card" wx:if="{{!isDemo}}">
+    <view class="info-card">
       <view class="card-title">售后服务</view>
-      <view class="deliver-desc" wx:if="{{order.canRefundDeposit}}">安排摄影师前可申请退定金。提交后等待审核处理，到账以退款结果为准。</view>
+      <view class="deliver-desc" wx:if="{{order.canRefundDeposit}}">安排摄影师前可申请退定金。审核通过后微信原路退款，到账以微信退款结果为准。</view>
       <view class="deliver-desc" wx:elif="{{!order.canCancel && order.cancelReasonText}}">{{order.cancelReasonText}}</view>
       <view class="deliver-desc" wx:elif="{{!order.canCancel && order.canAfterSale}}">可提交售后申请，或联系客服审核处理。</view>
       <view class="deliver-desc" wx:if="{{afterSaleRecordsLoading}}">正在加载售后记录…</view>
@@ -149,7 +164,14 @@
         <view class="deliver-desc">{{ticket.createdAt}}</view>
         <button class="evidence-preview" size="mini" wx:for="{{ticket.attachments}}" wx:key="id" bindtap="previewOrderFile" data-ticket="{{ticketIndex}}" data-index="{{index}}">查看凭证 {{index + 1}}</button>
       </view>
-      <button wx:if="{{canRequestAfterSale}}" class="deliver-btn" bindtap="openAfterSale">申请售后</button>
+      <view class="after-sale-entry-actions" wx:if="{{canRequestDepositRefund || canRequestAfterSale}}" style="display: flex; flex-direction: row; flex-wrap: nowrap; width: 100%;">
+        <view wx:if="{{canRequestDepositRefund}}" style="flex: 1; min-width: 0;">
+          <button class="deliver-btn" style="width: 100%; margin: 0;" bindtap="openDepositRefund">申请退定金</button>
+        </view>
+        <view wx:if="{{canRequestAfterSale}}" style="flex: 1; min-width: 0; margin-left: {{canRequestDepositRefund ? 18 : 0}}rpx;">
+          <button class="deliver-btn" style="width: 100%; margin: 0;" bindtap="openAfterSale">其它售后</button>
+        </view>
+      </view>
     </view>
     <view class="file-action-error" wx:if="{{fileActionError}}">{{fileActionError}}</view>
 
@@ -160,9 +182,9 @@
   </view>
   <view wx:if="{{afterSaleVisible}}" class="after-sale-mask" catchtap="closeAfterSale">
     <view class="after-sale-panel" catchtap="stopPanelTap">
-      <view class="after-sale-hd"><text class="after-sale-title">{{afterSaleDepositRefund ? '申请退定金' : '申请售后'}}</text><button size="mini" disabled="{{afterSaleSubmitting}}" bindtap="closeAfterSale">关闭</button></view>
+      <view class="after-sale-hd"><text class="after-sale-title">{{afterSaleDepositRefund ? '申请退定金' : '其它售后'}}</text><button size="mini" disabled="{{afterSaleSubmitting}}" bindtap="closeAfterSale">关闭</button></view>
       <scroll-view scroll-y class="after-sale-form-scroll">
-        <view wx:if="{{afterSaleDepositRefund}}" class="after-sale-subtitle">安排摄影师前可申请退定金。提交后等待审核处理，到账以退款结果为准。</view>
+        <view wx:if="{{afterSaleDepositRefund}}" class="after-sale-subtitle">安排摄影师前可申请退定金。审核通过后微信原路退款，到账以微信退款结果为准。</view>
         <picker wx:else range="{{afterSaleTypes}}" value="{{afterSaleTypeIndex}}" bindchange="onAfterSaleType" disabled="{{afterSaleSubmitting}}"><view class="after-sale-type">售后类型：{{afterSaleTypes[afterSaleTypeIndex]}}　›</view></picker>
         <textarea class="after-sale-textarea" value="{{afterSaleReason}}" maxlength="2000" placeholder="请说明遇到的问题（至少 5 个字）" disabled="{{afterSaleSubmitting}}" bindinput="onAfterSaleReason" />
         <lxm-file-picker order-id="{{order._id}}" disabled="{{afterSaleSubmitting}}" bind:change="onAfterSaleFiles" />

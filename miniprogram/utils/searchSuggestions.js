@@ -1,18 +1,18 @@
 // 搜索建议构建：首页 / 探索页共用同一份「跨五类检索」逻辑，
 // 输入为空返回全部（用于默认「全部内容」态），有输入返回实时匹配。
 // 与 utils/searchNav.js 配合，做到「点建议直达 / 点搜索跳结果页」两端完全一致的最后一公里。
-const demoData = require('./demoData')
 const { isVideo, isVideoSingle, isPublicProduct } = require('./product')
+const { publicGuides } = require('./guideContent')
 
 function buildSearchSuggestions(kw, source = {}) {
   // Existing callers pass a spots array. New callers can pass the real home
   // catalog so suggestions lead to packages maintained in the admin backend.
   const catalog = Array.isArray(source) ? { spots: source } : (source || {})
-  const spots = Array.isArray(catalog.spots) ? catalog.spots : (demoData.spots || [])
-  const packages = Array.isArray(catalog.packages) ? catalog.packages : (demoData.packages || [])
+  const spots = Array.isArray(catalog.spots) ? catalog.spots : []
+  const packages = Array.isArray(catalog.packages) ? catalog.packages : []
   const videos = Array.isArray(catalog.videos) ? catalog.videos : packages
-  const albums = Array.isArray(catalog.albums) ? catalog.albums : (demoData.albums || [])
-  const guides = Array.isArray(catalog.guides) ? catalog.guides : (demoData.guides || [])
+  const albums = Array.isArray(catalog.albums) ? catalog.albums : []
+  const guides = Array.isArray(catalog.guides) ? catalog.guides : []
   const k = (kw || '').trim().toLowerCase()
   const out = []
   const push = (type, tag, icon, color, bgColor, name, area, nav, desc) => {
@@ -78,7 +78,7 @@ function buildSearchSuggestions(kw, source = {}) {
   })
 
   // 5. 旅拍灵感（攻略）
-  ;(guides || []).forEach(g => {
+  ;publicGuides(guides).forEach(g => {
     const text = `${g.title || ''}`.toLowerCase()
     if (!k || text.indexOf(k) >= 0) {
       push('guide', '攻略', '📖', '#FF8D52', 'rgba(255,141,82,0.12)', g.title, g.spotName || '', { _id: g._id })

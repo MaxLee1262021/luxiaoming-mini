@@ -21,6 +21,7 @@ const dependencies = {
   },
   "../../utils/query": { buildUrlWithSource() { return ""; } },
   "../../utils/order": require("../miniprogram/utils/order"),
+  "../../utils/productDisplay": require("../miniprogram/utils/productDisplay"),
   "../../utils/orderStatusFilters": require("../miniprogram/utils/orderStatusFilters"),
   "../../service/orderFileActions": {
     data: {},
@@ -54,7 +55,7 @@ function assertRealOrder(page) {
   assert.equal(page.data.order._id, order._id);
   assert.equal(page.data.error, "");
   assert.equal(page.data.loading, false);
-  assert.equal(page.data.isDemo, false);
+  assert.equal(page.data.isDemo, undefined);
 }
 
 async function main() {
@@ -89,7 +90,7 @@ async function main() {
   assert.equal(requests.length, requestCount, "missing identifiers must not trigger an unrestricted lookup");
   assert.equal(missing.data.error, "缺少订单信息");
   assert.equal(missing.data.loading, false);
-  assert.equal(missing.data.isDemo, false);
+  assert.equal(missing.data.isDemo, undefined);
 
   for (const failure of [
     new Error("network failed"),
@@ -102,7 +103,7 @@ async function main() {
     await page.onLoad({ out_trade_no: tradeNo });
     assert.ok(page.data.error, "failed order loading must show a retryable error");
     assert.equal(page.data.loading, false);
-    assert.equal(page.data.isDemo, false);
+    assert.equal(page.data.isDemo, undefined);
     assert.equal(Object.keys(page.data.order).length, 0, "failures must never render a demonstration order");
 
     let finishRequest;

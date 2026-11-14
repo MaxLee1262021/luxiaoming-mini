@@ -51,7 +51,7 @@ function collectTypeWords(item = {}) {
 
 /**
  * 解析商品 category（单一真相源）
- * 优先级：显式 category → videoId/isVideo → 含 video 词 → productKind=video_single → cate → 含 photo 词 → demo-album id → 默认照片单品
+ * 优先级：显式 category → videoId/isVideo → 含 video 词 → productKind=video_single → cate → 含 photo 词 → 默认照片单品
  */
 function resolveCategory(item = {}) {
   if (item.category && CATEGORY_VALUES.includes(item.category)) {
@@ -70,7 +70,6 @@ function resolveCategory(item = {}) {
   if (isSingleKind) return CATEGORY.VIDEO_SINGLE
   if (item.cate) return CATEGORY.PERIPHERAL
   if (hasPhotoWord) return CATEGORY.PHOTO_PACKAGE
-  if (item._id && String(item._id).startsWith('demo-album')) return CATEGORY.PHOTO_SINGLE
   return CATEGORY.PHOTO_SINGLE
 }
 
@@ -99,7 +98,8 @@ function hasStoreProductId(item = {}) {
 }
 
 function filterStorePeripherals(list = []) {
-  return (list || []).filter(hasStoreProductId)
+  // 保留旧调用名；客服展示模式只按公开可见性过滤，不要求绑定微信小店。
+  return (list || []).filter(isPublicProduct)
 }
 function isVideoSingle(item = {}) {
   // 与后台公共 RPC 保持一致：视频类型只表示媒介，独立单品还必须有明确标记。
@@ -132,7 +132,7 @@ function normalizePackage(item = {}) {
     name: item.name || item.title || '',
     intro: description,
     description,
-    cover: item.cover || item.coverUrl || item.image || '/images/placeholder.png',
+    cover: item.cover || item.coverUrl || item.image || (video ? '' : '/images/placeholder.png'),
     category,
     mediaType: getMediaType(item),
     displayType: video ? 'video' : 'photo',

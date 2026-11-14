@@ -1,10 +1,11 @@
 const sourceStore = require('./store/sourceStore')
 const { parseScene } = require('./utils/query')
-const { API_BASE, CORP_ID, CUSTOMER_SERVICE_URL } = require('./config/env')
+const { API_BASE } = require('./config/env')
 const { callCloud, login } = require('./api/client')
 const userStore = require('./store/userStore')
 const shareHelper = require('./utils/share')
 const analytics = require('./utils/analytics')
+const merchantShare = require('./service/merchantShare')
 
 // 全站分享兜底：任何页面未定义 onShareAppMessage / onShareTimeline 时注入默认实现，
 // 保证右上角菜单「转发 / 分享到朋友圈」全站可用，文案统一品牌口吻；页面可自行覆盖。
@@ -38,6 +39,10 @@ wx.showToast = function (opts = {}) {
 
 App({
   onLaunch(options = {}) {
+    merchantShare.capture(options, 1, 'launch')
+    for (const key of ['lxm_demo_mode', 'lxm_site_page_config', 'lxm_user_profile']) {
+      try { wx.removeStorageSync(key) } catch (_) {}
+    }
     // 全局错误监控：未处理异常与 Promise 拒绝先落 console，后续接入监控后台时在此上报
     this.initErrorMonitor()
     // 启动埋点：记录进入来源，方便后续做渠道效果分析
@@ -53,6 +58,7 @@ App({
       login()
         .then((oid) => {
           this.globalData.openid = oid
+          merchantShare.flush()
           return userStore.syncUserProfile()
             .then((user) => { this.globalData.userInfo = user.userInfo || null })
             .catch((e) => { console.warn('用户资料同步失败（不影响浏览）', e) })
@@ -62,14 +68,31 @@ App({
     // 记录进入来源（普通带参启动：如 scene=shopId=xxx）
     if (options && options.query) this.captureSource(options.query)
     this.initPrivacy()
+    this.loadCustomerServiceConfig()
   },
 
   onShow(options = {}) {
+    merchantShare.capture(options, 2, 'show')
+    merchantShare.flush()
     // 从后台切回前台也补一次来源采集（冷启动时 onLaunch 已做）
     if (options && options.query && Object.keys(options.query).length) {
       if (options.query.scene || options.query.shopId || options.query.codeId) {
         this.captureSource(options.query)
       }
+    }
+  },
+
+  async loadCustomerServiceConfig() {
+    try {
+      const result = await callCloud('getCorpConfig', {})
+      if (!result || result.success !== true) throw new Error('客服配置加载失败')
+      const config = result.data || {}
+      this.globalData.corpId = String(config.corpId || '').trim()
+      this.globalData.customerServiceUrl = String(config.customerServiceUrl || '').trim()
+    } catch (error) {
+      this.globalData.corpId = ''
+      this.globalData.customerServiceUrl = ''
+      console.warn('客服配置加载失败', error)
     }
   },
 
@@ -138,6 +161,10 @@ App({
   // 商家二维码扫码链路：用短码 c=XXXX 反查商家与铺放位置，写入来源。
   // 由非 tabBar 落地页 scanEntry 在 onLoad 时调用。
   async resolveMerchantSource(options = {}) {
+    if (merchantShare.capture(options, 1, 'landing')) {
+      Promise.resolve().then(() => merchantShare.flush()).catch(() => {})
+      return this.getSource()
+    }
     const sceneParams = parseScene(options.scene)
     const c = options.c || sceneParams.c || (options.query && options.query.c) || ''
     if (!c) return this.getSource()
@@ -150,8 +177,11 @@ App({
           sourceType: 'shop',
           codeId: c,
           placementType: result.placementType || '',
-          placementLabel: result.placementLabel || ''
+          placementLabel: result.placementLabel || '',
+          cityId: result.cityId || '',
+          city: result.city || ''
         }
+        require('./store/cityStore').setCity(source)
         sourceStore.setSource(source)
         this.globalData.source = source
         return source
@@ -169,8 +199,8 @@ App({
     openid: null,
     source: {},
     sitePageConfig: {},
-    // 全站客服入口统一读取此处，配置来源为 config/env.js。
-    corpId: CORP_ID || '',
-    customerServiceUrl: CUSTOMER_SERVICE_URL || ''
+    // 全站客服入口仅使用真实后台getCorpConfig配置。
+    corpId: '',
+    customerServiceUrl: ''
   }
 })

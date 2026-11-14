@@ -1,22 +1,21 @@
 const app = getApp()
-const demoData = require('../../utils/demoData')
+const cityStore = require('../../store/cityStore')
 const spotApi = require('../../api/spot')
 const citiesApi = require('../../api/cities')
 const spotFilter = require('../../service/spotFilter')
 const { buildUrlWithSource } = require('../../utils/query')
 const { isVideoSingle } = require('../../utils/product')
 const homeApi = require('../../api/home')
+const searchApi = require('../../api/search')
 const { normalizeBanners, getBannerTarget } = require('../../service/homeData')
 const { routeSearchSuggestion } = require('../../utils/searchNav')
 const { buildSearchSuggestions } = require('../../utils/searchSuggestions')
-const { isExplicitDemoMode } = require('../../config/env')
 const { findCity, hasCoordinates, mapCenterForCity, normalizeCityOptions, spotMatchesCity } = require('../../service/citySpot')
 
-const CHANGSHA_CENTER = { latitude: 28.195, longitude: 112.95 }
 const DEFAULT_SCALE = 13
 const PIN_ICON_DEFAULT = '/images/map-pin-default.png'
 const PIN_ICON_ACTIVE = '/images/map-pin-active.png'
-const HOT_SEARCH_KEYWORDS = ['橘子洲', '杜甫江阁', 'IFS国金中心', '太平老街', '黄兴路', '岳麓山', '谢子龙']
+const HOT_SEARCH_KEYWORDS = []
 
 function mapPointOf(item = {}) {
   if (item.latitude === undefined || item.latitude === null || String(item.latitude).trim() === ''
@@ -28,21 +27,12 @@ function mapPointOf(item = {}) {
   return { latitude, longitude }
 }
 
-// 演示城市只在显式 demo 模式使用。正常开发、体验和正式环境只展示后台 cities 集合。
-const FALLBACK_CITIES = [
-  { name: '长沙', value: '长沙', count: 7 },
-  { name: '北京（敬请期待）', value: '北京', disabled: true },
-  { name: '上海（敬请期待）', value: '上海', disabled: true },
-  { name: '广州（敬请期待）', value: '广州', disabled: true },
-  { name: '杭州（敬请期待）', value: '杭州', disabled: true },
-  { name: '张家界（敬请期待）', value: '张家界', disabled: true }
-]
 
 Page({
   data: {
     loading: true,
     error: '',
-    degraded: false, // 真实打卡点拉取失败、正在展示预览数据时置 true（顶部降级提示条）
+    degraded: false, // 真实打卡点拉取失败、显示加载失败提示
     shopId: '',
     scene: '',
 
@@ -58,24 +48,27 @@ Page({
     searchCatalog: { packages: [], videos: [], albums: [], guides: [] },
 
     openPanel: '',
-    cityOptions: isExplicitDemoMode() ? FALLBACK_CITIES : [],
-    districtOptions: [{ name: '全部区域', value: '', count: 7 }],
+    // 多城市入口已按运营建议暂时关闭；保留数据与路由能力，后续可只改此开关重新开放。
+    citySwitcherEnabled: false,
+    cityOptions: [],
+    districtOptions: [{ name: '全部区域', value: '', count: 0 }],
     spotOptions: [],
-    selectedCity: isExplicitDemoMode() ? FALLBACK_CITIES[0].value : '',
-    selectedCityName: isExplicitDemoMode() ? FALLBACK_CITIES[0].name : '',
+    selectedCity: '',
+    selectedCityName: '',
     selectedDistrict: '',
     selectedSpotId: '',
     selectedSpotName: '',
 
-    // 探索页轮播：后台可配（与首页轮播「单独一套」），默认空，由 loadExploreBanners 拉取，失败回退 demoData
+    // 探索页轮播：后台可配（与首页轮播「单独一套」），默认空，由 loadExploreBanners 拉取，失败清空列表
     exploreBanners: [],
     bannerIndex: 0,
     bannerAutoplay: true,
     filterPanelTop: 240,
     filterArrowLeft: 60,
 
-    mapLatitude: CHANGSHA_CENTER.latitude,
-    mapLongitude: CHANGSHA_CENTER.longitude,
+    mapReady: false,
+    mapLatitude: null,
+    mapLongitude: null,
     mapScale: DEFAULT_SCALE,
     // Keep this unset until there are at least two valid points. The Windows
     // map renderer calls fitBounds for an empty array and then reads `lat` from
@@ -92,7 +85,7 @@ Page({
     onlyWithSample: false,
     userLocation: null,             // { latitude, longitude }
     resultCount: 0,                 // 当前筛选/搜索后的打卡点数量（用于 chip 徽章）
-    districtCount: 0,               // 当前选中区域的数量（用于区域 chip 徽章）
+    districtCount: 0,               // 当前城市去重后的区域数量（不含“全部区域”）
     sortOptions: [
       { name: '综合推荐', value: 'composite' },
       { name: '热度优先', value: 'hot' },
@@ -109,7 +102,13 @@ Page({
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || ''
     })
-    this.requestedCity = String(options.cityId || options.city || '').trim()
+    if (options.cityId || options.city) cityStore.setCity(options)
+    let selectedCity = cityStore.getCity()
+    // 旧扫码来源仍代表明确城市，升级后也要跨 Tab 刷新保留。
+    if (!(selectedCity.cityId || selectedCity.city) && (source.cityId || source.city)) {
+      selectedCity = cityStore.setCity(source)
+    }
+    this.requestedCity = String(options.cityId || options.city || selectedCity.cityId || selectedCity.city || source.cityId || source.city || '').trim()
     try {
       this.mapCtx = typeof wx !== 'undefined' && typeof wx.createMapContext === 'function'
         ? wx.createMapContext('exploreMap')
@@ -162,10 +161,7 @@ Page({
 
   refreshOnTabShow() {
     if (this._tabRefreshPromise) return this._tabRefreshPromise
-    this._tabRefreshPromise = Promise.all([
-      this.loadExploreBanners(),
-      this.reloadContent()
-    ])
+    this._tabRefreshPromise = Promise.all([this.reloadContent().then(() => this.loadExploreBanners()), this.loadSearchConfig()])
       .catch((err) => {
         // 各加载方法已有降级处理，这里只兜住意外异常，避免 onShow 产生未处理拒绝。
         console.warn('refresh explore tab failed', err)
@@ -226,12 +222,20 @@ Page({
   },
 
   async loadSpots() {
+    const requestedCity = this.data.selectedCity
+    const request = {}
+    this._spotsRequest = request
+    if (!requestedCity) {
+      this.applySpotList([])
+      this.setData({ loading: false, error: '请先选择已开通城市' })
+      return
+    }
     this.setData({ loading: true, error: '' })
     try {
-      const res = await spotApi.getSpots({ shopId: this.data.shopId, limit: 100 })
+      const res = await spotApi.getSpots({ shopId: this.data.shopId, cityId: requestedCity, limit: 100 })
+      if (this._spotsRequest !== request || this.data.selectedCity !== requestedCity) return
       if (!res || !res.success) {
-        if (isExplicitDemoMode()) this.applyDemoSpots()
-        else {
+        {
           this.applySpotList([])
           this.setData({ error: '打卡点数据加载失败，请稍后重试', degraded: false })
         }
@@ -240,20 +244,20 @@ Page({
         this.applySpotList(list)
       }
     } catch (err) {
+      if (this._spotsRequest !== request || this.data.selectedCity !== requestedCity) return
       console.error('explore loadSpots error', err)
-      if (isExplicitDemoMode()) this.applyDemoSpots()
-      else {
+      {
         this.applySpotList([])
         this.setData({ error: '打卡点数据加载失败，请稍后重试', degraded: false })
       }
     } finally {
-      this.setData({ loading: false })
+      if (this._spotsRequest === request) this.setData({ loading: false })
     }
   },
 
   async reloadContent() {
     const hasActiveCity = await this.loadCities()
-    if (hasActiveCity || isExplicitDemoMode()) {
+    if (hasActiveCity) {
       await this.loadSpots()
       return
     }
@@ -268,24 +272,25 @@ Page({
       const res = await citiesApi.getCities({})
       if (!res || !res.success) throw new Error((res && (res.error || res.message)) || '城市配置加载失败')
       const list = (res && res.success && Array.isArray(res.data)) ? res.data : []
+      const storedCity = cityStore.getCity()
+      const requestedValue = this.requestedCity || storedCity.cityId || storedCity.city || ''
+      if (requestedValue && !list.some(city => [city._id, city.id, city.cityId, city.code, city.name].filter(Boolean).map(String).includes(String(requestedValue)))) {
+        this.setData({ cityOptions: normalizeCityOptions(list), selectedCity: '', selectedCityName: '', error: '所选城市尚未配置，请重新选择城市' })
+        return false
+      }
       if (!list.length) {
-        if (isExplicitDemoMode()) {
-          const fallback = FALLBACK_CITIES.slice()
-          this.setData({ cityOptions: fallback, selectedCity: fallback[0].value, selectedCityName: fallback[0].name })
-          return true
-        }
         this.setData({ cityOptions: [], selectedCity: '', selectedCityName: '', error: '暂无后台配置的城市' })
         return false
       }
       const cityOptions = normalizeCityOptions(list)
-      // 当前选中城市仍在可用列表则保留，否则切到第一个可用城市
+      if (!this.requestedCity && (storedCity.cityId || storedCity.city)) this.requestedCity = storedCity.cityId || storedCity.city
+      // 明确选择优先；自动默认随接口按创建时间正序的首个启用城市更新。
       const requested = this.requestedCity && cityOptions.find(c => (
         [c.value, c.cityId, c.code, c.name].filter(Boolean).map(String).includes(this.requestedCity)
       ) && !c.disabled)
       this.requestedCity = ''
-      const keep = cityOptions.find(c => c.value === this.data.selectedCity && !c.disabled)
       const active = cityOptions.find(c => !c.disabled)
-      const selected = requested || keep || active || null
+      const selected = requested || active || null
       this.setData({
         cityOptions,
         selectedCity: selected ? selected.value : '',
@@ -296,21 +301,11 @@ Page({
       return !!selected
     } catch (err) {
       console.warn('explore loadCities error', err)
-      if (isExplicitDemoMode()) {
-        const fallback = FALLBACK_CITIES.slice()
-        this.setData({ cityOptions: fallback, selectedCity: fallback[0].value, selectedCityName: fallback[0].name })
-        return true
-      }
       this.setData({ cityOptions: [], selectedCity: '', selectedCityName: '', error: '城市配置加载失败，请稍后重试' })
       return false
     }
   },
 
-  applyDemoSpots() {
-    const defaultCity = (FALLBACK_CITIES.find(item => !item.disabled) || {}).value || '长沙'
-    const list = demoData.spots.map(item => spotFilter.normalizeSpot({ ...item, city: item.city || defaultCity }))
-    this.applySpotList(list, true)
-  },
 
   applySpotList(list = [], degraded = false) {
     this.setData({
@@ -332,10 +327,9 @@ Page({
     const citySpots = city
       ? (spots || []).filter(item => spotMatchesCity(item, city))
       : []
-    const districtOptions = spotFilter.buildDistrictOptions(citySpots).map(item => {
-      const count = item.value ? citySpots.filter(spot => spot.district === item.value).length : citySpots.length
-      return { ...item, count }
-    })
+    const districtOptions = spotFilter.buildDistrictOptions(citySpots)
+    const districtCount = districtOptions.filter(item => item.value).length
+    districtOptions[0] = { ...districtOptions[0], count: districtCount }
     const selectedDistrictAvailable = !selectedDistrict || districtOptions.some(item => item.value === selectedDistrict)
     const effectiveDistrict = selectedDistrictAvailable ? selectedDistrict : ''
     const citySpotOptions = citySpots.map(item => ({ name: item.name, value: item._id }))
@@ -405,13 +399,10 @@ Page({
       ? mappableSpots.map(entry => entry.point)
       : null
 
-    const districtCount = effectiveDistrict
-      ? (districtOptions.find(d => d.value === effectiveDistrict) || {}).count || sorted.length
-      : sorted.length
-
     this.setData({
       filteredSpots: sorted,
       markers,
+      mapReady: center.latitude !== null && center.longitude !== null,
       mapLatitude: center.latitude,
       mapLongitude: center.longitude,
       mapScale: scale,
@@ -456,7 +447,7 @@ Page({
   },
 
   computeCenter(list = [], city = null) {
-    if (!list.length) return mapCenterForCity(city, CHANGSHA_CENTER)
+    if (!list.length) return hasCoordinates(city || {}) ? mapCenterForCity(city) : { latitude: null, longitude: null }
     if (list.length === 1) return { latitude: list[0].latitude, longitude: list[0].longitude }
     const lat = list.reduce((sum, item) => sum + item.latitude, 0) / list.length
     const lng = list.reduce((sum, item) => sum + item.longitude, 0) / list.length
@@ -493,10 +484,7 @@ Page({
   updateSearchSuggestions(kw = '') {
     const k = (kw || '').trim()
     const catalog = this.data.searchCatalog || {}
-    const hasRemoteCatalog = [catalog.packages, catalog.videos, catalog.albums, catalog.guides].some(list => Array.isArray(list) && list.length)
-    const source = hasRemoteCatalog
-      ? { ...catalog, spots: this.data.spots }
-      : (isExplicitDemoMode() ? demoData.spots : { ...catalog, spots: this.data.spots })
+    const source = { ...catalog, spots: this.data.spots }
     const list = k ? buildSearchSuggestions(k, source) : []
     this.setData({
       searchHasInput: !!k,
@@ -591,15 +579,19 @@ Page({
     this.setData({ openPanel: '' })
   },
 
-  selectCity(e) {
+  async selectCity(e) {
     const { value, disabled } = e.currentTarget.dataset
     if (disabled) {
       wx.showToast({ title: '该城市即将上线', icon: 'none' })
       return
     }
     const city = findCity(this.data.cityOptions, value)
-    this.setData({ selectedCity: value, selectedCityName: (city && city.name) || '', openPanel: '' })
+    if (!city) return
+    cityStore.setCity(city)
+    this.setData({ selectedCity: value, selectedCityName: city.name || '', openPanel: '',
+      selectedDistrict: '', selectedSpotId: '', selectedSpotName: '', spots: [], exploreBanners: [] })
     this.applyFilters()
+    await Promise.all([this.loadSpots(), this.loadExploreBanners()])
   },
 
   selectDistrict(e) {
@@ -659,12 +651,13 @@ Page({
   },
 
   resetFilters() {
-    // 默认城市取后台第一个已开通城市；显式演示模式才回退长沙。
-    const first = (this.data.cityOptions || []).find(c => !c.disabled) || null
-    const firstCity = first ? first.value : (isExplicitDemoMode() ? '长沙' : '')
+    // Reset filters within the selected city; preserve the QR/user city context.
+    const first = (this.data.cityOptions || []).find(c => c.value === this.data.selectedCity && !c.disabled)
+      || (this.data.cityOptions || []).find(c => !c.disabled) || null
+    const firstCity = first ? first.value : ''
     this.setData({
       selectedCity: firstCity,
-      selectedCityName: first ? first.name : (isExplicitDemoMode() ? '长沙' : ''),
+      selectedCityName: first ? first.name : '',
       selectedDistrict: '',
       selectedSpotId: '',
       selectedSpotName: '',
@@ -751,10 +744,31 @@ Page({
     })
   },
 
+  goCityBooking() {
+    wx.navigateTo({ url: this.buildUrl('/pages/bookingInfo/bookingInfo', {
+      requestedSpot: this.data.searchKeyword || this.data.selectedCityName || '',
+      cityId: this.data.selectedCity || ''
+    }) })
+  },
+
   // ---------- 探索页轮播（后台可配，与首页轮播单独一套） ----------
-  async loadExploreBanners() {
+  async loadSearchConfig() {
     try {
-      const res = await homeApi.getHomeData({ shopId: this.data.shopId, spot: this.data.spot })
+      const res = await searchApi.getSearchConfig()
+      const words = res && res.success && res.data && res.data.hotWords
+      this.setData({ hotSearchKeywords: Array.isArray(words) ? words.filter(word => typeof word === 'string' && word.trim()) : [] })
+    } catch (_) { this.setData({ hotSearchKeywords: [] }) }
+  },
+
+  async loadExploreBanners() {
+    const requestedCity = this.data.selectedCity
+    const request = {}
+    this._bannersRequest = request
+    try {
+      const selectedCity = cityStore.getCity()
+      const res = await homeApi.getHomeData({ shopId: this.data.shopId, spot: this.data.spot,
+        cityId: this.data.selectedCity || selectedCity.cityId || '', city: this.data.selectedCityName || selectedCity.city || '' })
+      if (this._bannersRequest !== request || this.data.selectedCity !== requestedCity) return
       const payload = (res && res.success && res.data) || {}
       const list = payload.exploreBanners || []
       const banners = normalizeBanners(list).slice(0, 6)
@@ -769,32 +783,34 @@ Page({
       }
       if (!banners.length) {
         this.setData({
-          exploreBanners: isExplicitDemoMode() ? normalizeBanners(demoData.exploreBanners || []) : [],
+          exploreBanners: [],
+          bannerIndex: 0,
           searchCatalog
         })
       } else {
-        this.setData({ exploreBanners: banners, searchCatalog })
+        this.setData({ exploreBanners: banners, bannerIndex: 0, searchCatalog })
       }
     } catch (err) {
+      if (this._bannersRequest !== request || this.data.selectedCity !== requestedCity) return
       console.error('explore loadExploreBanners error', err)
-      this.setData({ exploreBanners: isExplicitDemoMode() ? normalizeBanners(demoData.exploreBanners || []) : [] })
+      this.setData({ exploreBanners: [], bannerIndex: 0 })
     }
   },
 
   onBannerChange(e) {
-    const current = e.detail.current
+    const current = Number(e && e.detail && e.detail.current)
+    if (!Number.isInteger(current)) return
+    // Keep the current autoplay setting after either an automatic transition
+    // or a user swipe. Media playback is independent from swiper autoplay.
     this.setData({ bannerIndex: current })
-    const banners = this.data.exploreBanners || []
-    if (banners[current] && banners[current].type === 'video') {
-      this.setData({ bannerAutoplay: false })
-    } else {
-      this.setData({ bannerAutoplay: true })
-    }
   },
 
   goBanner(e) {
-    const index = Number(e.currentTarget.dataset.index || 0)
+    const dataset = e && e.currentTarget && e.currentTarget.dataset || {}
+    const index = Number(dataset.index === undefined ? this.data.bannerIndex : dataset.index)
+    if (!Number.isInteger(index) || index < 0) return
     const banner = (this.data.exploreBanners || [])[index]
+    if (!banner) return
     const target = getBannerTarget(banner)
     if (!target) return
     if (target.url) {

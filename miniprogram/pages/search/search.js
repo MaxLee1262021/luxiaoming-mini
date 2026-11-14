@@ -69,6 +69,8 @@ Page({
         guides: data.guides || []
       })
     } catch (err) {
+      this.setData({ hotKeywords: [], routes: [], spots: [], packages: [], videos: [], guides: [] })
+      wx.showToast({ title: '搜索推荐加载失败，请稍后重试', icon: 'none' })
       console.error('load search recommend error', err)
     }
   },

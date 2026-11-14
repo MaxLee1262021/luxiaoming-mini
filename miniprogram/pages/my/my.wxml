@@ -54,7 +54,7 @@
     </view>
     <view class="service-item" hover-class="lxm-card-lift" bindtap="goToPeripherals">
       <view class="service-main">
-        <text class="service-text">影像定制</text>
+        <text class="service-text">影像周边</text>
       </view>
       <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
     </view>

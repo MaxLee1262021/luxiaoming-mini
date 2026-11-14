@@ -1,6 +1,6 @@
-const demoData = require('../utils/demoData')
 const { isVideo, normalizePackage, normalizePackageList, normalizeTags, buildPackageBenefits } = require('../utils/product')
 const { normalizeAlbumPresentation } = require('../utils/albumPresentation')
+const { itemQuantity } = require('../utils/productDisplay')
 
 function resolvePackageSpots(pkg = {}, data = {}) {
   const spotIds = new Set()
@@ -8,10 +8,10 @@ function resolvePackageSpots(pkg = {}, data = {}) {
   if (pkg.spotId) spotIds.add(pkg.spotId)
   if (Array.isArray(pkg.spotIds)) pkg.spotIds.forEach(id => spotIds.add(id))
 
-  const allSpots = data.spots || demoData.spots || []
-  const albums = data.albums || demoData.albums || []
-  const videos = data.videos || data.videoProducts || demoData.videoProducts || demoData.videos || []
-  const seriesList = data.series ? [data.series] : (demoData.series || [])
+  const allSpots = data.spots || []
+  const albums = data.albums || []
+  const videos = data.videos || data.videoProducts || []
+  const seriesList = data.series ? [data.series] : []
 
   ;(pkg.includedItems || []).forEach(item => {
     const t = item.target || {}
@@ -48,10 +48,18 @@ function resolvePackageSpots(pkg = {}, data = {}) {
   return resolved
 }
 
+function normalizeDetailPackage(item = {}) {
+  return { ...normalizePackage(item), description: item.description ?? item.intro ?? item.desc ?? '' }
+}
+
+function normalizeDetailPackages(items = []) {
+  return (items || []).map(normalizeDetailPackage)
+}
+
 function resolveSelectedPackage(data = {}, packageId = '') {
-  let mainPushPackages = normalizePackageList(data.mainPushPackages)
-  const spotPackages = normalizePackageList(data.spotPackages)
-  const currentPackage = data.currentPackage ? normalizePackage(data.currentPackage) : null
+  let mainPushPackages = normalizeDetailPackages(data.mainPushPackages)
+  const spotPackages = normalizeDetailPackages(data.spotPackages)
+  const currentPackage = data.currentPackage ? normalizeDetailPackage(data.currentPackage) : null
   if (currentPackage) {
     const exists = [...mainPushPackages, ...spotPackages].some(item => item._id === currentPackage._id)
     if (!exists) mainPushPackages = [currentPackage, ...mainPushPackages]
@@ -60,7 +68,7 @@ function resolveSelectedPackage(data = {}, packageId = '') {
   const allPackages = [
     ...mainPushPackages,
     ...spotPackages,
-    ...normalizePackageList(data.packages),
+    ...normalizeDetailPackages(data.packages),
     currentPackage
   ].filter(Boolean)
   const photoPackages = allPackages.filter(item => !isVideo(item))
@@ -76,9 +84,9 @@ function resolveItemPrice(item = {}, context = {}) {
   if (declared > 0) return declared
 
   const t = item.target || {}
-  const videos = context.videoProducts || context.videos || demoData.videoProducts || []
-  const albums = context.albums || demoData.albums || []
-  const peripherals = context.peripherals || demoData.peripherals || []
+  const videos = context.videoProducts || context.videos || []
+  const albums = context.albums || []
+  const peripherals = context.peripherals || []
 
   if (item.type === 'video') {
     const pid = t.productId || item.productId || item.videoId
@@ -107,12 +115,15 @@ function normalizeIncludedItems(items = [], context = {}) {
     const meta = typeMeta[item.type] || { label: '产品', cls: 'album' }
     const price = resolveItemPrice(item, context)
     return {
+      ...item,
       type: item.type,
       typeClass: meta.cls,
       typeLabel: meta.label,
       name: item.name || '未命名产品',
       cover: item.cover || '/images/placeholder.png',
       priceText: price ? `¥${price}` : '免费包含',
+      quantity: itemQuantity(item),
+      qty: itemQuantity(item),
       target: item.target || null
     }
   })
@@ -166,9 +177,9 @@ function buildPhotoPackageDetail(data = {}, options = {}) {
     selectedPackage,
     packageBenefits: buildPackageBenefits(selectedPackage || {}),
     includedItems: normalizeIncludedItems(selectedPackage && selectedPackage.includedItems, {
-      videoProducts: data.videoProducts || demoData.videoProducts,
-      albums: data.albums || demoData.albums,
-      peripherals: data.peripherals || demoData.peripherals
+      videoProducts: data.videoProducts,
+      albums: data.albums,
+      peripherals: data.peripherals
     }),
     mainPushPackages: normalizePackageList(data.mainPushPackages),
     spotPackages: normalizePackageList(data.spotPackages)

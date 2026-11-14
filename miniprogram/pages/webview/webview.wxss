@@ -1,0 +1,27 @@
+.web-status {
+  min-height: 70vh;
+  padding: var(--lxm-s-6) var(--lxm-s-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+.web-status-title {
+  font-size: var(--lxm-fz-xl);
+  font-weight: var(--lxm-fw-bold);
+}
+
+.web-status-copy {
+  margin: var(--lxm-s-3) 0 var(--lxm-s-5);
+  color: var(--lxm-c-muted);
+  font-size: var(--lxm-fz-base);
+  line-height: 1.7;
+}
+
+.web-status-button {
+  width: 100%;
+  max-width: 480rpx;
+  margin: var(--lxm-s-2) 0 0;
+}

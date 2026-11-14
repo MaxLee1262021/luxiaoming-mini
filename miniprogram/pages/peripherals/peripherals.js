@@ -1,27 +1,19 @@
 const app = getApp()
-const demoData = require('../../utils/demoData')
 const peripheralApi = require('../../api/peripheral')
-const { buildUrlWithSource } = require('../../utils/query')
-const { filterStorePeripherals } = require('../../utils/product')
+const { filterVisibleProducts } = require('../../utils/product')
+const { normalizePeripheral } = require('../../utils/peripheralPresentation')
+const { openCustomerService } = require('../../service/customerService')
 
 Page({
   data: {
     shopId: '',
     scene: '',
+    selectedId: '',
     peripherals: [],
     featuredPeripheral: null,
-    categories: [
-      { label: '全部', value: '' },
-      { label: '相册', value: '相册' },
-      { label: '相框', value: '相框' },
-      { label: '打印', value: '打印' },
-      { label: '冰箱贴', value: '冰箱贴' },
-      { label: '亚克力', value: '亚克力' },
-      { label: '3D', value: '3D' }
-    ],
     currentCate: '',
     loading: true,
-    degraded: false, // 周边数据拉取失败、正在展示预览数据时置 true（降级提示条）
+    degraded: false, // 周边数据拉取失败、显示加载失败提示
     allPeripherals: [],
     stackLayers: [],
     stackFront: 0,
@@ -32,14 +24,24 @@ Page({
     const source = app.captureSource ? app.captureSource(options) : {}
     this.setData({
       shopId: options.shopId || source.shopId || '',
-      scene: options.scene || source.scene || ''
+      scene: options.scene || source.scene || '',
+      selectedId: options.id || ''
     })
-    wx.setNavigationBarTitle({ title: '周边' })
+    wx.setNavigationBarTitle({ title: '影像周边' })
     this.loadPeripherals(true)
   },
 
-  buildUrl(path, params = {}) {
-    return buildUrlWithSource(path, params, this.data)
+  initialStack(list, keepCurrent = false) {
+    const selectedId = keepCurrent && this.data.featuredPeripheral ? this.data.featuredPeripheral._id : this.data.selectedId
+    const selected = list.findIndex(item => String(item._id) === String(selectedId))
+    const front = selected < 0 ? 0 : selected
+    return {
+      allPeripherals: list,
+      stackRotation: front,
+      stackFront: front,
+      stackLayers: this.buildStack(list, front),
+      featuredPeripheral: list[front] || null
+    }
   },
 
   async loadPeripherals(initRing = false) {
@@ -47,23 +49,17 @@ Page({
     try {
       const res = await peripheralApi.getPeripherals({ cate: this.data.currentCate || undefined })
       if (res && res.success) {
-        const list = filterStorePeripherals(res.data || [])
+        const list = filterVisibleProducts(res.data || []).map(normalizePeripheral)
         const patch = { peripherals: list, loading: false, degraded: false }
-        if (initRing) {
-          patch.allPeripherals = list
-          patch.stackRotation = 0
-          patch.stackFront = 0
-          patch.stackLayers = this.buildStack(list, 0)
-        }
+        Object.assign(patch, this.initialStack(list, !initRing))
         this.setData(patch)
       } else {
-        // 后台响应缺少成功标记（罕见，防御分支）：回退演示数据，不算失败
-        this.applyDemoPeripherals(initRing)
+        this.applyLoadFailure(initRing)
       }
     } catch (err) {
       console.error(err)
-      // 请求失败（网络异常或后台未接通）：回退预览数据兜底 + 顶部降级提示条，客人可重试
-      this.applyDemoPeripherals(initRing, true)
+      // 请求失败时清空商品并提示重试。
+      this.applyLoadFailure(initRing)
     } finally {
       if (!initRing) this.setData({ loading: false })
     }
@@ -74,17 +70,9 @@ Page({
     this.loadPeripherals(true)
   },
 
-  applyDemoPeripherals(initRing = false, degraded = false) {
-    const cate = this.data.currentCate || ''
-    const linkedPeripherals = filterStorePeripherals(demoData.peripherals)
-    const peripherals = cate ? linkedPeripherals.filter(item => item.cate === cate || item.category === cate) : linkedPeripherals
-    const patch = { peripherals, loading: false, degraded }
-    if (initRing) {
-      patch.allPeripherals = linkedPeripherals
-      patch.stackRotation = 0
-      patch.stackFront = 0
-      patch.stackLayers = this.buildStack(linkedPeripherals, 0)
-    }
+  applyLoadFailure(initRing = false) {
+    const patch = { peripherals: [], loading: false, degraded: true }
+    Object.assign(patch, this.initialStack([], !initRing))
     this.setData(patch)
   },
 
@@ -125,12 +113,13 @@ Page({
     const rot = ((this.data.stackRotation % n) + n) % n
     this.setData({
       stackFront: rot,
-      stackLayers: this.buildStack(this.data.allPeripherals, this.data.stackRotation)
+      stackLayers: this.buildStack(this.data.allPeripherals, this.data.stackRotation),
+      featuredPeripheral: this.data.allPeripherals[rot]
     })
   },
 
   rotateRing(e) {
-    const dir = Number(e.currentTarget.dataset.dir) || 1
+    const dir = Number(typeof e === 'number' ? e : e.currentTarget.dataset.dir) || 1
     const n = this.data.allPeripherals.length
     if (!n) return
     const rot = ((this.data.stackRotation + dir) % n + n) % n
@@ -162,7 +151,7 @@ Page({
     const dx = t.clientX - this._sx
     const dy = t.clientY - this._sy
     if (this._swiping && Math.abs(dx) > 45 && Math.abs(dx) > Math.abs(dy)) {
-      // 抑制紧随滑动而来的 tap，避免误触卡片详情/置前
+      // 抑制紧随滑动而来的 tap，避免误触后层卡片置前
       this._suppressTap = true
       this.rotateRing(dx < 0 ? 1 : -1) // 左滑看下一件，右滑看上一件
     }
@@ -174,21 +163,33 @@ Page({
       this._suppressTap = false
       return
     }
-    const index = e.currentTarget.dataset.index
+    const index = Number(e.currentTarget.dataset.index)
     const n = this.data.allPeripherals.length
-    if (!n) return
-    if (index === this.data.stackFront) {
-      this.goStackDetail(this.data.allPeripherals[index]._id)
+    if (!n || !Number.isInteger(index) || index < 0 || index >= n) return
+    this.setData({ stackRotation: index })
+    this.refreshStack()
+  },
+
+  previewPeripheralMedia(e) {
+    const gallery = this.data.featuredPeripheral && this.data.featuredPeripheral.gallery || []
+    const index = Number(e.currentTarget.dataset.index)
+    if (!Number.isInteger(index) || !gallery[index]) return
+    const current = gallery[index]
+    const fail = () => wx.showToast({ title: '素材暂时无法预览，请稍后重试', icon: 'none' })
+    if (current.type === 'image') {
+      wx.previewImage({ current: current.url, urls: gallery.filter(item => item.type === 'image').map(item => item.url), fail })
+    } else if (typeof wx.previewMedia === 'function') {
+      wx.previewMedia({
+        current: index,
+        sources: gallery.map(item => ({ url: item.url, type: item.type, ...(item.poster ? { poster: item.poster } : {}) })),
+        fail
+      })
     } else {
-      this.setData({ stackRotation: index })
-      this.refreshStack()
+      wx.showToast({ title: '请升级微信后预览视频', icon: 'none' })
     }
   },
 
-  goStackDetail(input) {
-    const id = input && input.currentTarget ? input.currentTarget.dataset.id : input
-    if (id === undefined || id === null || id === '') return
-    wx.navigateTo({ url: this.buildUrl('/pages/peripheralDetail/peripheralDetail', { id }) })
-  },
-
+  contactService() {
+    openCustomerService()
+  }
 })

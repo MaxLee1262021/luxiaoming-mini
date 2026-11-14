@@ -7,12 +7,15 @@
 
 为向你提供打卡点预览、照片查看、旅拍预约和客服一对一沟通等服务，我们需要收集你的手机号等必要信息。
 
+扫码后您的消费将与提供服务的门店关联，用于门店结算。
+
 请阅读并同意下方《隐私保护指引》后继续使用。我们依法严格保护你的个人信息，绝不用于约定服务之外的用途，也不会擅自提供给第三方。</text>
-      <view class="privacy-link" bindtap="onViewPolicy">查看完整《隐私保护指引》</view>
     </scroll-view>
+    <button class="privacy-link" bindtap="onViewPolicy" disabled="{{policyOpening}}">查看完整《隐私保护指引》</button>
+    <view class="privacy-error" wx:if="{{policyError}}">{{policyError}}</view>
     <view class="privacy-actions">
       <button class="privacy-btn decline" bindtap="onDecline">暂不使用</button>
-      <button id="privacy-agree" class="privacy-btn agree" open-type="agreePrivacyAuthorization" bindagreeprivacyauthorization="onAgree">同意并继续</button>
+      <button id="privacy-agree" class="privacy-btn agree" open-type="agreePrivacyAuthorization" bindtap="onAgreeTap" bindagreeprivacyauthorization="onAgree">同意并继续</button>
     </view>
   </view>
 </view>

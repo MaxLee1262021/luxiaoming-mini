@@ -232,3 +232,22 @@
 .guide-card--waterfall .gc-body {
   padding: 16rpx 18rpx 20rpx;
 }
+
+.guide-card--waterfall .gc-tag {
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.guide-card--waterfall .gc-title,
+.guide-card--waterfall .gc-desc {
+  word-break: break-all;
+}
+
+.guide-card--waterfall .gc-meta {
+  flex-wrap: wrap;
+}
+
+.guide-card--waterfall .gc-meta text {
+  max-width: 100%;
+  word-break: break-all;
+}

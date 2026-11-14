@@ -15,46 +15,57 @@
   </view>
 
   <block wx:else>
-    <view class="hero">
-      <image class="hero-cover" src="{{guide.image || '/images/placeholder.png'}}" mode="aspectFill" />
-      <view class="hero-mask"></view>
-      <view class="hero-copy">
-        <view class="hero-kicker">{{guide.spotName || '长沙旅拍'}}</view>
-        <view class="hero-title">{{guide.title}}</view>
-        <view class="hero-meta">
-          <text wx:if="{{guide.readCount}}">{{guide.readCount}} 人已看</text>
-          <text wx:if="{{guide.score}}">{{guide.score}} 分</text>
-        </view>
-      </view>
+    <image wx:if="{{hasRichContent}}" class="note-cover" src="{{guide.cover || guide.image || '/images/placeholder.png'}}" mode="aspectFill" />
+    <swiper wx:elif="{{mediaItems.length}}" class="note-gallery" indicator-dots="{{mediaItems.length > 1}}" indicator-active-color="#e84343">
+      <swiper-item wx:for="{{mediaItems}}" wx:key="url" wx:for-item="media">
+        <video wx:if="{{media.type === 'video'}}" class="note-media" src="{{media.url}}" poster="{{guide.image}}" controls show-center-play-btn="{{true}}" object-fit="contain" />
+        <image wx:else class="note-media" src="{{media.url}}" mode="aspectFill" data-url="{{media.url}}" bindtap="previewImage" />
+      </swiper-item>
+    </swiper>
+    <image wx:else class="note-cover" src="{{guide.image || '/images/placeholder.png'}}" mode="aspectFill" />
+
+    <view class="note-heading">
+      <view class="note-kicker">{{guide.spotName || '旅拍灵感'}}</view>
+      <view class="note-title">{{guide.title}}</view>
+      <view wx:if="{{guide.readCount}}" class="note-meta">{{guide.readCount}} 人已看</view>
     </view>
 
-    <view class="guide-favorite-row">
-      <lxm-favorite-button type="guide" item-id="{{guide._id || guide.id}}" item="{{guide}}" />
+    <view class="content-card">
+      <block wx:if="{{hasRichContent}}">
+        <block wx:for="{{contentBlocks}}" wx:key="key" wx:for-item="block">
+          <rich-text wx:if="{{block.type === 'richText'}}" class="content-rich-text" nodes="{{block.nodes}}" selectable="{{true}}" />
+          <image wx:elif="{{block.type === 'image'}}" class="content-image" src="{{block.url}}" mode="widthFix" lazy-load data-url="{{block.url}}" bindtap="previewImage" />
+          <video wx:elif="{{block.type === 'video'}}" class="content-video" src="{{block.url}}" poster="{{block.poster || guide.cover}}" controls show-center-play-btn="{{true}}" object-fit="contain" />
+          <button wx:elif="{{block.type === 'attachment'}}" class="attachment-card" data-key="{{block.key}}" bindtap="openGuideAttachment" disabled="{{attachmentBusyKey !== ''}}" hover-class="attachment-card-active">
+            <view class="attachment-icon">附件</view>
+            <view class="attachment-info">
+              <text class="attachment-name">{{block.name}}</text>
+              <text class="attachment-meta">{{block.sizeLabel}}{{block.sizeLabel ? ' · ' : ''}}{{attachmentBusyKey === block.key ? attachmentStatus : '点击查看或下载'}}</text>
+            </view>
+            <text class="attachment-arrow">↓</text>
+          </button>
+        </block>
+      </block>
+      <block wx:else>
+        <view class="content-para" wx:for="{{guide.content}}" wx:key="index" wx:for-item="para">{{para}}</view>
+      </block>
     </view>
 
-    <!-- 关联打卡点：点击跳转到打卡点详情 -->
-    <view class="spot-link" wx:if="{{relatedSpot.id}}" bindtap="goSpot" hover-class="lxm-card-lift" hover-stay-time="150">
-      <image class="spot-link-cover" src="{{relatedSpot.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+    <!-- 每个关联点位都可独立打开，预约按钮使用商品所属点位。 -->
+    <view class="spot-link" wx:for="{{relatedSpots}}" wx:key="id" wx:for-item="spot" data-id="{{spot.id}}" bindtap="goSpot" hover-class="lxm-card-lift" hover-stay-time="150">
+      <image class="spot-link-cover" src="{{spot.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
       <view class="spot-link-body">
         <text class="spot-link-label">关联打卡点</text>
-        <text class="spot-link-name">{{relatedSpot.name}}</text>
+        <text class="spot-link-name">{{spot.name}}</text>
       </view>
       <lxm-icon class="spot-link-arrow" type="arrow-right" size="22" color="red"></lxm-icon>
     </view>
 
-    <!-- 图文正文 -->
-    <view class="content-card">
-      <view class="content-title">拍摄攻略</view>
-      <view class="content-para" wx:for="{{guide.content}}" wx:key="index" wx:for-item="para">{{para}}</view>
+    <view class="lxm-foot-bar {{bookingProduct && bookingProduct.id ? '' : 'guide-actions--favorite-only'}}">
+      <view class="lxm-foot-favorite">
+        <lxm-favorite-button type="guide" item-id="{{guide._id || guide.id}}" item="{{guide}}" />
+      </view>
+      <button wx:if="{{bookingProduct && bookingProduct.id}}" class="lxm-foot-btn__main" bindtap="goBookingProduct">预约同款</button>
     </view>
   </block>
-
-  <!-- 吸底：预约同款（跳后台配置的产品页） -->
-  <view class="bottom-bar" wx:if="{{target}}">
-    <view class="bottom-info">
-      <text class="bottom-label">同款旅拍</text>
-      <text class="bottom-name">{{target.name}}</text>
-    </view>
-    <button class="bottom-btn" bindtap="goTarget">预约同款</button>
-  </view>
 </view>

@@ -1,10 +1,14 @@
+const { displayTags, displayVideoDuration } = require('../../utils/productDisplay')
+
+let playingCard = null
+
 function configuredText(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? String(value) : ''
   return typeof value === 'string' ? value.trim() : ''
 }
 
 function videoMeta(item) {
-  const duration = configuredText(item.videoDuration) || configuredText(item.durationText)
+  const duration = displayVideoDuration(item.videoDuration) || displayVideoDuration(item.durationText)
   let finishedCount = configuredText(item.finishedVideoCount)
   if (/^\d+(?:\.\d+)?$/.test(finishedCount)) finishedCount += ' 条成片'
   return [duration, finishedCount, configuredText(item.deliveryCycle)]
@@ -13,9 +17,30 @@ function videoMeta(item) {
 }
 
 function previewUrl(item) {
-  const url = [item.videoUrl, item.previewVideoUrl, item.url]
-    .find(value => typeof value === 'string' && value.trim())
-  return url ? url.trim() : ''
+  const candidates = [item.previewVideoUrl, item.videoUrl, item.url, ...(Array.isArray(item.videos) ? item.videos : [])]
+  for (const value of candidates) {
+    const media = typeof value === 'string' ? { url: value } : value || {}
+    const url = configuredText(media.videoUrl || media.url || media.src)
+    const declaredType = String(media.mediaType || media.mimeType || media.type || '').toLowerCase()
+    const image = /\.(?:jpe?g|png|webp|gif|bmp|svg|avif|heic)(?:[?#]|$)/i.test(url) || /^data:image\//i.test(url) || /^(?:image|photo)/.test(declaredType)
+    if (url && !image) return url
+  }
+  return ''
+}
+
+const MARKETING_BADGES = [
+  { label: '爆款', className: 'is-hot-sale', fields: ['isHotSale'] },
+  { label: '主推', className: 'is-main-push', fields: ['isMainPush', 'mainPush'] },
+  { label: '新品', className: 'is-new', fields: ['isNew'] },
+  { label: '热门', className: 'is-hot', fields: ['isHot', 'hot'] }
+]
+
+function marketingInfo(item, tags) {
+  const enabled = value => [true, 1, '1', 'true'].includes(typeof value === 'string' ? value.trim().toLowerCase() : value)
+  // 明确填写的营销标签优先于旧接口派生的标记，其他标签继续完整展示。
+  return MARKETING_BADGES.find(badge => tags.includes(badge.label)) ||
+    MARKETING_BADGES.find(badge => badge.fields.some(field => enabled(item[field]))) ||
+    { label: '', className: '' }
 }
 
 Component({
@@ -23,7 +48,10 @@ Component({
     marketingBadge: '',
     marketingBadgeClass: '',
     videoMetaText: '',
-    previewVideoUrl: ''
+    displayTags: [],
+    previewVideoUrl: '',
+    isPlaying: false,
+    videoError: false
   },
 
   properties: {
@@ -39,6 +67,10 @@ Component({
       type: Boolean,
       value: false
     },
+    showCoverPrice: {
+      type: Boolean,
+      value: true
+    },
     // 短视频单品卡片（视频摄像板块统一使用单品形态）
     variant: {
       type: String,
@@ -53,27 +85,33 @@ Component({
 
   observers: {
     'item': function (item) {
-      // 营销角标：爆款 > 主推 > 热门（后台 isHotSale/isMainPush/isHot 控制，前端统一角标）
-      let marketingBadge = ''
-      let marketingBadgeClass = ''
-      if (item) {
-        if (item.isHotSale) {
-          marketingBadge = '爆款'
-          marketingBadgeClass = 'is-hot-sale'
-        } else if (item.isMainPush) {
-          marketingBadge = '主推'
-          marketingBadgeClass = 'is-main-push'
-        } else if (item.isHot) {
-          marketingBadge = '热门'
-          marketingBadgeClass = 'is-hot'
-        }
+      const url = previewUrl(item || {})
+      if (url !== this.data.previewVideoUrl) {
+        this.pauseVideo()
+        this.setData({ videoError: false })
       }
+      const source = item || {}
+      const tags = displayTags(source.tag, source.tags, source.serviceTags, source.styleTags)
+      const badge = marketingInfo(source, tags)
       this.setData({
-        marketingBadge,
-        marketingBadgeClass,
-        videoMetaText: videoMeta(item || {}),
-        previewVideoUrl: previewUrl(item || {})
+        marketingBadge: badge.label,
+        marketingBadgeClass: badge.className,
+        videoMetaText: videoMeta(source),
+        displayTags: tags.filter(tag => tag !== badge.label && tag !== '视频摄像'),
+        previewVideoUrl: url
       })
+    }
+  },
+
+  lifetimes: {
+    detached() {
+      this.pauseVideo()
+    }
+  },
+
+  pageLifetimes: {
+    hide() {
+      this.pauseVideo()
     }
   },
 
@@ -88,15 +126,36 @@ Component({
       })
     },
 
-    onPreview() {
-      const item = this.data.item || {}
-      const url = previewUrl(item)
-      if (!url) return
-      this.triggerEvent('preview', {
-        id: item._id || item.id,
-        url,
-        cover: item.cover
+    onVideoTap() {
+      // 视频区域使用原生播放控件，阻止点击冒泡到商品详情。
+    },
+
+    onVideoPlay() {
+      if (playingCard && playingCard !== this) playingCard.pauseVideo()
+      playingCard = this
+      this.setData({ isPlaying: true })
+    },
+
+    onVideoPause() {
+      if (playingCard === this) playingCard = null
+      this.setData({ isPlaying: false })
+    },
+
+    onVideoError() {
+      this.onVideoPause()
+      this.setData({ videoError: true })
+    },
+
+    retryVideo() {
+      if (!this.data.previewVideoUrl) return
+      this.setData({ videoError: false }, () => {
+        wx.createVideoContext('product-video', this).play()
       })
+    },
+
+    pauseVideo() {
+      if (this.data.isPlaying) wx.createVideoContext('product-video', this).pause()
+      this.onVideoPause()
     },
 
     onBook() {

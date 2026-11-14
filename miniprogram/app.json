@@ -1,8 +1,8 @@
 {
   "pages": [
+    "pages/index/index",
     "pages/launch/launch",
     "pages/scanEntry/scanEntry",
-    "pages/index/index",
     "pages/explore/explore",
     "pages/spotSheet/spotSheet",
     "pages/search/search",
@@ -19,6 +19,7 @@
     "pages/videoProductDetail/videoProductDetail",
     "pages/guideList/guideList",
     "pages/guideDetail/guideDetail",
+    "pages/webview/webview",
     "pages/privacy/privacy"
   ],
   "usingComponents": {

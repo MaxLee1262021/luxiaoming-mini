@@ -2,10 +2,15 @@
 
 const assert = require("node:assert/strict");
 const path = require("node:path");
+const fs = require("node:fs");
 
 let pageConfig = null;
 const locationCalls = [];
 const toastCalls = [];
+const navigations = [];
+const homeRequests = [];
+const pendingHomeRequests = [];
+let deferHomeRequests = false;
 const invalidSpots = [
   { _id: "missing" },
   { _id: "partial", latitude: 28.185 },
@@ -24,17 +29,36 @@ const spotFixtures = [
   { _id: "zero", name: "零坐标点位", latitude: 0, longitude: 0, coordType: "gcj02" },
   ...invalidSpots
 ].map((spot) => ({ cityId: "city-cs", city: "长沙", status: "启用", isShow: true, ...spot }));
+const rankedSpots = [
+  { ...spotFixtures[1], hotScore: 1 },
+  { _id: "home-only", name: "首页推荐点位", address: "长沙市岳麓区", latitude: 28.185, longitude: 112.976, coordType: "wgs84", hotScore: 0 },
+  { ...spotFixtures[0], hotScore: 999 },
+  ...spotFixtures.slice(2, 7)
+];
+let homeResult = {
+  success: true,
+  data: {
+    spots: rankedSpots,
+    spotPagination: { offset: 0, limit: 20, nextOffset: rankedSpots.length, hasMore: false }
+  }
+};
 
 global.wx = {
   getStorageSync() { return ""; },
   setStorageSync() {},
   removeStorageSync() {},
   getAccountInfoSync() { return { miniProgram: { envVersion: "develop" } }; },
-  navigateTo() {},
+  navigateTo(options) { navigations.push(options.url); },
   showToast(options) { toastCalls.push(options); },
   openLocation(options) { locationCalls.push(options); },
   request(options) {
     const name = String(options.url || "").split("/rpc/").pop();
+    if (name === "getHomeData") {
+      homeRequests.push(options.data.data);
+      if (deferHomeRequests) pendingHomeRequests.push(options);
+      else options.success({ statusCode: 200, data: homeResult });
+      return;
+    }
     const data = {
       getSpots: {
         success: true,
@@ -55,7 +79,9 @@ global.wx = {
           { _id: "per-a", name: "橘洲相册", spotIds: ["spot-a"], status: "上架", isShow: true, price: 129, storeProductId: "store-a" },
           { _id: "per-b", name: "其他点位相册", spotIds: ["spot-b"], status: "上架", isShow: true, price: 159, storeProductId: "store-b" },
           { _id: "per-unbound-global", name: "未绑定全城相册", mode: "全城通用", status: "上架", isShow: true, price: 99 },
-          { _id: "per-unbound-a", name: "未绑定橘洲相册", spotIds: ["spot-a"], status: "上架", isShow: true, price: 129, storeProductId: "  " }
+          { _id: "per-unbound-a", name: "未绑定橘洲相册", spotIds: ["spot-a"], status: "上架", isShow: true, price: 129, storeProductId: "  " },
+          { _id: "per-hidden", name: "隐藏相册", mode: "全城通用", status: "上架", isShow: false, storeProductId: "store-hidden" },
+          { _id: "per-offline", name: "下架相册", mode: "全城通用", status: "下架", isShow: true }
         ]
       },
       listGuides: {
@@ -111,15 +137,26 @@ function completeLocation(options, error) {
 
   assert.equal(page.data.error, "");
   assert.equal(page.data.selectedSpot._id, "spot-a");
+  assert.deepEqual(homeRequests[0], { shopId: "", spotOffset: 0, spotLimit: 20, spotsOnly: true });
+  assert.equal(page.data.spotNoMedia, false);
+  assert.deepEqual(page.data.relatedRecs.map(item => item._id), ["spot-b", "home-only", "wgs84", "bd09", "zero"], "recommendations should preserve home ranking, omit the current spot, and cap at five even when the spot has products");
   assert.deepEqual(page.data.selectedSpotGuides.map((item) => item._id), ["guide-multi"]);
   assert.deepEqual(
     page.data.selectedSpotProducts.peripherals.map((item) => item._id).sort(),
-    ["per-a", "per-global"]
+    ["per-a", "per-global", "per-unbound-a", "per-unbound-global"]
   );
   for (const id of ["per-unbound-global", "per-unbound-a"]) {
-    assert.equal(page.data.catalog.peripherals.some((item) => item._id === id), false, `${id} must be excluded from the catalog without a WeChat store binding`);
-    assert.equal(page.data.selectedSpotProducts.peripherals.some((item) => item._id === id), false, `${id} must not appear in the spot's peripheral shelf`);
+    assert.equal(page.data.catalog.peripherals.some((item) => item._id === id), true, `${id} must remain available for display without a WeChat store binding`);
+    assert.equal(page.data.selectedSpotProducts.peripherals.some((item) => item._id === id), true, `${id} must appear when it matches the current spot`);
   }
+  for (const id of ["per-hidden", "per-offline"]) {
+    assert.equal(page.data.catalog.peripherals.some((item) => item._id === id), false, `${id} must remain hidden from the public catalog`);
+  }
+  const spotMarkup = fs.readFileSync(path.resolve(__dirname, '..', 'miniprogram/pages/spotSheet/spotSheet.wxml'), 'utf8');
+  assert.doesNotMatch(spotMarkup, /peripheral-price/);
+  page.setData({ shopId: 'source-shop', scene: 'source-scene' });
+  page.onPeripheralTap({ currentTarget: { dataset: { id: 'per-a' } } });
+  assert.equal(navigations.at(-1), '/pages/peripherals/peripherals?id=per-a&shopId=source-shop&scene=source-scene');
   assert.deepEqual(page.data.selectedSpotProducts.photoPackages.map((item) => item._id), ["pkg-a"]);
 
   assert.equal(page.data.canNavigate, true, "API string coordinates should enable navigation");
@@ -139,6 +176,9 @@ function completeLocation(options, error) {
   assert.equal(page.data.openingLocation, false);
 
   selectSpot(page, "spot-b");
+  assert.equal(page.data.spotNoMedia, true);
+  assert.deepEqual(page.data.relatedRecs.map(item => item._id), ["home-only", "spot-a", "wgs84", "bd09", "zero"], "switching recommendations must exclude the new spot without filtering out spots that have no products");
+  assert.deepEqual(page.data.selectedSpotProducts.peripherals.map((item) => item._id).sort(), ["per-b", "per-global", "per-unbound-global"], "Peripheral displays must still respect the selected spot");
   page.onNavigate();
   assert.deepEqual(destination(locationCalls.at(-1)), {
     latitude: 28.183,
@@ -209,6 +249,51 @@ function completeLocation(options, error) {
   assert.equal(toastCalls.length, beforeUnsupported + 1, "unsupported clients should receive feedback");
   assert.equal(page.data.openingLocation, false);
   wx.openLocation = nativeOpenLocation;
+
+  const recommendationPage = createPage();
+  recommendationPage.setData({ id: "spot-a", shopId: "ranking-shop" });
+  await recommendationPage.loadSpots();
+  assert.equal(homeRequests.at(-1).shopId, "ranking-shop", "the ranking should use the same shop context as the home page");
+  selectSpot(recommendationPage, "home-only");
+  assert.equal(recommendationPage.data.selectedSpot.name, "首页推荐点位", "a ranked spot outside the detail catalog must still open");
+  assert.equal(recommendationPage.data.canNavigate, true);
+  assert.ok(Math.abs(recommendationPage.data.selectedSpot.latitude - 28.181578196734648) < 1e-8, "ranked-only coordinates must be converted once");
+  assert.deepEqual(recommendationPage.data.relatedRecs.map(item => item._id), ["spot-b", "spot-a", "wgs84", "bd09", "zero"]);
+  await recommendationPage.loadSpots();
+  assert.equal(recommendationPage.data.selectedSpot._id, "home-only", "reloading must retain a selected spot supplied by the home ranking");
+  assert.equal(recommendationPage.data.error, "");
+
+  recommendationPage.applyHomeHotSpots({ success: true, data: { spots: [
+    { _id: "spot-a", hotScore: 10 }, { _id: "spot-b", hotScore: 20 }, { id: 42, hotScore: 30 }
+  ] } });
+  assert.deepEqual(recommendationPage.buildRelatedRecs({ _id: "spot-a" }).map(item => item._id), [42, "spot-b"], "legacy responses must use the same heat ordering as the home page and show only the available rows");
+  assert.deepEqual(recommendationPage.buildRelatedRecs({ _id: "42" }).map(item => item._id), ["spot-b", "spot-a"], "numeric and string IDs must identify the same current spot");
+  recommendationPage.applyHomeHotSpots({ success: true, data: { spots: [] } });
+  assert.deepEqual(recommendationPage.buildRelatedRecs({ _id: "spot-a" }), [], "an empty home ranking must stay empty");
+  homeResult = { success: false, message: "ranking unavailable" };
+  recommendationPage.setData({ id: "spot-a" });
+  await recommendationPage.loadSpots();
+  assert.equal(recommendationPage.data.error, "", "a ranking failure must not hide the spot detail");
+  assert.deepEqual(recommendationPage.data.relatedRecs, [], "a failed ranking must not fall back to an unrelated spot catalog order");
+
+  deferHomeRequests = true;
+  const staleLoad = recommendationPage.loadSpots();
+  const freshLoad = recommendationPage.loadSpots();
+  const [staleHome, freshHome] = pendingHomeRequests.splice(0);
+  freshHome.success({ statusCode: 200, data: { success: true, data: { spots: [rankedSpots[0]] } } });
+  await freshLoad;
+  assert.deepEqual(recommendationPage.data.relatedRecs.map(item => item._id), ["spot-b"]);
+  staleHome.success({ statusCode: 200, data: { success: true, data: { spots: [rankedSpots[1]] } } });
+  await staleLoad;
+  assert.deepEqual(recommendationPage.data.relatedRecs.map(item => item._id), ["spot-b"], "a stale request must not replace a newer ranking");
+  const unloading = recommendationPage.loadSpots();
+  const unloadHome = pendingHomeRequests.shift();
+  recommendationPage.onUnload();
+  const beforeUnloadResult = JSON.stringify(recommendationPage.data);
+  unloadHome.success({ statusCode: 200, data: { success: true, data: { spots: [rankedSpots[1]] } } });
+  await unloading;
+  assert.equal(JSON.stringify(recommendationPage.data), beforeUnloadResult, "late responses must not update an unloaded detail page");
+  deferHomeRequests = false;
 
   process.stdout.write("Mini program spot-sheet data-flow test passed.\n");
 })().catch((error) => {

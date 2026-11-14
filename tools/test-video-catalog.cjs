@@ -53,7 +53,7 @@ test('真实空单品列表隐藏视频区，不能补入演示单品或旧套�
   assert.deepEqual(buildHomeViewData({ videoProducts: [legacy] }).videoPackages, [])
 })
 
-test('首页只展示上架独立单品，兼容两个字段与packages并去重', () => {
+test('首页搜索目录仅保留上架独立单品，兼容两个字段与packages并去重', () => {
   const data = {
     packages: [legacy, photo, single, ...hidden],
     videoSingles: [single, ...hidden],
@@ -83,11 +83,26 @@ test('旧详情链接和下架链接被拒绝，正常详情没有虚构规格',
   assert.equal(buildVideoProductDetail(data, { productId: 'video-offline' }), null)
   const detail = buildVideoProductDetail(data, { productId: 'video-1' })
   assert.equal(detail.product._id, 'video-1')
-  assert.equal(detail.samples[0].url, '')
-  assert.equal(detail.samples[0].durationText, '')
+  assert.deepEqual(detail.samples, [])
   assert.deepEqual(detail.videoFields, [])
   assert.deepEqual(detail.recommendations, [])
   assert.equal(buildVideoProductDetail({ videoSingles: [single] }, { productId: 'video-1' }).product._id, 'video-1')
+})
+
+test('后台上传的视频无需首图即可进入搜索目录和详情播放器', () => {
+  const product = { ...single, cover: '', videoUrl: 'https://example.test/uploaded.mp4' }
+  const normalized = normalizePackage(product)
+  assert.equal(normalized.cover, '')
+  assert.equal(normalized.videoUrl, product.videoUrl)
+  const home = buildHomeViewData({ videoSingles: [product] })
+  assert.equal(home.videoPackages[0].cover, '')
+  assert.equal(home.videoPackages[0].videoUrl, product.videoUrl)
+  const detail = buildVideoProductDetail({ videoSingles: [product] }, { productId: product._id })
+  assert.equal(detail.samples.length, 1)
+  assert.equal(detail.samples[0].type, 'video')
+  assert.equal(detail.samples[0].url, product.videoUrl)
+  assert.equal(detail.samples[0].cover, '')
+  assert.equal(normalizePackage(photo).cover, '/images/placeholder.png', '照片商品的原有兜底保持不变')
 })
 
 test('预约选择器只接收上架单品，照片套餐不受影响', () => {
@@ -120,14 +135,21 @@ test('打卡点视频货架与预约添加项目遵守同一单品规则', () =>
   assert.deepEqual(rows.filter(row => row.cat === 'package').map(row => row.src._id), ['photo-1'])
 })
 
-test('首页实际加载空单品响应后清空视频区，后续上架响应可恢复', async () => {
+test('首页搜索目录和点位视频货架同步空单品及后续上架数据', async () => {
   const homePage = loadPage('pages/index/index.js')
-  responseData = { packages: [legacy, photo], videoSingles: [] }
+  const catalog = videos => ({
+    spots: [{ _id: 'spot-1', name: '江景' }],
+    packages: [legacy, photo], videoSingles: videos,
+    spotProductsAvailable: true,
+    spotProducts: { spotId: 'spot-1', albums: [], packages: [legacy, photo], videoSingles: videos, peripherals: [] }
+  })
+  responseData = catalog([])
   await homePage.loadHomeData()
   assert.deepEqual(homePage.data.videoPackages, [])
   assert.deepEqual(homePage.data.filteredVideos, [])
-  responseData = { packages: [legacy, photo], videoSingles: [single] }
+  responseData = catalog([single, ...hidden])
   await homePage.loadHomeData()
   assert.deepEqual(ids(homePage.data.videoPackages), ['video-1'])
   assert.deepEqual(ids(homePage.data.filteredVideos), ['video-1'])
+  homePage.onUnload()
 })

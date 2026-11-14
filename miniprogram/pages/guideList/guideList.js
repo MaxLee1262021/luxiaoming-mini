@@ -27,11 +27,14 @@ Page({
   },
 
   onLoad(options = {}) {
+    const source = app.captureSource ? app.captureSource(options) : {}
     const spotId = options.spotId || ''
     const spotName = options.spotName || ''
     this.setData({
       spotId,
       spotName,
+      shopId: options.shopId || source.shopId || '',
+      scene: options.scene || source.scene || '',
       title: spotName ? `${spotName}·旅拍灵感` : '旅拍灵感'
     })
     this.loadGuides()
@@ -49,7 +52,8 @@ Page({
       // 无标记时回退为列表首条。该攻略仅作 hero 展示，不重复出现在双列瀑布流。
       let featuredGuide = null
       let feed = guides
-      const featuredIdx = guides.findIndex(g => g.isFeatured === true || g.pinned === true)
+      const pinnedIdx = guides.findIndex(g => g.isTop === true || g.pinned === true)
+      const featuredIdx = pinnedIdx !== -1 ? pinnedIdx : guides.findIndex(g => g.isFeatured === true)
       if (featuredIdx !== -1) {
         featuredGuide = guides[featuredIdx]
         feed = guides.filter((_, i) => i !== featuredIdx)

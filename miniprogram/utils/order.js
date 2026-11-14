@@ -78,13 +78,23 @@ function businessStatusForOrder(order = {}, stage = '') {
   const explicitRaw = String(order.businessStatus || order.businessStatusCode || order.orderStatus || '').toLowerCase()
   const explicitBusiness = normalizeBusinessStatus(explicitRaw)
   if (explicitBusiness === BUSINESS_STATUS.CANCELLED) return BUSINESS_STATUS.CANCELLED
+  // A server review hold takes precedence over old completion/payment facts.
+  if (order.paymentReviewRequired === true) {
+    if ([BUSINESS_STATUS.PENDING_PAYMENT, BUSINESS_STATUS.RESERVED, BUSINESS_STATUS.SHOOTING].includes(explicitBusiness)) return explicitBusiness
+    if (order.shootingStartedAt || hasShootingCompleted(order, effectiveStage)
+      || effectiveStage === WORKFLOW_STAGES.SHOOTING || isDeliveryPublished(order)) return BUSINESS_STATUS.SHOOTING
+    return paymentConfirmed(order, 'deposit') ? BUSINESS_STATUS.RESERVED : BUSINESS_STATUS.PENDING_PAYMENT
+  }
+  // The server also completes orders through the service workbench. Its
+  // public completion state does not imply a WeChat final-payment record.
+  // Preserve that state even when legacy workflow/payment fields lag behind.
+  if (explicitRaw.trim() === BUSINESS_STATUS.COMPLETED || effectiveStage === WORKFLOW_STAGES.COMPLETED) return BUSINESS_STATUS.COMPLETED
   const hasPaymentFacts = ['totalAmount', 'totalPrice', 'depositDue', 'depositPaid', 'finalDue', 'finalPaid',
     'depositFinanceStatus', 'finalFinanceStatus', 'depositPaymentStatus', 'finalPaymentStatus', 'paymentRecords']
     .some(field => Object.prototype.hasOwnProperty.call(order, field))
   // Completion follows the confirmed final payment, even before photo delivery.
   if (hasPaymentFacts && paymentConfirmed(order, 'final')
     && (finalDue(order) > 0 || hasShootingCompleted(order, effectiveStage))) return BUSINESS_STATUS.COMPLETED
-  if (explicitRaw === BUSINESS_STATUS.COMPLETED && finalDue(order) <= 0) return BUSINESS_STATUS.COMPLETED
   const completedStage = [WORKFLOW_STAGES.PAID, WORKFLOW_STAGES.DELIVERED, WORKFLOW_STAGES.COMPLETED].includes(effectiveStage)
   if (!hasPaymentFacts && (completedStage || explicitBusiness === BUSINESS_STATUS.COMPLETED
     || normalizeBusinessStatus(rawStatus) === BUSINESS_STATUS.COMPLETED)) return BUSINESS_STATUS.COMPLETED
@@ -161,6 +171,7 @@ function finalPaymentSelectionReady(order = {}, stage = '') {
 function hasShootingCompleted(order = {}, stage = '') {
   if (order.shootingCompleted === true || order.shootingCompletedAt) return true
   if (order.shootingCompleted === false) return false
+  if (String(order.service_status || '').trim().toLowerCase() === 'final_pending') return true
   return ['editing', 'retouching', 'final_pending', 'awaiting_final_payment', 'awaiting_delivery', 'delivered'].includes(String(order.status || '').toLowerCase())
     || [WORKFLOW_STAGES.SELECTION_PENDING, WORKFLOW_STAGES.AWAITING_DELIVERY, WORKFLOW_STAGES.AWAITING_FINAL_PAYMENT,
       WORKFLOW_STAGES.PAID, WORKFLOW_STAGES.DELIVERED, WORKFLOW_STAGES.COMPLETED].includes(stage || order.workflowStage)
@@ -236,6 +247,7 @@ function getOrderStatusDesc(status = '', context = {}) {
     ? businessStatusForOrder({}, status)
     : status)
   if (key === BUSINESS_STATUS.SHOOTING) {
+    if (context.canConfirmCompletion) return '拍摄已完成，无需支付尾款，请确认完成订单。'
     if (hasShootingCompleted(context)) return context.canPay
       ? '拍摄已完成，可支付尾款确认本次拍摄；尾款到账后订单完成。'
       : '拍摄已完成，等待尾款确认后完成订单。'
@@ -245,7 +257,7 @@ function getOrderStatusDesc(status = '', context = {}) {
     [BUSINESS_STATUS.PENDING_PAYMENT]: '预约已提交，具体拍摄时间由客服/摄影师与您沟通确认；订金待支付。',
     [BUSINESS_STATUS.RESERVED]: '定金已确认，等待客服安排摄影师；安排前可申请退定金。',
     [BUSINESS_STATUS.AWAITING_SHOOT]: '摄影师已安排，请按沟通确认的时间和地点准备拍摄。',
-    [BUSINESS_STATUS.COMPLETED]: isDeliveryPublished(context) ? '尾款已确认，订单已完成，可查看照片交付记录。' : '尾款已确认，订单已完成；照片交付进度请查看交付记录。',
+    [BUSINESS_STATUS.COMPLETED]: isDeliveryPublished(context) ? '订单已完成，可查看照片交付记录。' : '订单已完成；照片交付进度请查看交付记录。',
     [BUSINESS_STATUS.CANCELLED]: '订单已取消，如有疑问请联系客服。'
   }[key] || '订单正在处理中。'
 }
@@ -311,6 +323,7 @@ function canCancelOrder(input = {}) {
   const stage = input.workflowStage || deriveWorkflowStage(input)
   if (['canceled', 'cancelled', 'deleted', 'completed'].includes(status)
     || stage === WORKFLOW_STAGES.CANCELLED || stage === WORKFLOW_STAGES.COMPLETED
+    || businessStatusForOrder(input, stage) === BUSINESS_STATUS.COMPLETED
     || isAfterSaleOpen(input) || hasPaymentIntent(input)) return false
   if (![WORKFLOW_STAGES.AWAITING_CONFIRMATION, WORKFLOW_STAGES.AWAITING_DEPOSIT].includes(stage)) return false
   return input.canCancel === true
@@ -330,9 +343,10 @@ function canApplyAfterSale(input = {}) {
 }
 
 function canCreatePayment(order = {}, phase = '') {
-  if (!order || typeof order !== 'object' || isAfterSaleOpen(order)) return false
+  if (!order || typeof order !== 'object' || order.paymentReviewRequired === true || isAfterSaleOpen(order)) return false
   const stage = order.workflowStage || deriveWorkflowStage(order)
   if (stage === WORKFLOW_STAGES.CANCELLED || stage === WORKFLOW_STAGES.COMPLETED) return false
+  if (businessStatusForOrder(order, stage) === BUSINESS_STATUS.COMPLETED) return false
   const resolvedPhase = phase || order.paymentPhase
   if (!['deposit', 'final'].includes(resolvedPhase)) return false
   const explicitGrant = resolvedPhase === 'deposit' ? order.canPayDeposit : order.canPayFinal
@@ -396,10 +410,14 @@ function normalizeOrder(order = {}) {
     ? 'deposit'
     : (workflowStage === WORKFLOW_STAGES.AWAITING_FINAL_PAYMENT || workflowStage === WORKFLOW_STAGES.AWAITING_DELIVERY || order.canPayFinal === true ? 'final' : ''))
   const latestPayment = currentPhase ? records.filter(record => String(record && record.phase || '') === currentPhase).slice(-1)[0] : null
+  const phasePaymentStatus = currentPhase && order[`${currentPhase}PaymentStatus`]
   const serverPaymentStatus = order.paymentStatus ? paymentStatus(order.paymentStatus) : ''
-  const resolvedPaymentStatus = latestPayment ? paymentStatus(latestPayment.status) : (serverPaymentStatus || 'not_created')
-  const paymentSimulationEnabled = order.paymentSimulationEnabled === true
-    || String(order.paymentMode || '').trim().toLowerCase() === 'mock'
+  const hasPaymentIdentity = latestPayment && (latestPayment.idempotencyKey || latestPayment.provider || latestPayment.externalTransactionId)
+  const recordPaymentStatus = latestPayment && paymentStatus(latestPayment.status)
+  // Public phase status distinguishes a real payment intent from a finance
+  // placeholder. A placeholder must not send the customer into a resume loop.
+  const resolvedPaymentStatus = (phasePaymentStatus && paymentStatus(phasePaymentStatus)) || serverPaymentStatus
+    || (recordPaymentStatus === 'pending' && !hasPaymentIdentity ? 'not_created' : recordPaymentStatus) || 'not_created'
   const timeline = Array.isArray(order.statusTimeline) ? order.statusTimeline : (Array.isArray(order.statusLogs) ? order.statusLogs : [])
   const confirmed = !!(order.confirmationSnapshot || order.confirmedSnapshot || order.serviceSnapshot || order.serviceConfirmedAt || order.confirmedAt || order.pricingConfirmed)
   const scheduleConfirmed = confirmed
@@ -412,9 +430,12 @@ function normalizeOrder(order = {}) {
   const deliveryVisible = deliveryPublished && finalConfirmed
   const normalizedForActions = { ...order, workflowStage, paymentPhase: currentPhase }
   const canPay = !!currentPhase && !isAfterSale && canCreatePayment(normalizedForActions, currentPhase)
+  const canConfirmCompletion = order.canConfirmCompletion === true && !isAfterSale && !order.paymentReviewRequired
+    && businessStatusKey === BUSINESS_STATUS.SHOOTING && shootingCompleted
+    && [WORKFLOW_STAGES.SHOOTING, WORKFLOW_STAGES.AWAITING_FINAL_PAYMENT].includes(workflowStage)
+    && finalAmount === 0 && depositConfirmed && !finalConfirmed
   const canCancel = !isAfterSale && canCancelOrder(normalizedForActions)
   const canAfterSale = !isAfterSale && canApplyAfterSale(normalizedForActions)
-  const canRunTestPayment = canPay && order.paymentTestModeEnabled === true && order.canRunTestPayment === true
   const assignmentStarted = hasPhotographerAssignment(order, workflowStage)
   const depositRefundable = !assignmentStarted && order.depositRefundable !== false
   const refundDepositAllowed = canRefundDeposit(normalizedForActions)
@@ -483,13 +504,14 @@ function normalizeOrder(order = {}) {
     paymentStatus: resolvedPaymentStatus,
     paymentPending: order.paymentPending === true || resolvedPaymentStatus === 'pending',
     canPay,
+    canConfirmCompletion,
     canPayDeposit: canPay && currentPhase === 'deposit',
     canPayFinal: canPay && currentPhase === 'final',
-    paymentMode: paymentSimulationEnabled ? 'mock' : 'wechat',
-    paymentSimulationEnabled,
-    paymentTestModeEnabled: order.paymentTestModeEnabled === true,
-    canRunTestPayment,
-    nextAction: canPay
+    paymentMode: 'wechat',
+    paymentSimulationEnabled: false,
+    paymentTestModeEnabled: false,
+    canRunTestPayment: false,
+    nextAction: canConfirmCompletion ? '确认订单完成' : canPay
       ? (currentPhase === 'deposit' ? '支付订金' : '支付尾款')
       : (businessStatusKey === BUSINESS_STATUS.PENDING_PAYMENT ? '等待客服确认并支付订金'
         : businessStatusKey === BUSINESS_STATUS.RESERVED ? '等待客服安排摄影师'

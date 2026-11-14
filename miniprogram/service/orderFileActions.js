@@ -16,7 +16,7 @@ const actions = {
   async loadAfterSales() {
     const order = this.data.order || {}
     const orderId = order._id || order.id
-    if (!orderId || this.data.isDemo) return
+    if (!orderId) return
     this.setData({ afterSaleRecordsLoading: true, afterSaleRecordsError: '', canRequestAfterSale: false, canRequestDepositRefund: false })
     try {
       const response = await orderApi.getMyAfterSales({ orderId })
@@ -33,11 +33,11 @@ const actions = {
     } finally { this.setData({ afterSaleRecordsLoading: false }) }
   },
   openAfterSale() {
-    if (!this.data.canRequestAfterSale || this.data.isDemo) return
+    if (!this.data.canRequestAfterSale) return
     this.setData({ afterSaleVisible: true, afterSaleDepositRefund: false, afterSaleReason: '', afterSaleFiles: [], afterSalePending: false, afterSaleError: '', afterSaleTypeIndex: 0 })
   },
   openDepositRefund() {
-    if (!this.data.canRequestDepositRefund || !canRefundDeposit(this.data.order) || this.data.isDemo) return
+    if (!this.data.canRequestDepositRefund || !canRefundDeposit(this.data.order)) return
     this.setData({ afterSaleVisible: true, afterSaleDepositRefund: true, afterSaleReason: '', afterSaleFiles: [], afterSalePending: false, afterSaleError: '', afterSaleTypeIndex: 0 })
   },
   closeAfterSale() {

@@ -32,7 +32,7 @@ function normalizeFavorite(row = {}) {
     typeLabel: TYPE_LABELS[type],
     name: row.title || row.name || TYPE_LABELS[type],
     cover: row.cover || row.coverImage || row.coverUrl || row.image || '/images/placeholder.png',
-    priceText: hasPrice ? `¥${Number(row.price)}` : ''
+    priceText: hasPrice && type !== 'peripheral' ? `¥${Number(row.price)}` : ''
   }
 }
 
@@ -70,7 +70,7 @@ function getFavoriteUrl(row, source = {}) {
     photo_single: ['/pages/photoCollection/photoCollection', { albumId: itemId, seriesId, spotId }],
     photo_package: ['/pages/photoPackageDetail/photoPackageDetail', { packageId: itemId, seriesId, spotId }],
     video_single: ['/pages/videoProductDetail/videoProductDetail', { productId: itemId, spotId }],
-    peripheral: ['/pages/peripheralDetail/peripheralDetail', { id: itemId }],
+    peripheral: ['/pages/peripherals/peripherals', { id: itemId }],
     guide: ['/pages/guideDetail/guideDetail', { id: itemId }],
     spot: ['/pages/spotSheet/spotSheet', { id: itemId }]
   }

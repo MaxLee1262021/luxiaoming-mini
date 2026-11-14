@@ -1,5 +1,16 @@
-/* 「相关推荐」区块头部样式（与全站 section-heading 视觉一致）
-   卡片本身的 .video-product-* 样式来自 app.wxss 全局，此处不重复定义 */
+/* 自定义组件样式隔离，横滑容器在组件内声明，随最高卡片展开。 */
+.video-product-scroll {
+  height: auto;
+  padding-left: 28rpx;
+  white-space: nowrap;
+}
+
+.video-product-track {
+  display: inline-flex;
+  align-items: flex-start;
+  padding-bottom: 12rpx;
+  white-space: normal;
+}
 
 .lxm-related {
   margin: 36rpx 0;

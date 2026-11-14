@@ -1,4 +1,6 @@
 .shooting-notes {
+  word-break: break-word;
+  overflow-wrap: anywhere;
   margin: 26rpx 24rpx 0;
   padding: 30rpx;
   border-radius: var(--lxm-r-xl);

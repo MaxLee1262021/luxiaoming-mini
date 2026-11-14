@@ -1,7 +1,7 @@
 const userApi = require('../api/user')
 const { isLoggedOut, clearLogoutMarker } = require('../api/client')
 
-const USER_KEY = 'lxm_user_profile'
+const USER_KEY = 'lxm_user_profile_live_v2'
 let profileSyncPromise = null
 let userStateVersion = 0
 
@@ -52,11 +52,12 @@ async function bindPhoneByCode(code, extra = {}) {
   // A logout that happened while WeChat was returning the authorization code
   // wins over this stale response and must not restore the profile.
   if (requestVersion !== userStateVersion) return {}
-  const data = (res && res.data) || res || {}
+  if (!res || res.success !== true || !res.data || typeof res.data !== 'object') throw new Error('手机号绑定未被服务端确认，请重试')
+  const data = res.data
   clearLogoutMarker()
   return saveUser({
     ...data,
-    phone: data.phone || extra.phone || ''
+    phone: data.phone || ''
   })
 }
 
@@ -67,11 +68,12 @@ function syncUserProfile() {
   const sync = userApi.getMyProfile()
     .then((res) => {
       if (requestVersion !== userStateVersion || isLoggedOut()) return {}
-      const data = (res && res.data) || res || {}
-      if (!data.openid) return getUser()
+      if (!res || res.success !== true || !res.data || typeof res.data !== 'object') throw new Error('用户资料加载失败，请重试')
+      const data = res.data
+      if (!data.openid) throw new Error('用户资料未被服务端确认，请重试')
       return saveUser({
         openid: data.openid,
-        phone: data.phone || getBoundPhone()
+        phone: data.phone || ''
       })
     })
   profileSyncPromise = sync

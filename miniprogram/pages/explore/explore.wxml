@@ -1,7 +1,7 @@
 <view class="explore-page">
   <lxm-privacy-modal />
 
-  <map
+  <map wx:if="{{mapReady}}"
     id="exploreMap"
     class="explore-map"
     latitude="{{mapLatitude}}"
@@ -28,6 +28,7 @@
       interval="3500"
       duration="400"
       circular="{{true}}"
+      disable-touch="{{false}}"
       current="{{bannerIndex}}"
       bindchange="onBannerChange"
       indicator-dots="{{true}}"
@@ -36,7 +37,7 @@
     >
       <swiper-item wx:for="{{exploreBanners}}" wx:key="_id">
         <view class="banner-click-area" bindtap="goBanner" data-index="{{index}}">
-          <video wx:if="{{item.type === 'video'}}" class="banner-media" src="{{item.url}}" poster="{{item.cover || '/images/placeholder.png'}}" object-fit="cover" muted loop autoplay="{{index === bannerIndex}}" controls="{{false}}" show-center-play-btn="{{false}}" />
+          <video wx:if="{{item.type === 'video'}}" class="banner-media" src="{{item.url}}" poster="{{item.cover || '/images/placeholder.png'}}" object-fit="cover" muted loop autoplay="{{index === bannerIndex}}" controls="{{false}}" show-center-play-btn="{{false}}" catchtap="goBanner" data-index="{{index}}" />
           <image wx:else class="banner-media" src="{{item.url || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
           <view wx:if="{{item.title}}" class="banner-copy"><text class="banner-title">{{item.title}}</text></view>
         </view>
@@ -57,13 +58,13 @@
     />
 
     <view class="explore-filters">
-      <view id="filter-city" class="explore-filter {{openPanel === 'city' ? 'open' : ''}}" bindtap="togglePanel" data-type="city">
+      <view wx:if="{{citySwitcherEnabled}}" id="filter-city" class="explore-filter {{openPanel === 'city' ? 'open' : ''}}" bindtap="togglePanel" data-type="city">
         <text class="explore-filter-text">{{selectedCityName || '选择城市'}}</text>
         <lxm-icon class="explore-filter-icon" type="arrow-right" size="14" color="ink"></lxm-icon>
       </view>
       <view id="filter-district" class="explore-filter {{openPanel === 'district' ? 'open' : ''}} {{selectedDistrict ? 'selected' : ''}}" bindtap="togglePanel" data-type="district">
         <text class="explore-filter-text">{{selectedDistrict || '区域'}}</text>
-        <text class="filter-badge">{{selectedDistrict ? districtCount : resultCount}}</text>
+        <text wx:if="{{!selectedDistrict}}" class="filter-badge">{{districtCount}}</text>
         <lxm-icon class="explore-filter-icon" type="arrow-right" size="14" color="ink"></lxm-icon>
       </view>
       <view id="filter-spot" class="explore-filter {{openPanel === 'spot' ? 'open' : ''}} {{selectedSpotId ? 'selected' : ''}}" bindtap="togglePanel" data-type="spot">
@@ -81,7 +82,7 @@
   <view class="filter-dropdown {{openPanel ? 'show' : ''}}" wx:if="{{openPanel}}">
     <view class="filter-dropdown-backdrop" bindtap="closePanel"></view>
     <view class="filter-dropdown-panel" style="top: {{filterPanelTop}}px; --arrow-left: {{filterArrowLeft}}px;" catchtap="noop">
-      <view wx:if="{{openPanel === 'city'}}" class="filter-options">
+      <view wx:if="{{citySwitcherEnabled && openPanel === 'city'}}" class="filter-options">
         <view
           wx:for="{{cityOptions}}"
           wx:key="value"
@@ -148,9 +149,8 @@
     </view>
 
   </view>
-  <!-- 显式演示模式下才会展示本地点位降级提示。 -->
   <view wx:if="{{degraded && !loading}}" class="lxm-degrade-bar explore-degrade">
-    <text class="lxm-degrade-bar__txt">内容加载失败，正在展示预览打卡点</text>
+    <text class="lxm-degrade-bar__txt">打卡点加载失败，请稍后重试</text>
     <view class="lxm-degrade-bar__retry" bindtap="onRetryLoad" role="button" aria-label="重新加载打卡点">重新加载</view>
   </view>
   <!-- 搜索建议下拉：统一复用 lxm-search-panel（与首页同一套，不写两套） -->
@@ -196,9 +196,9 @@
     <lxm-empty-state
       type="spot"
       title="暂无打卡点"
-      desc="当前筛选条件下没有找到打卡点"
-      button-text="重置筛选"
-      bind:action="resetFilters"
+      desc="这里还没有收录打卡点，可以预约定制拍摄"
+      button-text="预约定制"
+      bind:action="goCityBooking"
     />
   </view>
 

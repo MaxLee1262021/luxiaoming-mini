@@ -1,11 +1,10 @@
 const app = getApp()
-const demoData = require('../../utils/demoData')
 const seriesApi = require('../../api/series')
 const { buildUrlWithSource } = require('../../utils/query')
 const { buildPhotoPackageDetail } = require('../../service/packageDetail')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
-const { isExplicitDemoMode } = require('../../config/env')
 const { openCustomerService } = require('../../service/customerService')
+const { displayTags, shootingInstructions, includedItemStats } = require('../../utils/productDisplay')
 
 Page({
   data: {
@@ -29,13 +28,11 @@ Page({
       typeCount: 0,
       saveAmount: 0
     },
-    instructions: demoData.DEFAULT_SHOOTING_INSTRUCTIONS,
+    instructions: [],
     pageConfig: {},
     moduleVisible: {
       bookingRule: true
     },
-    // 拍摄说明：优先使用数据（将来由后台/套餐字段覆盖），兜底用统一默认值
-    instructions: demoData.DEFAULT_SHOOTING_INSTRUCTIONS
   },
 
   onLoad(options = {}) {
@@ -84,15 +81,13 @@ Page({
         spotId: this.data.spotId
       })
       if (!res || !res.success) {
-        if (isExplicitDemoMode()) this.applyDemoDetail()
-        else this.setData({ error: (res && (res.error || res.message)) || '套餐内容暂不可用，请稍后重试' })
+        this.setData({ error: (res && (res.error || res.message)) || '套餐内容暂不可用，请稍后重试' })
       } else {
         this.applyDetailData(res.data || {})
       }
     } catch (err) {
       console.error('photoPackageDetail loadData error', err)
-      if (isExplicitDemoMode()) this.applyDemoDetail()
-      else this.setData({ error: '套餐内容暂不可用，请稍后重试' })
+      this.setData({ error: '套餐内容暂不可用，请稍后重试' })
     } finally {
       this.setData({ loading: false })
     }
@@ -110,19 +105,15 @@ Page({
     }
     const includedItems = detail.includedItems || []
     const selectedPackage = detail.selectedPackage || {}
-    const packageDescription = selectedPackage.description || selectedPackage.intro || ''
-    const serviceTags = Array.isArray(selectedPackage.serviceTags)
-      ? selectedPackage.serviceTags.filter(Boolean)
-      : (Array.isArray(selectedPackage.tags) ? selectedPackage.tags.filter(Boolean) : [])
+    const packageDescription = selectedPackage.description ?? selectedPackage.intro ?? ''
+    const serviceTags = displayTags(selectedPackage.serviceTags, selectedPackage.tags)
     const packageStats = {
-      itemCount: includedItems.length,
-      typeCount: new Set(includedItems.map(i => i.typeClass)).size,
+      ...includedItemStats(includedItems),
       saveAmount: Math.max(0, (Number(selectedPackage.originalPrice) || 0) - (Number(selectedPackage.price) || 0))
     }
-    const noteText = selectedPackage.shootingNotes || selectedPackage.shootingDescription || selectedPackage.shootingNote || ''
-    const instructions = noteText
-      ? String(noteText).split(/[；;\n]/).map(text => text.trim()).filter(Boolean)
-      : demoData.DEFAULT_SHOOTING_INSTRUCTIONS
+    const noteText = selectedPackage.shootingNotes ?? selectedPackage.shootingDescription ?? selectedPackage.shootingNote ?? ''
+    const configuredInstructions = shootingInstructions(noteText)
+    const instructions = configuredInstructions.length ? configuredInstructions : []
     this.setData({
       seriesId: detail.seriesId,
       spotId: detail.spotId,
@@ -139,14 +130,6 @@ Page({
     })
   },
 
-  applyDemoDetail() {
-    const data = demoData.getSeriesDetail({
-      seriesId: this.data.seriesId,
-      packageId: this.data.packageId,
-      spotId: this.data.spotId
-    })
-    this.applyDetailData(data)
-  },
 
   retry() {
     this.loadData()
@@ -190,9 +173,9 @@ Page({
           spotId: t.spotId || this.data.spotId
         })
       })
-    } else if (page === 'peripheral') {
+    } else if (['peripheral', 'peripheralDetail', 'peripherals'].includes(page)) {
       wx.navigateTo({
-        url: this.buildUrl('/pages/peripheralDetail/peripheralDetail', {
+        url: this.buildUrl('/pages/peripherals/peripherals', {
           id: t.id || t.peripheralId || t.productId || item.peripheralId || item.productId || ''
         })
       })

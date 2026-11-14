@@ -51,30 +51,14 @@ const API_ERROR = isProduction && !/^https:\/\//i.test(API_BASE)
   ? '小程序生产接口未配置：请在 miniprogram/config/private-env.js 设置 PROD_API_BASE'
   : ''
 
-// Demo data is opt-in. Network/API failures must never look like a persisted
-// order or a successful booking in a normal development, trial, or release build.
-function isExplicitDemoMode() {
-  try {
-    const value = wx.getStorageSync('lxm_demo_mode')
-    return value === true || value === 'true'
-  } catch (e) {
-    return false
-  }
-}
-
 module.exports = {
   // 当前生效的后台地址
   API_BASE,
   API_ERROR,
-  isExplicitDemoMode,
 
   // 当前环境标识，方便排查问题（develop / trial / release）
   ENV_VERSION: version,
 
   // 旧云开发环境 ID：已全面迁移到自托管后台，云函数不再使用，仅保留备查。
-  CLOUD_ENV: 'cloudbase-d0ght9tpm4ee2b8e7',
-
-  // 微信客服：企业 ID 与客服链接必须同时配置，并在小程序后台绑定同主体企业。
-  CORP_ID: 'wwdb93f79fb79120de',
-  CUSTOMER_SERVICE_URL: 'https://work.weixin.qq.com/kfid/kfca77dd81085d687a5'
+  CLOUD_ENV: 'cloudbase-d0ght9tpm4ee2b8e7'
 }

@@ -21,20 +21,36 @@ function sumItemsPrice(items = []) {
   }, 0)
 }
 
-function normalizeDepositRatio(value, fallback = 0.3) {
+function normalizeDepositRatio(value, fallback = null) {
+  if (!['number', 'string'].includes(typeof value) || String(value).trim() === '') return fallback
   const number = Number(value)
   if (!Number.isFinite(number) || number < 0) return fallback
   return Math.min(number > 1 ? number / 100 : number, 1)
 }
 
-function sumDepositDue(items = [], fallbackRatio = 0.3) {
+function productDepositRatio(product = {}) {
+  // An explicit null clears a product override and inherits the current global ratio.
+  if (Object.prototype.hasOwnProperty.call(product, 'depositRatio')) return product.depositRatio
+  return product.depositRate ?? product.depositPercent ?? product.depositPercentage ?? null
+}
+
+function roundBookingMoney(value) {
+  const number = Number(value)
+  if (!Number.isFinite(number) || number < 0) return 0
+  return Math.round((number + Number.EPSILON) * 100) / 100
+}
+
+function sumDepositDue(items = [], fallbackRatio = null) {
+  if ((items || []).some(item => item.price === null || item.price === undefined || String(item.price).trim() === '' || !Number.isFinite(Number(item.price)) || normalizeDepositRatio(productDepositRatio(item), fallbackRatio) === null)) return null
   const amount = (items || []).reduce((sum, item) => {
     const price = Number(item && item.price) || 0
     const quantity = Math.max(1, Math.min(99, Math.floor(Number(item && (item.quantity ?? item.qty)) || 1)))
-    const ratio = normalizeDepositRatio(item && (item.depositRatio ?? item.depositRate), fallbackRatio)
-    return sum + price * quantity * ratio
+    const ratio = normalizeDepositRatio(productDepositRatio(item), fallbackRatio)
+    // Keep the same per-line rounding as the server checkout calculation.
+    const lineTotal = roundBookingMoney(price * quantity)
+    return roundBookingMoney(sum + lineTotal * ratio)
   }, 0)
-  return Math.round((amount + Number.EPSILON) * 100) / 100
+  return amount
 }
 
 function validateBookingForm(data = {}) {
@@ -55,7 +71,7 @@ function buildBookingPayload(data = {}) {
     .filter((phone, index, list) => phone && list.indexOf(phone) === index)
   const config = data.bookingConfig || {}
   const agreementVersion = String(
-    data.agreementVersion || config.bookingNoticeVersion || config.agreementVersion || 'v1.0'
+    data.agreementVersion || config.bookingNoticeVersion || config.agreementVersion || ''
   ).trim()
   return {
     shopId: data.shopId || '',
@@ -68,7 +84,7 @@ function buildBookingPayload(data = {}) {
     timePeriod: data.time || '',
     items,
     totalPrice: sumItemsPrice(items),
-    depositRatio: normalizeDepositRatio(data.depositRatio, 0.3),
+    depositRatio: normalizeDepositRatio(data.depositRatio),
     participantCount: Number(data.participantCount || 1),
     bookingMode: 'consult',
     // The server checks the exact notice version, so the checkbox state must
@@ -99,7 +115,7 @@ function buildPrefillItem({ series = {}, spot = {}, album = {}, pkg = {}, defaul
     price: Number(pkg.price || defaultPrice || album.price || 0),
     quantity: 1,
     defaultPrice: Number(defaultPrice || album.price || 0),
-    depositRatio: album.depositRatio ?? series.depositRatio ?? pkg.depositRatio
+    depositRatio: productDepositRatio(Object.keys(pkg).length ? pkg : album)
   }
 }
 
@@ -127,7 +143,7 @@ function buildItemFromPackage({ pkg = {}, series = {}, spot = {}, album = {} } =
     price: pkg.price || 0,
     quantity: 1,
     defaultPrice: album.price || 0,
-    depositRatio: pkg.depositRatio ?? series.depositRatio
+    depositRatio: productDepositRatio(pkg)
   }
 }
 

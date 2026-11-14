@@ -99,7 +99,7 @@ const page = {
   let mockLoadOrderCalls = 0;
   const mockPage = {
     ...pageDefinition,
-    data: { ...pageDefinition.data, order: { ...order, paymentSimulationEnabled: true }, paymentStatus: "pending" },
+    data: { ...pageDefinition.data, order: { ...order, paymentSimulationEnabled: true }, paymentStatus: "not_created" },
     setData(patch) { this.data = { ...this.data, ...patch }; },
     async loadOrder() { mockLoadOrderCalls += 1; },
   };
@@ -107,8 +107,8 @@ const page = {
   assert.deepEqual(createRequest && Object.keys(createRequest).sort(), ["idempotencyKey", "orderId", "phase"]);
   assert.equal(capturedPayment, null, "a confirmed mock payment must not open the WeChat cashier");
   assert.equal(statusRequests, 0, "a confirmed mock payment does not need a second status query");
-  assert.equal(mockPage.data.paymentStatus, "confirmed");
-  assert.equal(mockLoadOrderCalls, 1, "the page must reload server-confirmed mock payment data");
+  assert.notEqual(mockPage.data.paymentStatus, "confirmed");
+  assert.equal(mockLoadOrderCalls, 0, "模拟支付返回不能当成真实到账");
   process.stdout.write("Mini-program payment wiring checks passed.\n");
 })().catch((error) => {
   console.error(error);

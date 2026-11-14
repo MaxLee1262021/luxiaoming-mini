@@ -64,6 +64,10 @@ async function run() {
   }
   assert.ok(service.getFavoriteUrl({ type: 'photo_single', itemId: 'album', seriesId: 'series', url: 'https://example.invalid' })
     .startsWith('/pages/photoCollection/photoCollection?albumId=album&seriesId=series'))
+  assert.equal(service.getFavoriteUrl({ type: 'peripheral', itemId: 'gift&1' }, { shopId: 'shop&1', scene: 'merchant' }),
+    '/pages/peripherals/peripherals?id=gift%261&shopId=shop%261&scene=merchant')
+  assert.equal(service.normalizeFavorite({ type: 'peripheral', itemId: 'gift', price: 99 }).priceText, '')
+  assert.equal(service.normalizeFavorite({ type: 'photo_package', itemId: 'package', price: 99 }).priceText, '¥99')
   assert.equal(service.getFavoriteUrl({ type: 'unsupported', itemId: 'bad' }), '')
   await service.setFavorite('photo_single', 'id&1', false)
   assert.equal(await service.checkFavorite('photo_single', 'id&1'), false)
@@ -144,16 +148,55 @@ async function run() {
   assert.ok(app.pages.includes('pages/myFavorites/myFavorites'))
   const myMarkup = fs.readFileSync(path.join(root, 'miniprogram/pages/my/my.wxml'), 'utf8')
   assert.match(myMarkup, /bindtap="goToMyFavorites"[\s\S]*?我的收藏/)
-  for (const pageName of ['photoCollection', 'photoPackageDetail', 'videoProductDetail', 'peripheralDetail', 'guideDetail', 'spotSheet']) {
+  for (const pageName of ['photoCollection', 'photoPackageDetail', 'videoProductDetail', 'guideDetail']) {
     const config = JSON.parse(fs.readFileSync(path.join(root, `miniprogram/pages/${pageName}/${pageName}.json`), 'utf8'))
     const markup = fs.readFileSync(path.join(root, `miniprogram/pages/${pageName}/${pageName}.wxml`), 'utf8')
     assert.equal(config.usingComponents['lxm-favorite-button'], '/components/lxm-favorite-button/lxm-favorite-button')
     assert.match(markup, /<lxm-favorite-button[^>]+item-id=/)
     assert.doesNotMatch(markup, /itemId=/)
-    if (['photoCollection', 'photoPackageDetail', 'videoProductDetail', 'peripheralDetail'].includes(pageName)) {
+    if (['photoCollection', 'photoPackageDetail', 'videoProductDetail'].includes(pageName)) {
       assert.match(markup, /class="lxm-foot-bar"[^>]*>[\s\S]*?<view class="lxm-foot-favorite">[\s\S]*?<lxm-favorite-button/)
     }
   }
+  const redirects = []
+  let legacyPage
+  load('miniprogram/pages/peripheralDetail/peripheralDetail.js', {
+    '../../utils/query': query
+  }, {
+    Page(value) { legacyPage = value },
+    getApp() { return { captureSource: () => ({ shopId: 'source-shop', scene: 'source-scene' }) } },
+    wx: { redirectTo(options) { redirects.push(options.url) } }
+  })
+  legacyPage.onLoad({ id: 'gift&1', shopId: 'entry-shop', scene: 'entry-scene' })
+  assert.equal(redirects.at(-1), '/pages/peripherals/peripherals?id=gift%261&shopId=entry-shop&scene=entry-scene')
+  legacyPage.onLoad({ id: 'gift' })
+  assert.equal(redirects.at(-1), '/pages/peripherals/peripherals?id=gift&shopId=source-shop&scene=source-scene')
+  legacyPage.onLoad()
+  assert.equal(redirects.at(-1), '/pages/peripherals/peripherals?shopId=source-shop&scene=source-scene')
+  const legacyMarkup = fs.readFileSync(path.join(root, 'miniprogram/pages/peripheralDetail/peripheralDetail.wxml'), 'utf8')
+  assert.doesNotMatch(legacyMarkup, /store-product|price|购买|item\.|lxm-favorite-button/)
+  assert.ok(app.pages.includes('pages/peripheralDetail/peripheralDetail'), 'Existing shared links must retain a compatibility route')
+  const router = require('../miniprogram/utils/router')
+  for (const type of ['peripheral', 'peripherals']) {
+    assert.deepEqual(router.buildTarget(type), {
+      method: 'navigateTo', path: '/pages/peripherals/peripherals', params: {}
+    })
+    assert.deepEqual(router.buildTarget(type, '  ').params, {})
+    assert.deepEqual(router.buildTarget(type, 'gift&1'), {
+      method: 'navigateTo', path: '/pages/peripherals/peripherals', params: { id: 'gift&1' }
+    })
+  }
+  const routed = []
+  global.wx = { navigateTo(options) { routed.push(options.url) } }
+  try {
+    assert.equal(router.navigateToType('peripheral', 'gift&1'), true)
+    assert.equal(routed.at(-1), '/pages/peripherals/peripherals?id=gift%261')
+    assert.equal(router.buildTarget('package'), null, 'Photography detail still requires a configured id')
+    assert.equal(router.buildTarget('package', 'package-1').path, '/pages/photoPackageDetail/photoPackageDetail')
+  } finally {
+    delete global.wx
+  }
+  console.log('PASS peripheral favorites and legacy links open the display page without exposing sales details')
   console.log('PASS delivery-package profile entry, page registration, component bindings, and footer placement')
 }
 

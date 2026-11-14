@@ -1,11 +1,9 @@
 const app = getApp()
-const demoData = require('../../utils/demoData')
 const packageApi = require('../../api/package')
 const spotApi = require('../../api/spot')
 const { buildUrlWithSource } = require('../../utils/query')
 const { buildVideoProductDetail } = require('../../service/videoProductDetail')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
-const { isExplicitDemoMode } = require('../../config/env')
 const { openCustomerService } = require('../../service/customerService')
 
 Page({
@@ -23,8 +21,9 @@ Page({
     recommendations: [],
     videoFields: [],
     packageBenefits: [],
-    // 拍摄说明：优先使用数据（将来由后台/商品字段覆盖），兜底用统一默认值
-    instructions: demoData.DEFAULT_SHOOTING_INSTRUCTIONS,
+    displayTags: [],
+    // 商品拍摄说明优先，未配置时使用统一默认说明。
+    instructions: [],
     pageConfig: {},
     moduleVisible: {
       video: true,
@@ -81,10 +80,9 @@ Page({
       ])
       const spots = (spotRes && spotRes.success && Array.isArray(spotRes.data))
         ? spotRes.data
-        : (isExplicitDemoMode() ? demoData.spots : [])
+        : []
       if (!packageRes || !packageRes.success) {
-        if (isExplicitDemoMode()) this.applyDemoDetail()
-        else this.setData({ error: '视频摄像内容暂不可用，请稍后重试' })
+        this.setData({ error: '视频摄像内容暂不可用，请稍后重试' })
         return
       }
       const packageData = packageRes.data || {}
@@ -105,30 +103,12 @@ Page({
       }
     } catch (err) {
       console.error('videoProductDetail loadData error', err)
-      if (isExplicitDemoMode()) this.applyDemoDetail()
-      else this.setData({ error: '视频摄像内容暂不可用，请稍后重试' })
+      this.setData({ error: '视频摄像内容暂不可用，请稍后重试' })
     } finally {
       this.setData({ loading: false })
     }
   },
 
-  applyDemoDetail() {
-    const data = demoData.getBookingData()
-    const detail = buildVideoProductDetail({
-      ...data,
-      spots: demoData.spots,
-      videos: demoData.videos,
-      videoProducts: demoData.videoProducts
-    }, {
-      productId: this.data.productId,
-      spotId: this.data.spotId
-    })
-    if (!detail) {
-      this.setData({ error: '视频摄像商品不存在' })
-      return
-    }
-    this.applyDetail(detail)
-  },
 
   applyDetail(detail) {
     this.setData({
@@ -139,6 +119,8 @@ Page({
       recommendations: detail.recommendations,
       videoFields: detail.videoFields,
       packageBenefits: detail.packageBenefits,
+      displayTags: detail.displayTags || [],
+      instructions: detail.instructions && detail.instructions.length ? detail.instructions : [],
       error: ''
     })
   },
@@ -153,7 +135,7 @@ Page({
       .filter(item => item.url || item.cover)
       .map(item => ({
         url: item.url || item.cover,
-        type: item.url && item.url !== item.cover ? 'video' : 'image',
+        type: item.type === 'video' && item.url ? 'video' : 'image',
         poster: item.cover
       }))
     if (!sources.length) return
@@ -161,10 +143,12 @@ Page({
       wx.previewMedia({ current: index, sources })
       return
     }
-    wx.previewImage({
-      current: sources[index] && sources[index].poster,
-      urls: sources.map(item => item.poster || item.url).filter(Boolean)
-    })
+    const selected = sources[index]
+    if (selected && selected.type === 'video') {
+      wx.showToast({ title: '请升级微信后预览视频', icon: 'none' })
+      return
+    }
+    wx.previewImage({ current: selected && selected.url, urls: sources.filter(item => item.type === 'image').map(item => item.url) })
   },
 
   goBookingInfo() {

@@ -10,5 +10,6 @@
   </view>
 
   <view class="policy-update" wx:if="{{updateTime}}">更新日期：{{updateTime}}</view>
-  <view class="policy-foot">继续使用本小程序即表示你理解并同意本指引的内容。</view>
+  <view wx:if="{{error}}" class="policy-p">{{error}}</view>
+  <view wx:if="{{sections.length}}" class="policy-foot">继续使用本小程序即表示你理解并同意本指引的内容。</view>
 </view>

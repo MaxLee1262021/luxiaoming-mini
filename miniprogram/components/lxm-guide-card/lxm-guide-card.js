@@ -78,10 +78,8 @@ Component({
       const titleText = title || item.title || ''
       const descText = desc || item.description || item.subtitle || ''
       const metaList = []
-      if (item.readCount != null || item.score != null) {
-        metaList.push((item.readCount || 0) + ' 人已看')
-        metaList.push((item.score || '4.9') + ' 分')
-      }
+      if (item.readCount != null) metaList.push(item.readCount + ' 人已看')
+      if (item.score != null && item.score !== '') metaList.push(item.score + ' 分')
       const badgeText = (index != null) ? String(index) : ''
       const badgeBg = badgeGradient || item.coverGradient || item.heroColor || 'linear-gradient(135deg, #FF8D52 0%, #EE2C2C 100%)'
       const indexLabel = ('0' + ((index || 0) + 1)).slice(-2)

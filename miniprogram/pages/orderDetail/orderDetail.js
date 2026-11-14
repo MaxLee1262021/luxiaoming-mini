@@ -7,6 +7,7 @@ const orderFiles = require('../../service/orderFileActions')
 const { normalizeFile } = require('../../service/mediaFiles')
 const { paymentFailure, logPaymentFailure } = require('../../utils/paymentFeedback')
 const { openCustomerService } = require('../../service/customerService')
+const { orderItemDisplay } = require('../../utils/productDisplay')
 
 function requestWechatPayment(paymentParams = {}) {
   const { timeStamp, nonceStr, package: packageValue, signType, paySign } = paymentParams
@@ -27,10 +28,12 @@ function requestWechatPayment(paymentParams = {}) {
   })
 }
 
-function isSimulatedPaymentOrder(order = {}) {
-  return order.paymentSimulationEnabled === true
-    || String(order.paymentMode || '').trim().toLowerCase() === 'mock'
+function paymentQueryErrorMessage(error = {}) {
+  return /^WECHAT_PAY_[A-Z0-9_]{1,96}$/.test(String(error && error.code || '')) && error.message
+    ? error.message
+    : '支付状态暂时无法查询，请稍后重试'
 }
+
 
 Page({
   ...orderFiles.actions,
@@ -41,15 +44,15 @@ Page({
     shopId: '',
     scene: '',
     order: {},
+    productItemsDisplay: [],
+    productTypeSummary: '',
     orderStatusFilters: ORDER_STATUS_FILTERS,
     statusDesc: '',
     error: '',
     loading: true,
-    isDemo: false,
     paymentSubmitting: false,
     paymentStatus: 'not_created',
     paymentMessage: '',
-    testPaymentSubmitting: false,
     cancelVisible: false,
     cancelFormReason: '',
     cancelSubmitting: false,
@@ -57,6 +60,7 @@ Page({
   },
 
   onLoad(options = {}) {
+    this._hasShown = false
     const source = app.captureSource ? app.captureSource(options) : {}
     this.setData({
       id: options.id || options.orderId || options.orderNo || '',
@@ -71,10 +75,14 @@ Page({
   onUnload() { this.cancelFileDownload() },
 
   onShow() {
-    const order = this.data.order || {}
-    if (order._id && this.data.paymentStatus === 'pending' && !this.data.paymentSubmitting) {
-      this.refreshPaymentStatus({ silent: true })
+    if (!this._hasShown) {
+      this._hasShown = true
+      return
     }
+    const order = this.data.order || {}
+    if (!order._id || this.data.paymentSubmitting) return
+    if (this.data.paymentStatus === 'pending') return this.refreshPaymentStatus({ silent: true })
+    return this.loadOrder()
   },
 
   async loadOrder() {
@@ -93,33 +101,35 @@ Page({
       const res = await orderApi.getOrderDetail(query)
       // Never replace a failed customer-order request with a sample order.
       if (!res || !res.success) {
-        this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
+        this.setData({ error: '订单暂时无法加载，请重试' })
       } else if (res.data) {
         this.applyOrder(normalizeOrder(res.data), false)
       } else {
-        this.setData({ error: '订单不存在', isDemo: false })
+        this.setData({ error: '订单不存在' })
       }
     } catch (err) {
       console.error('getOrderDetail error', err)
-      this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
+      this.setData({ error: '订单暂时无法加载，请重试' })
     } finally {
       this.setData({ loading: false })
     }
   },
 
-  applyOrder(order = {}, isDemo = false) {
-    const pending = order.paymentPending || Number(order.pendingPaymentAmount || 0) > 0 || order.paymentStatus === 'pending'
-    const paymentName = isSimulatedPaymentOrder(order) ? '模拟支付' : '微信支付'
+  applyOrder(order = {}) {
+    const productItemsDisplay = orderItemDisplay(order.productItems)
+    const pending = order.paymentPending || order.paymentStatus === 'pending'
+    const paymentName = '微信支付'
     this.setData({
       order,
+      productItemsDisplay,
+      productTypeSummary: Array.from(new Set(productItemsDisplay.map(item => item.typeLabel))).join('、'),
       deliveryFiles: (order.deliverFiles || []).map(normalizeFile),
       statusDesc: getOrderStatusDesc(order.customerStatusKey || order.workflowStage || order.status, order),
       error: '',
-      isDemo,
       paymentStatus: order.paymentStatus || (pending ? 'pending' : 'not_created'),
       paymentMessage: pending ? (this.data.paymentMessage || `${paymentName}订单处理中，请完成支付或刷新支付状态。`) : ''
     })
-    if (!isDemo) this.loadAfterSales()
+    this.loadAfterSales()
   },
 
   copyOrderNo() {
@@ -145,10 +155,40 @@ Page({
     return this.loadOrder()
   },
 
+  async confirmCompletion() {
+    const order = this.data.order || {}
+    if (!order._id || !order.canConfirmCompletion || Number(order.finalDue) !== 0 || this.data.paymentSubmitting) return
+    const storageKey = `lxm_completion_intent_${order._id}`
+    this.setData({ paymentSubmitting: true })
+    try {
+      let idempotencyKey = wx.getStorageSync(storageKey)
+      if (!idempotencyKey) {
+        idempotencyKey = `mini-complete-${order._id}-${Date.now()}`
+        wx.setStorageSync(storageKey, idempotencyKey)
+      }
+      const result = await orderApi.createPayment({
+        orderId: order._id, phase: 'final', confirmCompletion: true,
+        selectionAccepted: true, idempotencyKey
+      })
+      const completion = result && result.data
+      if (!result || !result.success || !completion || completion.provider !== 'zero_balance'
+        || completion.status !== 'confirmed' || completion.invokeWeChatPay === true) {
+        throw new Error(result && result.error || '订单状态暂未确认，请刷新后重试')
+      }
+      wx.removeStorageSync(storageKey)
+      await this.loadOrder()
+      wx.showToast({ title: '订单已完成', icon: 'success' })
+    } catch (err) {
+      wx.showToast({ title: err.message || '确认失败，请稍后重试', icon: 'none' })
+    } finally {
+      this.setData({ paymentSubmitting: false })
+    }
+  },
+
   async createPayment(e) {
     const phase = (e && e.currentTarget && e.currentTarget.dataset && e.currentTarget.dataset.phase) || this.data.order.paymentPhase
     const order = this.data.order || {}
-    const paymentName = isSimulatedPaymentOrder(order) ? '模拟支付' : '微信支付'
+    const paymentName = '微信支付'
     if (!phase || !order._id || this.data.paymentSubmitting) return
     if (!order.canPay || phase !== order.paymentPhase) {
       wx.showToast({ title: `当前阶段暂不能发起${paymentName}`, icon: 'none' })
@@ -167,22 +207,29 @@ Page({
         idempotencyKey = `mini-${phase}-${order._id}-${Date.now()}`
         wx.setStorageSync(storageKey, idempotencyKey)
       }
-      const result = await orderApi.createPayment({ orderId: order._id || order.id, phase, idempotencyKey })
+      const result = await orderApi.createPayment({
+        orderId: order._id || order.id, phase, idempotencyKey,
+        ...(phase === 'final' ? { selectionAccepted: true } : {})
+      })
       if (!result || !result.success) {
-        wx.removeStorageSync(storageKey)
-        wx.showToast({ title: (result && result.error) || `${paymentName}单创建失败，请联系客服`, icon: 'none' })
+        const message = (result && result.error) || `${paymentName}单创建失败，请联系客服`
+        // A failed response does not prove that the server never created the
+        // intent. Keep its request key and query the original payment on retry.
+        this.setData({ paymentStatus: 'pending', paymentMessage: message })
+        wx.showToast({ title: message, icon: 'none' })
         return
       }
       const payment = result.data || result
+      if (payment.simulatedPayment || /mock|test/.test(String(payment.provider || payment.paymentMode || ''))) throw new Error('支付通道不可用，请联系客服')
       this.setData({
         paymentStatus: payment.status || 'pending',
         paymentMessage: payment.status === 'confirmed'
-          ? (payment.simulatedPayment ? '模拟支付已确认到账。' : '支付已确认到账。')
+          ? '支付已确认到账。'
           : '正在调起微信支付...'
       })
       if (payment.status === 'confirmed') {
         wx.removeStorageSync(storageKey)
-        wx.showToast({ title: payment.simulatedPayment ? '模拟支付成功' : '支付已确认', icon: 'success' })
+        wx.showToast({ title: '支付已确认', icon: 'success' })
         await this.loadOrder()
         return
       }
@@ -190,8 +237,9 @@ Page({
       if (latest && ['confirmed', 'failed'].includes(latest.status)) wx.removeStorageSync(storageKey)
     } catch (err) {
       console.error('create payment failed', err)
-      wx.removeStorageSync(`lxm_payment_intent_${order._id}_${phase}`)
-      wx.showToast({ title: (err && err.message) || `${paymentName}服务暂不可用，请联系客服`, icon: 'none' })
+      const message = (err && err.message) || `${paymentName}服务暂不可用，请联系客服`
+      this.setData({ paymentStatus: 'pending', paymentMessage: message })
+      wx.showToast({ title: message, icon: 'none' })
     } finally {
       this.setData({ paymentSubmitting: false })
     }
@@ -222,60 +270,55 @@ Page({
   },
 
   handlePaymentTap(e) {
-    if (isSimulatedPaymentOrder(this.data.order)) return this.createPayment(e)
     if (this.data.paymentStatus === 'pending') return this.continueWechatPayment()
     return this.createPayment(e)
   },
 
   async continueWechatPayment() {
     if (this.data.paymentSubmitting) return
+    const order = this.data.order || {}
+    const phase = order.paymentPhase
+    const storageKey = `lxm_payment_intent_${order._id}_${phase}`
+    let createRequired = false
     this.setData({ paymentSubmitting: true })
     try {
-      const payment = await this.refreshPaymentStatus({ silent: true })
+      const payment = await this.refreshPaymentStatus({ silent: true, throwOnError: true })
       if (!payment) {
         wx.showToast({ title: '支付状态暂时无法查询，请稍后重试', icon: 'none' })
         return
       }
       if (payment.status === 'confirmed') {
+        wx.removeStorageSync(storageKey)
         wx.showToast({ title: '支付已确认', icon: 'success' })
         return
       }
-      if (payment.status === 'failed') {
-        const order = this.data.order || {}
-        const phase = order.paymentPhase || order.paymentStage || 'deposit'
-        wx.removeStorageSync(`lxm_payment_intent_${order._id}_${phase}`)
-        wx.showToast({ title: '支付单已失效，请重新发起支付', icon: 'none' })
-        return
+      if (payment.status === 'not_created' || payment.status === 'failed'
+        || (payment.status === 'pending' && !payment.paymentParams)) {
+        if (payment.status === 'failed') wx.removeStorageSync(storageKey)
+        // Reuse the request key while the result is uncertain. The server
+        // reuses a live intent or creates the missing one after checking it.
+        createRequired = true
+      } else if (payment.status === 'pending') {
+        const currentOrder = this.data.order || {}
+        if (!currentOrder.canPay || currentOrder.paymentPhase !== phase) {
+          wx.showToast({ title: '当前阶段暂不能发起微信支付', icon: 'none' })
+          return
+        }
+        const latest = await this.invokeWechatPayment(payment, { silent: false })
+        if (latest && ['confirmed', 'failed'].includes(latest.status)) wx.removeStorageSync(storageKey)
+      } else {
+        wx.showToast({ title: '当前支付状态已变化，请刷新订单', icon: 'none' })
       }
-      await this.invokeWechatPayment(payment, { silent: false })
+    } catch (err) {
+      const message = paymentQueryErrorMessage(err)
+      this.setData({ paymentMessage: message })
+      wx.showToast({ title: message, icon: 'none' })
     } finally {
       this.setData({ paymentSubmitting: false })
     }
+    if (createRequired) return this.createPayment({ currentTarget: { dataset: { phase } } })
   },
 
-  async runTestPayment() {
-    const order = this.data.order || {}
-    const phase = order.paymentPhase
-    if (!order.canRunTestPayment || !order._id || !phase || this.data.testPaymentSubmitting) return
-    this.setData({ testPaymentSubmitting: true })
-    try {
-      const storageKey = `lxm_test_payment_${order._id}_${phase}`
-      let idempotencyKey = wx.getStorageSync(storageKey)
-      if (!idempotencyKey) {
-        idempotencyKey = `mini-test-${phase}-${order._id}-${Date.now()}`
-        wx.setStorageSync(storageKey, idempotencyKey)
-      }
-      const result = await orderApi.testPayment({ orderId: order._id, phase, idempotencyKey })
-      if (!result || !result.success) throw new Error((result && (result.error || result.message)) || '测试支付失败')
-      wx.showToast({ title: '测试支付已确认', icon: 'success' })
-      await this.loadOrder()
-    } catch (err) {
-      console.error('test payment failed', err)
-      wx.showToast({ title: (err && err.message) || '测试支付失败，请重试', icon: 'none' })
-    } finally {
-      this.setData({ testPaymentSubmitting: false })
-    }
-  },
 
   openCancel() {
     if (!this.data.order.canCancel || this.data.cancelSubmitting) return
@@ -331,7 +374,7 @@ Page({
       if (result && result.success) {
         const payment = result.data || result
         const message = payment.status === 'confirmed'
-          ? (payment.simulatedPayment ? '模拟支付已确认到账。' : '支付已确认到账。')
+          ? '支付已确认到账。'
           : payment.status === 'pending'
             ? (payment.syncPending ? '支付结果同步中，可稍后刷新或继续支付。' : '微信支付订单处理中，可继续完成支付。')
             : payment.status === 'failed'
@@ -341,8 +384,14 @@ Page({
         await this.loadOrder()
         return payment
       }
+      const error = new Error((result && result.error) || '支付状态暂时无法查询，请稍后重试')
+      if (result && result.code) error.code = result.code
+      throw error
     } catch (err) {
-      if (!silent) wx.showToast({ title: '支付状态暂时无法查询，请稍后重试', icon: 'none' })
+      const message = paymentQueryErrorMessage(err)
+      this.setData({ paymentMessage: message })
+      if (options.throwOnError) throw err
+      if (!silent) wx.showToast({ title: message, icon: 'none' })
     }
   },
 

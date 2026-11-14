@@ -1,0 +1,7 @@
+<web-view wx:if="{{url && !failed}}" src="{{url}}" binderror="onWebError"></web-view>
+<view wx:else class="web-status">
+  <view class="web-status-title">{{invalid ? '链接暂时无法打开' : '页面加载失败'}}</view>
+  <view class="web-status-copy">{{invalid ? '请返回后重新选择内容。' : '请检查网络后重试，或返回继续浏览。'}}</view>
+  <button wx:if="{{!invalid}}" class="lxm-btn lxm-btn--primary lxm-btn--lg web-status-button" bindtap="retry">重新加载</button>
+  <button class="lxm-btn lxm-btn--ghost lxm-btn--lg web-status-button" bindtap="goBack">返回</button>
+</view>

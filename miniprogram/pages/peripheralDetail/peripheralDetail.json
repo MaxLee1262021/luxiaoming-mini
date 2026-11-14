@@ -1,7 +1,4 @@
 {
   "navigationStyle": "custom",
-  "usingComponents": {
-    "lxm-toast": "/components/lxm-toast/lxm-toast",
-    "lxm-favorite-button": "/components/lxm-favorite-button/lxm-favorite-button"
-  }
+  "usingComponents": {}
 }

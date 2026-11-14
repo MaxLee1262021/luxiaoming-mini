@@ -14,14 +14,16 @@
   </view>
 
   <scroll-view scroll-x class="video-product-scroll" show-scrollbar="{{false}}">
-    <lxm-video-card
-      wx:for="{{videos}}"
-      wx:key="_id"
-      item="{{item}}"
-      index="{{index}}"
-      mode="product"
-      variant="{{item.productKind === 'video_single' ? 'single' : 'package'}}"
-      bind:tap="onTapCard"
-    />
+    <view class="video-product-track">
+      <lxm-video-card
+        wx:for="{{videos}}"
+        wx:key="_id"
+        item="{{item}}"
+        index="{{index}}"
+        mode="product"
+        variant="{{item.productKind === 'video_single' ? 'single' : 'package'}}"
+        bind:tap="onTapCard"
+      />
+    </view>
   </scroll-view>
 </view>

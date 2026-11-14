@@ -72,12 +72,14 @@ function createExplorePage(wx) {
   }, wx)
 }
 
-function createPeripheralsPage(wx) {
+function createPeripheralsPage(wx, app, overrides = {}) {
   return loadPage('miniprogram/pages/peripherals/peripherals.js', {
     '../../utils/demoData': { peripherals: [] },
     '../../api/peripheral': {},
-    '../../utils/query': {}
-  }, wx)
+    '../../utils/product': require('../miniprogram/utils/product'),
+    '../../utils/peripheralPresentation': require('../miniprogram/utils/peripheralPresentation'),
+    ...overrides
+  }, wx, app)
 }
 
 function testMyCustomerServiceGuardsUnavailableSdkAndMissingCorpId() {
@@ -136,7 +138,7 @@ function testAllCustomerServiceEntriesUseTheConfiguredAccount() {
     openCustomerServiceChat(options) { calls.push(options) },
     showToast() { throw new Error('Configured customer service must not show an error') }
   }
-  const pages = ['peripheralDetail', 'photoCollection', 'photoPackageDetail', 'videoProductDetail', 'bookingSuccess', 'orderDetail']
+  const pages = ['peripherals', 'photoCollection', 'photoPackageDetail', 'videoProductDetail', 'bookingSuccess', 'orderDetail']
   for (const name of pages) {
     const page = loadPage(`miniprogram/pages/${name}/${name}.js`, {}, wx, app)
     page.contactService()
@@ -159,10 +161,11 @@ function testAppLoadsBothCustomerServiceSettings() {
     wx: { showToast() {} },
     require(request) { return request === './config/env' ? config : {} }
   }, { filename: 'miniprogram/app.js' })
-  assert.ok(config.CORP_ID)
-  assert.match(config.CUSTOMER_SERVICE_URL, /^https:\/\/work\.weixin\.qq\.com\/kfid\//)
-  assert.strictEqual(appDefinition.globalData.corpId, config.CORP_ID)
-  assert.strictEqual(appDefinition.globalData.customerServiceUrl, config.CUSTOMER_SERVICE_URL)
+  assert.strictEqual(config.CORP_ID, undefined)
+  assert.strictEqual(config.CUSTOMER_SERVICE_URL, undefined)
+  assert.strictEqual(appDefinition.globalData.corpId, '')
+  assert.strictEqual(appDefinition.globalData.customerServiceUrl, '')
+  assert.strictEqual(typeof appDefinition.loadCustomerServiceConfig, 'function')
 }
 
 function testMyLogoutClearsOnlyAfterConfirmation() {
@@ -252,20 +255,58 @@ function testExploreLocationGuardHandlesMissingAndFailingMapContexts() {
   assert.strictEqual(moved, true)
 }
 
-function testPeripheralsDetailUsesDatasetIdForTapEvents() {
-  const navigations = []
-  const wx = { navigateTo(options) { navigations.push(options) } }
-  const page = createPeripheralsPage(wx)
-  const instance = { buildUrl(pathname, params) { return pathname + '?id=' + params.id } }
+async function testPeripheralsBrowseWithoutStoreBindingOrDetailNavigation() {
+  const wx = {
+    setNavigationBarTitle() {},
+    navigateTo() { throw new Error('Browsing peripherals must not navigate to a detail or store') }
+  }
+  const page = createPeripheralsPage(wx, { captureSource() { return { shopId: 'source-shop', scene: 'qr' } } }, {
+    '../../api/peripheral': { async getPeripherals() {
+      return { success: true, data: [
+        { _id: 'frame', name: '相框', price: 88 },
+        { _id: 'album', name: '相册', price: 128 },
+        { _id: 'hidden', name: '隐藏周边', isShow: false },
+        { _id: 'offline', name: '下架周边', status: '下架' }
+      ] }
+    } }
+  })
+  page.data = JSON.parse(JSON.stringify(page.data))
+  page.setData = function(patch) { Object.assign(this.data, patch) }
+  page.onLoad({ id: 'album' })
+  await new Promise(resolve => setImmediate(resolve))
+  assert.strictEqual(page.data.shopId, 'source-shop')
+  assert.strictEqual(page.data.scene, 'qr')
+  assert.deepStrictEqual(Array.from(page.data.allPeripherals, item => item._id), ['frame', 'album'])
+  assert.strictEqual(page.data.stackFront, 1, 'An old product link selects the requested card')
+  page.onStackTap({ currentTarget: { dataset: { index: '0' } } })
+  assert.strictEqual(page.data.stackFront, 0)
+  page.onStackTap({ currentTarget: { dataset: { index: '0' } } })
+  assert.strictEqual(page.data.stackFront, 0, 'Tapping the front card stays in the gallery')
+  page.onStackTouchStart({ touches: [{ clientX: 200, clientY: 200 }] })
+  page.onStackTouchMove({ touches: [{ clientX: 100, clientY: 205 }] })
+  page.onStackTouchEnd({ changedTouches: [{ clientX: 100, clientY: 205 }] })
+  assert.strictEqual(page.data.stackFront, 1, 'Swiping left selects the next card')
+  page.onStackTap({ currentTarget: { dataset: { index: '0' } } })
+  assert.strictEqual(page.data.stackFront, 1, 'The tap following a swipe is ignored')
+  page.rotateRing({ currentTarget: { dataset: { dir: 1 } } })
+  assert.strictEqual(page.data.stackFront, 0, 'The next arrow wraps around')
+  page.onStackTouchStart({ touches: [{ clientX: 100, clientY: 200 }] })
+  page.onStackTouchMove({ touches: [{ clientX: 200, clientY: 205 }] })
+  page.onStackTouchEnd({ changedTouches: [{ clientX: 200, clientY: 205 }] })
+  assert.strictEqual(page.data.stackFront, 1, 'Swiping right selects the previous card')
 
-  page.goStackDetail.call(instance, { currentTarget: { dataset: { id: 'peripheral-1' } } })
-  page.goStackDetail.call(instance, 'peripheral-2')
-  page.goStackDetail.call(instance, { currentTarget: { dataset: {} } })
+  const markup = fs.readFileSync(path.join(root, 'miniprogram/pages/peripherals/peripherals.wxml'), 'utf8')
+  assert.doesNotMatch(markup, /专属定制|定制你的专属周边|goStackDetail|store-product|库存|立即购买/)
+  assert.match(markup, /wx:if="\{\{featuredPeripheral\.hasPrice\}\}"/)
+  assert.strictEqual((markup.match(/<button\b/g) || []).length, 1)
+  assert.match(markup, /bindtap="contactService">咨询客服/)
 
-  assert.deepStrictEqual(navigations.map(item => item.url), [
-    '/pages/peripheralDetail/peripheralDetail?id=peripheral-1',
-    '/pages/peripheralDetail/peripheralDetail?id=peripheral-2'
-  ])
+  page.data.selectedId = 'missing'
+  await page.loadPeripherals(true)
+  assert.strictEqual(page.data.stackFront, 0, 'A missing old product falls back to the first card')
+  page.data.allPeripherals = []
+  page.rotateRing(1)
+  page.onStackTap({ currentTarget: { dataset: { index: 0 } } })
 }
 
 testMyCustomerServiceGuardsUnavailableSdkAndMissingCorpId()
@@ -276,6 +317,9 @@ testMyLogoutClearsOnlyAfterConfirmation()
 testMyPhoneAuthReportsMissingPrivacyDeclaration()
 testMyUsesFixedAvatarAndDoesNotExposeProfilePicker()
 testExploreLocationGuardHandlesMissingAndFailingMapContexts()
-testPeripheralsDetailUsesDatasetIdForTapEvents()
-
-console.log('Explore and My menu action guard tests passed')
+testPeripheralsBrowseWithoutStoreBindingOrDetailNavigation().then(() => {
+  console.log('Explore, My and peripheral browsing action guard tests passed')
+}).catch(error => {
+  console.error(error)
+  process.exitCode = 1
+})

@@ -176,14 +176,14 @@ const testPaymentGranted = order.normalizeOrder({
   paymentTestModeEnabled: true,
   canRunTestPayment: true,
 });
-assert.equal(testPaymentGranted.canRunTestPayment, true);
+assert.equal(testPaymentGranted.canRunTestPayment, false);
 const testPaymentDenied = order.normalizeOrder({ ...testPaymentGranted, id: "test-payment-2", canRunTestPayment: false });
 assert.equal(testPaymentDenied.canRunTestPayment, false);
 
 const mockPaymentEnabled = order.normalizeOrder({ ...application, id: "mock-payment-1", paymentSimulationEnabled: true });
-assert.equal(mockPaymentEnabled.paymentSimulationEnabled, true);
-assert.equal(mockPaymentEnabled.paymentMode, "mock");
+assert.equal(mockPaymentEnabled.paymentSimulationEnabled, false);
+assert.equal(mockPaymentEnabled.paymentMode, "wechat");
 const mockPaymentModeOnly = order.normalizeOrder({ ...application, id: "mock-payment-2", paymentMode: "mock" });
-assert.equal(mockPaymentModeOnly.paymentSimulationEnabled, true);
+assert.equal(mockPaymentModeOnly.paymentSimulationEnabled, false);
 
 process.stdout.write("Mini-program order acceptance checks passed.\n");

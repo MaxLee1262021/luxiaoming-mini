@@ -4,6 +4,7 @@ const { buildUrlWithSource } = require('../../utils/query')
 const { normalizeOrder } = require('../../utils/order')
 const { ORDER_STATUS_FILTERS, normalizeOrderFilter, orderListStatus } = require('../../utils/orderStatusFilters')
 const AFTER_SALE_STATUS = 'after_sale'
+const ORDER_SYNC_INTERVAL = 15000
 
 // Older deployments wrap paginated RPC results in `list` or `rows`, while the
 // current RPC returns the array directly. Keep the page tolerant of either
@@ -36,63 +37,117 @@ Page({
     hasMore: true,
     refreshing: false,
     loading: false,
-    isDemo: false,
     error: ''
   },
 
   onLoad(options = {}) {
+    this._unloaded = false
+    this._hasShown = false
     const source = app.captureSource ? app.captureSource(options) : {}
     this.setData({
       shopId: options.shopId || source.shopId || '',
       scene: options.scene || source.scene || '',
       currentStatus: normalizeOrderFilter(options.businessStatus || options.status)
     })
-    this.loadOrders(true)
+    return this.loadOrders(true)
+  },
+
+  onShow() {
+    this._visible = true
+    // onLoad already starts the first request. Returning from a detail page or
+    // the background must fetch the current server state again.
+    const refresh = this._hasShown ? this.loadOrders(true) : undefined
+    this._hasShown = true
+    this.scheduleOrderSync()
+    return refresh
+  },
+
+  onHide() {
+    this._visible = false
+    clearTimeout(this._syncTimer)
+    this._syncTimer = null
+  },
+
+  onUnload() {
+    this.onHide()
+    this._unloaded = true
+    this._requestId = (this._requestId || 0) + 1
+  },
+
+  scheduleOrderSync() {
+    clearTimeout(this._syncTimer)
+    if (!this._visible) return
+    this._syncTimer = setTimeout(async () => {
+      if (!this._visible) return
+      await this.loadOrders(true, { silent: true })
+      this.scheduleOrderSync()
+    }, ORDER_SYNC_INTERVAL)
   },
 
   buildUrl(path, params = {}) {
     return buildUrlWithSource(path, params, this.data)
   },
 
-  async loadOrders(reset = true) {
-    if (this.data.loading) return
-    if (reset) {
-      this.setData({ page: 1, orders: [], hasMore: true })
-    }
-    if (!this.data.hasMore) return
+  async loadOrders(reset = true, { silent = false } = {}) {
+    if (this._unloaded) return
+    if ((!reset || silent) && (this.data.loading || this._syncing)) return
+    if (!reset && !this.data.hasMore) return
 
-    this.setData({ loading: true })
+    const requestId = (this._requestId || 0) + 1
+    this._requestId = requestId
+    const currentStatus = normalizeOrderFilter(this.data.currentStatus)
+    const isAfterSaleFilter = currentStatus === AFTER_SALE_STATUS
+    const pageSize = isAfterSaleFilter ? 100 : this.data.pageSize
+    const firstPage = reset ? 1 : this.data.page
+    // Keep every loaded page during a quiet refresh, so scrolling through a
+    // longer list does not lose rows whenever a background status changes.
+    const lastPage = silent && !isAfterSaleFilter ? Math.max(1, this.data.page - 1) : firstPage
+    this._syncing = silent
+    if (!silent) {
+      this.setData({ loading: true, ...(reset ? { page: 1, orders: [], hasMore: true } : {}) })
+    }
     try {
-      const isAfterSaleFilter = this.data.currentStatus === AFTER_SALE_STATUS
-      const query = {
-        page: this.data.page,
-        pageSize: isAfterSaleFilter ? 100 : this.data.pageSize
-      }
-      if (this.data.currentStatus && !isAfterSaleFilter) query.businessStatus = normalizeOrderFilter(this.data.currentStatus)
-      const res = await orderApi.getMyOrders(query)
-      // A failed order request must remain an error state. Do not show local
-      // sample orders that could be mistaken for persisted customer orders.
-      const hasOrderPayload = Array.isArray(res) || !!(res && typeof res === 'object'
-        && ['data', 'list', 'rows', 'items', 'orders', 'records', 'result', 'payload'].some(key => Object.prototype.hasOwnProperty.call(res, key)))
-      if (!res || res.success === false || (!hasOrderPayload && res.success !== true)) {
-        if (reset) this.setData({ orders: [] })
-        this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
-      } else {
+      const rows = []
+      let nextPage = firstPage
+      let hasMore = false
+      for (let page = firstPage; page <= lastPage; page += 1) {
+        const query = { page, pageSize }
+        if (currentStatus && !isAfterSaleFilter) query.businessStatus = currentStatus
+        const res = await orderApi.getMyOrders(query)
+        if (this._unloaded || requestId !== this._requestId) return
+        // A failed request must remain an error, never local sample orders.
+        const hasOrderPayload = Array.isArray(res) || !!(res && typeof res === 'object'
+          && ['data', 'list', 'rows', 'items', 'orders', 'records', 'result', 'payload'].some(key => Object.prototype.hasOwnProperty.call(res, key)))
+        if (!res || res.success === false || (!hasOrderPayload && res.success !== true)) {
+          throw new Error('订单暂时无法加载，请重试')
+        }
         const payload = Array.isArray(res) ? res : (Object.prototype.hasOwnProperty.call(res, 'data') ? res.data : res)
-        this.applyOrders(payload, reset, isAfterSaleFilter)
-        this.setData({ error: '' })
+        const pageRows = extractOrderRows(payload)
+        rows.push(...pageRows)
+        nextPage = page + 1
+        hasMore = !isAfterSaleFilter && pageRows.length >= pageSize
+        if (!hasMore) break
       }
+      this.applyOrders(rows, reset, isAfterSaleFilter, { nextPage, hasMore })
+      this.setData({ error: '' })
     } catch (err) {
+      if (this._unloaded || requestId !== this._requestId) return
       console.error('getMyOrders error', err)
-      if (reset) this.setData({ orders: [] })
-      this.setData({ error: '订单暂时无法加载，请重试', isDemo: false })
+      if (!silent) {
+        if (reset) this.setData({ orders: [] })
+        this.setData({ error: '订单暂时无法加载，请重试' })
+      }
     } finally {
-      this.setData({ loading: false, refreshing: false })
+      if (!this._unloaded && requestId === this._requestId) {
+        this._syncing = false
+        this.setData({ loading: false, refreshing: false })
+      }
     }
   },
 
-  applyOrders(data = [], reset = true, isAfterSaleFilter = false) {
-    const list = extractOrderRows(data)
+  applyOrders(data = [], reset = true, isAfterSaleFilter = false, pagination = {}) {
+    const rows = extractOrderRows(data)
+    const list = rows
       .filter(item => item && typeof item === 'object' && !Array.isArray(item))
       .map(item => {
         try {
@@ -107,9 +162,8 @@ Page({
       .filter(item => this.matchCurrentStatus(item))
     this.setData({
       orders: reset ? list : [...this.data.orders, ...list],
-      hasMore: isAfterSaleFilter ? false : list.length >= this.data.pageSize,
-      page: this.data.page + 1,
-      isDemo: false
+      hasMore: pagination.hasMore !== undefined ? pagination.hasMore : !isAfterSaleFilter && rows.length >= this.data.pageSize,
+      page: pagination.nextPage || this.data.page + 1
     })
   },
 
@@ -124,7 +178,7 @@ Page({
     const status = normalizeOrderFilter(e.currentTarget.dataset.status)
     if (this.data.currentStatus === status) return
     this.setData({ currentStatus: status })
-    this.loadOrders(true)
+    return this.loadOrders(true)
   },
 
   goDetail(e) {

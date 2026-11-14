@@ -101,6 +101,44 @@ function createPage() {
     { latitude: 28.1863, longitude: 112.9498 }
   );
 
+  const districtPage = createPage();
+  const districtRows = [
+    ["岳麓区", 32], ["天心区", 22], ["芙蓉区", 10], ["开福区", 14], ["雨花区", 4], ["", 4]
+  ].flatMap(([district, count]) => Array.from({ length: count }, (_, index) => ({
+    _id: `${district || "unassigned"}-${index}`, name: `${district}点位${index}`,
+    cityId: "city-changsha", district, seriesCount: index % 2
+  })));
+  districtPage.setData({
+    cityOptions: [
+      { name: "长沙", value: "city-changsha" },
+      { name: "杭州", value: "city-hangzhou" }
+    ],
+    selectedCity: "city-changsha"
+  });
+  districtPage.applySpotList([...districtRows,
+    { _id: "hz-spot", name: "西湖", cityId: "city-hangzhou", district: "西湖区" }
+  ]);
+  assert.equal(districtPage.data.resultCount, 86, "打卡点计数包含当前城市所有点位");
+  assert.equal(districtPage.data.districtCount, 5, "同区多点只算一个区域，未填区域和其他城市不计入");
+  assert.equal(districtPage.data.districtOptions[0].count, 5, "全部区域展示区域总数");
+  assert.ok(districtPage.data.districtOptions.slice(1).every(item => item.count === undefined), "单个区域行不混用点位数量");
+  districtPage.selectDistrict({ currentTarget: { dataset: { value: "岳麓区" } } });
+  assert.equal(districtPage.data.resultCount, 32);
+  assert.equal(districtPage.data.districtCount, 5, "选区不改变城市区域总数");
+  districtPage.setData({ selectedSpotId: districtRows[0]._id, searchKeyword: "无匹配结果", onlyWithSample: true, sortType: "hot" });
+  districtPage.applyFilters();
+  assert.equal(districtPage.data.resultCount, 0);
+  assert.equal(districtPage.data.districtCount, 5, "搜索、选点、样片筛选及排序不改变区域总数");
+  districtPage.setData({ selectedCity: "city-hangzhou", searchKeyword: "", onlyWithSample: false });
+  districtPage.applyFilters();
+  assert.equal(districtPage.data.selectedDistrict, "", "切城清除旧区域");
+  assert.equal(districtPage.data.selectedSpotId, "", "切城清除旧点位");
+  assert.equal(districtPage.data.districtCount, 1, "切城后使用新城市的区域数量");
+  assert.equal(districtPage.data.districtOptions[0].count, 1);
+  districtPage.applySpotList([]);
+  assert.equal(districtPage.data.districtCount, 0, "空城市显示零个区域");
+  assert.equal(districtPage.data.districtOptions[0].count, 0);
+
   page.setData({ selectedSpotId: "spot-cs", selectedSpotName: "橘子洲" });
   page.onMapTap();
   assert.equal(page.data.selectedSpotId, "");

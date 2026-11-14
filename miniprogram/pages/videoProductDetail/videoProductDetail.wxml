@@ -16,27 +16,27 @@
   </view>
 
   <block wx:else>
-    <view class="hero" wx:if="{{moduleVisible.video}}">
+    <view class="hero" wx:if="{{moduleVisible.video && samples.length}}">
       <swiper class="hero-swiper" indicator-dots circular autoplay interval="4200">
         <block wx:for="{{samples}}" wx:key="_id">
           <swiper-item>
             <view class="hero-media" bindtap="previewVideo" data-index="{{index}}">
               <video
-                wx:if="{{item.url}}"
+                wx:if="{{item.type === 'video' && item.url}}"
                 class="hero-cover hero-video"
                 src="{{item.url}}"
-                poster="{{item.cover || '/images/placeholder.png'}}"
+                poster="{{item.cover || ''}}"
                 object-fit="cover"
                 muted
                 controls="{{false}}"
                 show-center-play-btn="{{false}}"
               ></video>
-              <image wx:else class="hero-cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+              <image wx:else class="hero-cover" src="{{item.url || item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
               <view class="hero-mask"></view>
-              <view class="play-chip" wx:if="{{item.url}}">播放预览</view>
+              <view class="play-chip" wx:if="{{item.type === 'video' && item.url}}">播放预览</view>
               <view class="hero-meta">
                 <text>{{item.title || product.name}}</text>
-                <text wx:if="{{item.durationText || product.videoDuration}}">{{item.durationText || product.videoDuration}}</text>
+                <text wx:if="{{item.type === 'video' && item.durationText}}">{{item.durationText}}</text>
               </view>
             </view>
           </swiper-item>
@@ -52,6 +52,7 @@
         <text class="current-tag hot-sale" wx:if="{{product.isHotSale}}">爆款</text>
         <text class="current-tag" wx:if="{{product.isMainPush}}">主推</text>
         <text class="current-tag" wx:if="{{product.spotName}}">{{product.spotName}}</text>
+        <text class="current-tag" wx:for="{{displayTags}}" wx:key="*this">{{item}}</text>
       </view>
       <!-- 视频规格：时长/成片/周期 内嵌到品牌卡中 -->
       <view class="card-video-fields" wx:if="{{videoFields.length}}">

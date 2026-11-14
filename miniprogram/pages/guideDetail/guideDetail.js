@@ -1,9 +1,9 @@
 const app = getApp()
 const guideApi = require('../../api/guide')
-const demoData = require('../../utils/demoData')
 const { buildUrlWithSource } = require('../../utils/query')
-const { normalizePackage, isVideoSingle } = require('../../utils/product')
-const { isExplicitDemoMode } = require('../../config/env')
+const { guideContentBlocks, isPublicGuide } = require('../../utils/guideContent')
+const { isPublicProduct } = require('../../utils/product')
+const guideAttachments = require('../../service/guideAttachments')
 
 Page({
   data: {
@@ -11,12 +11,22 @@ Page({
     error: '',
     guide: {},
     relatedSpot: {},
-    target: null
+    relatedSpots: [],
+    contentBlocks: [],
+    attachmentBusyKey: '',
+    attachmentStatus: '',
+    hasRichContent: false,
+    mediaUrls: [],
+    mediaItems: [],
+    bookingProduct: null,
+    shopId: '',
+    scene: ''
   },
 
   onLoad(options = {}) {
     const id = options.id || ''
-    this.setData({ id })
+    const source = app.captureSource ? app.captureSource(options) : {}
+    this.setData({ id, shopId: options.shopId || source.shopId || '', scene: options.scene || source.scene || '' })
     this.loadDetail()
   },
 
@@ -27,16 +37,24 @@ Page({
   async loadDetail() {
     try {
       const guide = await guideApi.getGuideDetail({ id: this.data.id })
-      if (!guide || !guide._id) {
-        this.setData({ loading: false, error: '攻略不存在' })
+      if (!guide || !guide._id || !isPublicGuide(guide)) {
+        this.setData({ loading: false, error: '旅拍灵感不存在或已下架', bookingProduct: null })
         return
       }
-      const relatedSpot = this.resolveSpot(guide.spotId, guide.spotName)
-      const target = this.resolveTarget(guide.targetPackageId)
-      this.setData({ guide, relatedSpot, target, loading: false })
+      const relatedSpot = { ...this.resolveSpot(guide.spotId, guide.spotName), cover: guide.spotCover || '' }
+      const content = Array.isArray(guide.content) ? guide.content : String(guide.content || guide.description || '').split(/\n+/).map(item => item.trim()).filter(Boolean)
+      const mediaUrls = Array.isArray(guide.mediaUrls) ? guide.mediaUrls.filter(Boolean) : []
+      const mediaItems = guide.mediaItems || []
+      const relatedSpots = Array.isArray(guide.spots) && guide.spots.length ? guide.spots : (relatedSpot.id ? [relatedSpot] : [])
+      const contentBlocks = guideContentBlocks(guide.contentHtml || '')
+      const hasRichContent = !!String(guide.contentHtml || '').trim()
+      const targetSpotId = guide.targetProductSpotId || (guide.bookingProduct && guide.bookingProduct.spotId) || guide.spotId || ''
+      const bookingProduct = guide.bookingProduct && isPublicProduct(guide.bookingProduct) && (!(guide.spotIds || []).length || guide.spotIds.includes(String(targetSpotId)))
+        ? guide.bookingProduct : null
+      this.setData({ guide: { ...guide, content }, relatedSpot, relatedSpots, contentBlocks, hasRichContent, mediaUrls, mediaItems, bookingProduct, loading: false, error: '' })
     } catch (err) {
       console.error('guide detail error', err)
-      this.setData({ loading: false, error: '加载失败' })
+      this.setData({ loading: false, error: '加载失败', bookingProduct: null })
     }
   },
 
@@ -45,48 +63,70 @@ Page({
     return { id: spotId, name: spotName || '', cover: '' }
   },
 
-  // 解析"预约同款"目标：在 demo 商品里按 targetPackageId 找类型，拼出正确的详情页路径
-  resolveTarget(targetPackageId = '') {
-    if (!targetPackageId) return null
-    if (!isExplicitDemoMode()) return null
-    const allPackages = [...(demoData.packages || []), ...(demoData.videoProducts || [])]
-    const pkg = allPackages.find(p => p._id === targetPackageId)
-    if (!pkg) return null
-    const normalized = normalizePackage(pkg)
-    // 吸底按钮要显示"要预约的那个旅拍产品名"，而不是攻略标题
-    const name = pkg.name || normalized.name || '同款旅拍'
-    const single = isVideoSingle(normalized)
-    if (normalized.isVideo || single) {
-      if (single) {
-        return {
-          name,
-          path: '/pages/videoProductDetail/videoProductDetail',
-          params: { productId: pkg._id, packageId: pkg._id, id: normalized.seriesId, seriesId: normalized.seriesId, spotId: normalized.spotId }
-        }
-      }
-      return {
-        name,
-        path: '/pages/videoProductDetail/videoProductDetail',
-        params: { id: normalized.seriesId, packageId: pkg._id, spotId: normalized.spotId }
-      }
-    }
-    return {
-      name,
-      path: '/pages/photoPackageDetail/photoPackageDetail',
-      params: { id: normalized.seriesId, packageId: pkg._id, spotId: normalized.spotId }
-    }
-  },
-
-  goSpot() {
-    const spot = this.data.relatedSpot
+  goSpot(event) {
+    const id = event && event.currentTarget && event.currentTarget.dataset.id
+    const spot = id ? this.data.relatedSpots.find(item => String(item.id) === String(id)) : this.data.relatedSpot
     if (!spot || !spot.id) return
     wx.navigateTo({ url: this.buildUrl('/pages/spotSheet/spotSheet', { id: spot.id }) })
   },
 
-  goTarget() {
-    const target = this.data.target
-    if (!target) return
-    wx.navigateTo({ url: this.buildUrl(target.path, target.params) })
+  previewImage(event) {
+    const urls = this.data.hasRichContent
+      ? [...new Set(this.data.contentBlocks.filter(item => item.type === 'image').map(item => item.url))]
+      : this.data.mediaItems.filter(item => item.type === 'image').map(item => item.url)
+    if (urls.length) wx.previewImage({ current: event.currentTarget.dataset.url || urls[0], urls })
+  },
+
+  async openGuideAttachment(event) {
+    if (this._attachmentBusy) {
+      wx.showToast({ title: '附件处理中，请稍候', icon: 'none' })
+      return
+    }
+    const key = event && event.currentTarget && event.currentTarget.dataset.key
+    const attachment = this.data.contentBlocks.find(block => block.key === key && block.type === 'attachment')
+    if (!attachment) {
+      wx.showToast({ title: '附件不可用，请刷新后重试', icon: 'none' })
+      return
+    }
+    this._attachmentBusy = true
+    this.setData({ attachmentBusyKey: key, attachmentStatus: '正在下载 0%' })
+    try {
+      await guideAttachments.openAttachment(attachment, (phase, progress) => {
+        this.setData({ attachmentStatus: phase === 'opening' ? '正在打开' : (phase === 'downloaded' ? '下载完成' : `正在下载 ${progress}%`) })
+      })
+    } catch (error) {
+      if (error.downloadUrl) {
+        try {
+          const answer = await new Promise((resolve, reject) => wx.showModal({
+            title: '附件打开失败', content: '可以重试打开，或复制下载链接在浏览器中打开并保存。',
+            confirmText: '复制链接', cancelText: '关闭', success: resolve, fail: reject
+          }))
+          if (answer.confirm) await guideAttachments.copyDownloadLink(error.downloadUrl)
+        } catch (_) { wx.showToast({ title: '下载链接复制失败，请重试', icon: 'none' }) }
+      } else wx.showToast({ title: error.message || '附件下载失败，请重试', icon: 'none' })
+    } finally {
+      this._attachmentBusy = false
+      this.setData({ attachmentBusyKey: '', attachmentStatus: '' })
+    }
+  },
+
+  goBookingProduct() {
+    const product = this.data.bookingProduct
+    if (!product || !product.id) return
+    const spotId = this.data.guide.targetProductSpotId || product.spotId || this.data.guide.spotId || ''
+    let path = ''
+    let params = { spotId }
+    if (product.type === 'album') {
+      path = '/pages/photoCollection/photoCollection'
+      params = { ...params, albumId: product.id, seriesId: product.seriesId || '' }
+    } else if (product.type === 'video') {
+      path = '/pages/videoProductDetail/videoProductDetail'
+      params = { ...params, productId: product.id }
+    } else if (product.type === 'package') {
+      path = '/pages/photoPackageDetail/photoPackageDetail'
+      params = { ...params, packageId: product.id, seriesId: product.seriesId || '' }
+    }
+    if (path) wx.navigateTo({ url: this.buildUrl(path, params) })
   },
 
   retry() {

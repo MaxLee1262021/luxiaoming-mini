@@ -20,10 +20,12 @@ function buildRelatedPhotoCollections(current = {}, collections = [], catalog = 
     if (Array.isArray(catalog.allSeries) && item.seriesId && !matchedSeries) return related
     const series = matchedSeries || {}
     if (!isPublicProduct(series)) return related
-    const spotId = item.spotId || (item.spotIds || [])[0] || series.spotId || (series.spotIds || [])[0] || ''
+    const inheritedSpotId = item.spotBindingExplicit === true ? '' : series.spotId || (series.spotIds || [])[0] || ''
+    const spotId = item.spotId || (item.spotIds || [])[0] || inheritedSpotId
     const spot = spots.find(row => String(row._id || row.id) === String(spotId)) || {}
+    const normalizedAlbum = normalizeAlbumPresentation(item)
     related.push({
-      ...normalizeAlbumPresentation(item),
+      ...normalizedAlbum,
       _id: id,
       albumId: id,
       collectionKey: id,
@@ -31,7 +33,7 @@ function buildRelatedPhotoCollections(current = {}, collections = [], catalog = 
       seriesName: item.seriesName || series.name || '',
       spotId,
       spotName: item.spotName || spot.name || '',
-      cover: item.cover || item.coverImage || item.coverUrl || (item.sampleUrls || [])[0] || '/images/placeholder.png'
+      cover: normalizedAlbum.cover || '/images/placeholder.png'
     })
     return related
   }, []).sort((a, b) => {
