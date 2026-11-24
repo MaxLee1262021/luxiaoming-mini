@@ -1,5 +1,5 @@
 /* 攻略 / 城市故事 卡片：单源组件
-   支持 list（封面在左的列表项）与 thumb（横滑缩略图）两变体；
+   支持 list（封面在左）、thumb（横滑缩略图）与 waterfall（双列图文）；
    封面支持 image（图片）与 badge（渐变编号徽标）。 */
 .guide-card {
   display: flex;
@@ -71,6 +71,17 @@
   width: 100%;
   height: 100%;
   display: block;
+}
+
+.gc-cover-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--lxm-c-gray-250);
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-sm);
 }
 
 .gc-cover-badge {
@@ -205,7 +216,7 @@
   font-weight: 900;
 }
 
-/* 瀑布流变体（旅拍灵感双列）：竖向卡，封面按图片原始比例自适应高度 */
+/* 先为封面保留空间，加载后使用原图比例，避免懒加载或失败时卡片高度塌陷。 */
 .guide-card--waterfall {
   flex-direction: column;
   width: 100%;
@@ -216,8 +227,9 @@
 }
 
 .guide-card--waterfall .gc-cover {
+  position: relative;
   width: 100%;
-  height: auto;
+  height: 0;
   border-radius: 0;
 }
 
@@ -225,11 +237,15 @@
   height: 320rpx;
 }
 
-.guide-card--waterfall .gc-cover-img {
-  height: auto;
+.guide-card--waterfall .gc-cover-img,
+.guide-card--waterfall .gc-cover-placeholder {
+  position: absolute;
+  top: 0;
+  left: 0;
 }
 
 .guide-card--waterfall .gc-body {
+  flex: 0 0 auto;
   padding: 16rpx 18rpx 20rpx;
 }
 
@@ -243,8 +259,15 @@
   word-break: break-all;
 }
 
+.guide-card--waterfall .gc-title {
+  display: block;
+  overflow: visible;
+  line-height: 1.4;
+}
+
 .guide-card--waterfall .gc-meta {
   flex-wrap: wrap;
+  margin-top: 12rpx;
 }
 
 .guide-card--waterfall .gc-meta text {

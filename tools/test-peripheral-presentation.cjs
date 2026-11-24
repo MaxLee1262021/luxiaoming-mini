@@ -10,13 +10,18 @@ const root = path.resolve(__dirname, '..')
 function createPage(rows = []) {
   const previews = []
   const toasts = []
+  const modals = []
   let page
   const wx = {
     previewImage(options) { previews.push({ api: 'image', ...options }) },
     previewMedia(options) { previews.push({ api: 'media', ...options }) },
-    showToast(options) { toasts.push(options) }
+    showToast(options) { toasts.push(options) },
+    showModal(options) { modals.push(options) }
   }
   const dependencies = {
+    '../../api/physical': {},
+    '../../utils/physical': require('../miniprogram/utils/physical'),
+    '../../utils/physicalSkuSelection': require('../miniprogram/utils/physicalSkuSelection'),
     '../../utils/demoData': { peripherals: [] },
     '../../api/peripheral': { async getPeripherals() { return { success: true, data: rows } } },
     '../../utils/product': require('../miniprogram/utils/product'),
@@ -33,7 +38,7 @@ function createPage(rows = []) {
   })
   page.data = JSON.parse(JSON.stringify(page.data))
   page.setData = function(patch) { Object.assign(this.data, patch) }
-  return { page, wx, previews, toasts, dependencies }
+  return { page, wx, previews, toasts, modals, dependencies }
 }
 
 test('周边展示兼容真实字段别名、完整长文及规格，不投影库存', () => {
@@ -146,4 +151,57 @@ test('服务异常时清空商品并提示重试，不生成预览商品', async
   assert.equal(page.data.degraded, true)
   assert.equal(page.data.featuredPeripheral, null)
   assert.deepEqual(Array.from(page.data.peripherals), [])
+})
+
+test('不可售原因使用完整弹窗展示，购物车与直接购买均不会打开规格选择', async () => {
+  const content = '该商品已售罄，请选择其他商品或联系客服了解补货时间。'
+  for (const mode of ['cart', 'direct']) {
+    const { page, dependencies, modals, toasts } = createPage()
+    page.setData({ featuredPeripheral: { _id: 'album' } })
+    dependencies['../../api/physical'].getPhysicalCatalog = async () => ({ items: [{
+      id: 'album', purchasable: false, disabledReason: content, reason: '旧的通用提示',
+      skus: [{ id: 'sku', price: 10, available: 0, purchasable: false }]
+    }] })
+    await page.openPurchase({ currentTarget: { dataset: { mode } } })
+    assert.equal(modals.length, 1)
+    assert.equal(modals[0].title, mode === 'cart' ? '暂时无法加入购物车' : '暂时无法购买')
+    assert.equal(modals[0].content, content)
+    assert.equal(modals[0].showCancel, false)
+    assert.equal(page.data.purchaseVisible, false)
+    assert.equal(page.data.purchaseBusy, false)
+    assert.equal(toasts.length, 0)
+  }
+})
+
+test('兼容旧接口不可售原因，目录中找不到商品时说明已下架', async () => {
+  const cases = [
+    { result: { items: [{ id: 'album', disabledReason: '库存或销售参数未就绪' }] }, expected: /库存或配送信息待商家确认/ },
+    { result: { product: { id: 'album', unavailableReason: '该商品需要照片定制，请联系客服。' } }, expected: /照片定制/ },
+    { result: { id: 'album', reason: '商品暂不可购买' }, expected: /尚未开放购买/ },
+    { result: { items: [], enabled: false }, expected: /商城暂未开放购买/ },
+    { result: { items: [{ id: 'other', purchasable: true, skus: [{ id: 'sku', available: 1 }] }] }, expected: /已下架或不再出售/ }
+  ]
+  for (const { result, expected } of cases) {
+    const { page, dependencies, modals } = createPage()
+    page.setData({ featuredPeripheral: { _id: 'album' } })
+    dependencies['../../api/physical'].getPhysicalCatalog = async () => result
+    await page.openPurchase({ currentTarget: { dataset: { mode: 'cart' } } })
+    assert.equal(modals.length, 1)
+    assert.match(modals[0].content, expected)
+    assert.equal(page.data.purchaseVisible, false)
+  }
+})
+
+test('还有可售规格的商品继续打开购买面板，不显示不可售弹窗', async () => {
+  const { page, dependencies, modals } = createPage()
+  page.setData({ featuredPeripheral: { _id: 'album' } })
+  dependencies['../../api/physical'].getPhysicalCatalog = async () => ({ items: [{
+    id: 'album', purchasable: true,
+    skus: [{ id: 'sold-out', available: 0, purchasable: false }, { id: 'available', price: 10, available: 2, purchasable: true }]
+  }] })
+  await page.openPurchase({ currentTarget: { dataset: { mode: 'cart' } } })
+  assert.equal(modals.length, 0)
+  assert.equal(page.data.purchaseVisible, true)
+  assert.equal(page.data.purchaseSkus[1].purchasable, true)
+  assert.equal(page.data.purchaseBusy, false)
 })

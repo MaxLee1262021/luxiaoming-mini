@@ -14,7 +14,7 @@ function getGuides(params = {}) {
     .then(res => {
       const list = (res && res.data && (res.data.list || res.data.guides || res.data)) || []
       if (!res || !res.success || !Array.isArray(list)) throw new Error('guide request failed')
-      return publicGuides(list).filter(guide => matchesSpot(guide, requestedSpotId))
+      return publicGuides(list, requestParams.sortBy).filter(guide => matchesSpot(guide, requestedSpotId))
     })
 }
 

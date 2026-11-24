@@ -5,7 +5,7 @@ Component({
       type: Object,
       value: {}
     },
-    // 'list'（封面在左的列表项）| 'thumb'（横滑缩略图小卡）
+    // 'list'（封面在左）| 'thumb'（横滑缩略图）| 'waterfall'（双列图文）
     variant: {
       type: String,
       value: 'list'
@@ -59,6 +59,8 @@ Component({
 
   data: {
     coverUrl: '',
+    coverPadding: 125,
+    coverFailed: false,
     primaryTag: '',
     showHot: false,
     titleText: '',
@@ -83,11 +85,25 @@ Component({
       const badgeText = (index != null) ? String(index) : ''
       const badgeBg = badgeGradient || item.coverGradient || item.heroColor || 'linear-gradient(135deg, #FF8D52 0%, #EE2C2C 100%)'
       const indexLabel = ('0' + ((index || 0) + 1)).slice(-2)
-      this.setData({ coverUrl, primaryTag, showHot, titleText, descText, metaList, badgeText, badgeBg, indexLabel })
+      const coverState = coverUrl !== this.data.coverUrl ? { coverPadding: 125, coverFailed: false } : {}
+      this.setData({ coverUrl, ...coverState, primaryTag, showHot, titleText, descText, metaList, badgeText, badgeBg, indexLabel })
     }
   },
 
   methods: {
+    onCoverLoad(e) {
+      if (e.currentTarget.dataset.src !== this.data.coverUrl) return
+      const width = Number(e.detail.width)
+      const height = Number(e.detail.height)
+      if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) return
+      this.setData({ coverPadding: height / width * 100, coverFailed: false })
+    },
+
+    onCoverError(e) {
+      if (e.currentTarget.dataset.src !== this.data.coverUrl) return
+      this.setData({ coverFailed: true })
+    },
+
     onTap() {
       const id = this.data.item && this.data.item._id
       if (this.data.variant === 'thumb') {

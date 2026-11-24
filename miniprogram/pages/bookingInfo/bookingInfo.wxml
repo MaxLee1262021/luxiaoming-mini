@@ -45,6 +45,12 @@
         </view>
         <view class="selected-title">{{item.packageName || item.albumName || item.seriesName || '旅拍项目'}}</view>
         <view class="selected-info">{{item.spotName || '待确认打卡点'}} · {{item.seriesName || '旅拍风格'}}</view>
+        <view class="selected-spots" wx:if="{{item.applicableSpots.length}}">
+          <view class="selected-spots-label">{{item.packageId ? '套餐适用打卡点' : '适用打卡点'}}</view>
+          <view class="selected-spots-list">
+            <text class="selected-spot" wx:for="{{item.applicableSpots}}" wx:for-item="spot" wx:key="_id">{{spot.name}}</text>
+          </view>
+        </view>
         <view class="selected-info" wx:if="{{item.albumName}}">照片留影：{{item.albumName}}</view>
         <view class="selected-custom-tag" wx:if="{{item.custom}}">定制服务</view>
         <view class="selected-participant" wx:if="{{item.custom}}">
@@ -97,6 +103,16 @@
       <view class="phone-hint" wx:else>请先在顶部填写有效手机号，再提交预约。</view>
     </view>
 
+    <view class="card shipping-address-card" wx:if="{{requiresShipping}}">
+      <view class="card-title">套餐周边收货地址</view>
+      <view wx:if="{{shippingAddress}}" class="shipping-address-copy">
+        <view>{{shippingAddress.recipient}} {{shippingAddress.phone}}</view>
+        <view class="shipping-address-detail">{{shippingAddressText}}</view>
+      </view>
+      <button class="shipping-address-btn" bindtap="chooseShippingAddress" disabled="{{submitting || paymentSubmitting}}">{{shippingAddress ? '更换收货地址' : '选择收货地址'}}</button>
+      <view class="schedule-hint">套餐周边随套餐履约，付清后安排发货。</view>
+    </view>
+
     <view class="card">
       <view class="card-title">拍摄安排</view>
       <view class="schedule-picker-row">
@@ -111,7 +127,7 @@
     </view>
 
     <view class="card">
-      <view class="card-title">特殊需求（选填）</view>
+      <view class="card-title">预约备注（选填）</view>
       <textarea class="textarea" placeholder="如有妆造、同行人数、拍摄风格、短视频脚本等需求，可以在这里说明" value="{{message}}" bindinput="onMessageInput" />
     </view>
 

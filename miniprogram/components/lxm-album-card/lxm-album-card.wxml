@@ -1,22 +1,32 @@
 <view class="album-card {{mode}} {{selected ? 'is-selected' : ''}}" catchtap="onTap" hover-class="lxm-card-lift" hover-stay-time="150">
-  <view class="album-marketing-badge {{marketingBadgeClass}}" wx:if="{{marketingBadge && mode !== 'row'}}">{{marketingBadge}}</view>
+  <view class="album-cover-tags {{coverTags.length > 1 ? 'album-cover-tags--multiple' : ''}}" wx:if="{{coverTags.length && mode !== 'row'}}">
+    <text class="album-marketing-badge">{{coverTagText}}</text>
+  </view>
 
   <!-- 覆盖式：网格 / 横向滚动小卡 -->
   <block wx:if="{{mode === 'grid' || mode === 'compact'}}">
-    <image class="album-cover" src="{{album.cover || album.coverImage || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
-    <view class="album-mask"></view>
-    <text class="album-type">照片留影</text>
-    <view class="album-info">
-      <text class="album-name">{{album.name || album.albumName}}</text>
-      <text class="album-meta" wx:if="{{album.seriesName}}">{{album.seriesName}}</text>
-      <view class="album-bottom">
-        <text class="album-count">{{album.photoCount || 0}} 张照片</text>
-        <text class="album-price" wx:if="{{album.price !== undefined && album.price !== ''}}">¥{{album.price}}</text>
+    <view class="album-media">
+      <image class="album-cover" src="{{album.cover || album.coverImage || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+      <view class="album-mask"></view>
+      <text class="album-type">照片留影</text>
+      <view class="album-info">
+        <text class="album-name">{{album.name || album.albumName}}</text>
+        <text class="album-meta" wx:if="{{album.seriesName}}">{{album.seriesName}}</text>
+        <view class="album-bottom {{photoCountBelowCover ? 'album-bottom--price-only' : ''}}">
+          <text class="album-count" wx:if="{{!photoCountBelowCover}}">{{album.photoCountText}}</text>
+          <text class="album-price" wx:if="{{album.price !== undefined && album.price !== ''}}">¥{{album.price}}</text>
+        </view>
+        <view class="album-actions" wx:if="{{showPreview || showBook || album.showBook}}">
+          <button class="album-btn ghost" wx:if="{{showPreview}}" catchtap="onPreview">快速预览</button>
+          <button class="album-btn primary" wx:if="{{showBook || album.showBook}}" catchtap="onBook">预约同款</button>
+        </view>
       </view>
-      <view class="album-actions" wx:if="{{showPreview || showBook || album.showBook}}">
-        <button class="album-btn ghost" wx:if="{{showPreview}}" catchtap="onPreview">快速预览</button>
-        <button class="album-btn primary" wx:if="{{showBook || album.showBook}}" catchtap="onBook">预约同款</button>
-      </view>
+    </view>
+    <view class="album-photo-description" wx:if="{{photoCountBelowCover}}">
+      <text class="album-photo-description__text">{{album.photoCountText}}</text>
+    </view>
+    <view class="album-configured-tags" wx:if="{{coverTags.length > 1}}">
+      <text class="album-configured-tag" wx:for="{{coverTags}}" wx:key="*this">{{item}}</text>
     </view>
   </block>
 
@@ -25,7 +35,7 @@
     <image class="album-cover row-cover" style="width:{{coverSize || 96}}rpx;height:{{coverSize || 96}}rpx" src="{{album.cover || album.coverImage || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
     <view class="album-row-info">
       <text class="album-row-title">{{album.name || album.albumName || album.title}}</text>
-      <text class="album-row-meta" wx:if="{{album.meta || album.photoCount !== undefined || album.price !== undefined}}">{{album.meta || ((album.photoCount || 0) + ' 张照片' + (album.price !== undefined && album.price !== '' ? ' · ¥' + album.price : ''))}}</text>
+      <text class="album-row-meta">{{album.meta || (album.photoCountText + (album.price !== undefined && album.price !== '' ? ' · ¥' + album.price : ''))}}</text>
     </view>
     <view class="album-row-tail" wx:if="{{ctaText}}">
       <text class="album-cta">{{ctaText}}</text>
@@ -40,8 +50,11 @@
       <text class="album-stack-title">{{album.name || album.albumName || album.seriesName}}</text>
       <text class="album-stack-series" wx:if="{{album.seriesName}}">{{album.seriesName}}</text>
       <text class="album-stack-desc" wx:if="{{album.intro || album.desc || album.description}}">{{album.intro || album.desc || album.description}}</text>
+      <view class="album-configured-tags album-configured-tags--inline" wx:if="{{coverTags.length > 1}}">
+        <text class="album-configured-tag" wx:for="{{coverTags}}" wx:key="*this">{{item}}</text>
+      </view>
       <view class="album-stack-meta">
-        <text class="album-tag">{{(album.photoCount || 0) + ' 张照片'}}</text>
+        <text class="album-tag">{{album.photoCountText}}</text>
         <text class="album-tag ghost">看九宫格</text>
       </view>
       <view class="album-stack-foot">

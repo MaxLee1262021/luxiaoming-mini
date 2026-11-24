@@ -3,6 +3,7 @@
   <lxm-privacy-modal />
   <lxm-toast id="lxmToast" />
 
+  <view class="order-type-tabs"><view class="{{orderType === 'service' ? 'selected' : ''}}" data-type="service" bindtap="switchType">服务订单</view><view class="{{orderType === 'physical' ? 'selected' : ''}}" data-type="physical" bindtap="switchType">周边商品订单</view></view>
   <view class="tabs">
     <block wx:for="{{tabs}}" wx:key="key">
       <view class="tab-item {{currentStatus === item.key ? 'active' : ''}}" bindtap="filterOrders" data-status="{{item.key}}">
@@ -30,16 +31,20 @@
     <block wx:for="{{orders}}" wx:key="_id">
       <lxm-order-card
         item="{{item}}"
+        bind:contact="contactService"
         bind:detail="goDetail"
+        bind:reschedule="openReschedule"
+        bind:refund="openRefund"
+        bind:cancel="openCancel"
       />
     </block>
 
     <lxm-empty-state
-      wx:if="{{!loading && orders.length === 0}}"
+      wx:if="{{!loading && !error && orders.length === 0}}"
       type="order"
       title="暂无相关订单"
-      desc="可以先看看旅拍套餐，选好打卡点、照片留影或视频摄像产品后再提交预约。"
-      button-text="看打卡点"
+      desc="{{orderType === 'physical' ? '挑选喜欢的影像周边，把旅行的记忆带回家。' : '可以先看看旅拍套餐，选好打卡点、照片留影或视频摄像产品后再提交预约。'}}"
+      button-text="{{orderType === 'physical' ? '去逛周边' : '看打卡点'}}"
       secondary-text="回首页"
       bind:action="goAllPackages"
       bind:secondary="goHome"
@@ -47,5 +52,6 @@
 
     <view class="loading-more" wx:if="{{loading && orders.length > 0}}">加载中...</view>
   </scroll-view>
+  <lxm-order-actions item="{{actionOrder}}" action="{{orderAction}}" bind:updated="onOrderActionUpdated" bind:close="closeOrderAction" />
 
 </view>

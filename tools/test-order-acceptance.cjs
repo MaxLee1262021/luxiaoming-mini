@@ -137,8 +137,8 @@ assert.deepEqual(delivered.deliverFiles.map((file) => file.fileId), ["published-
 // workflow stages remain available for operations but are collapsed here.
 const customerStates = [
   ["awaiting_confirmation", "待支付"],
-  ["awaiting_dispatch", "待确认"],
-  ["awaiting_shoot", "待拍摄"],
+  ["awaiting_dispatch", "已预约"],
+  ["awaiting_shoot", "已定档"],
   ["shooting", "拍摄中"],
   ["selection_pending", "拍摄中"],
   ["awaiting_final_payment", "拍摄中"],

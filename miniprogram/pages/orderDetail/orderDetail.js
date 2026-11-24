@@ -1,20 +1,23 @@
 const app = getApp()
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
-const { normalizeOrder, getOrderStatusDesc } = require('../../utils/order')
+const { normalizeOrder, getOrderStatusDesc, buildReservationBill } = require('../../utils/order')
 const { ORDER_STATUS_FILTERS } = require('../../utils/orderStatusFilters')
 const orderFiles = require('../../service/orderFileActions')
 const { normalizeFile } = require('../../service/mediaFiles')
 const { paymentFailure, logPaymentFailure } = require('../../utils/paymentFeedback')
 const { openCustomerService } = require('../../service/customerService')
 const { orderItemDisplay } = require('../../utils/productDisplay')
+const { openOrderProduct } = require('../../service/orderProductNavigation')
+const { orderView: physicalOrderView } = require('../../utils/physical')
 
-function requestWechatPayment(paymentParams = {}) {
+async function requestWechatPayment(paymentParams = {}) {
   const { timeStamp, nonceStr, package: packageValue, signType, paySign } = paymentParams
   if (!timeStamp || !nonceStr || !packageValue || !signType || !paySign) {
     return Promise.reject(new Error('支付参数不完整，请重新发起支付'))
   }
   if (!wx.requestPayment) return Promise.reject(new Error('当前微信版本不支持支付，请升级后重试'))
+  await require('../../service/merchantShare').ensureScanSynced()
   return new Promise((resolve, reject) => {
     wx.requestPayment({
       timeStamp: String(timeStamp),
@@ -44,7 +47,9 @@ Page({
     shopId: '',
     scene: '',
     order: {},
+    reservationBill: {},
     productItemsDisplay: [],
+    physicalOrdersDisplay: [],
     productTypeSummary: '',
     orderStatusFilters: ORDER_STATUS_FILTERS,
     statusDesc: '',
@@ -53,10 +58,15 @@ Page({
     paymentSubmitting: false,
     paymentStatus: 'not_created',
     paymentMessage: '',
+    arrivalConfirming: false,
+    arrivalSubmitting: false,
+    arrivalError: '',
     cancelVisible: false,
     cancelFormReason: '',
     cancelSubmitting: false,
-    cancelError: ''
+    cancelError: '',
+    refundRetrySubmitting: false,
+    refundRetryError: ''
   },
 
   onLoad(options = {}) {
@@ -80,15 +90,16 @@ Page({
       return
     }
     const order = this.data.order || {}
-    if (!order._id || this.data.paymentSubmitting) return
+    if (!order._id || this.data.paymentSubmitting || this.data.arrivalConfirming || this.data.arrivalSubmitting) return
     if (this.data.paymentStatus === 'pending') return this.refreshPaymentStatus({ silent: true })
     return this.loadOrder()
   },
 
   async loadOrder() {
+    const requestId = this._orderRequestId = (this._orderRequestId || 0) + 1
     if (!this.data.id && !this.data.outTradeNo) {
       this.setData({ loading: false, error: '缺少订单信息' })
-      return
+      return false
     }
 
     this.setData({ loading: true, error: '' })
@@ -99,20 +110,24 @@ Page({
         ...(this.data.outTradeNo ? { outTradeNo: this.data.outTradeNo } : {})
       }
       const res = await orderApi.getOrderDetail(query)
+      if (requestId !== this._orderRequestId) return false
       // Never replace a failed customer-order request with a sample order.
       if (!res || !res.success) {
         this.setData({ error: '订单暂时无法加载，请重试' })
       } else if (res.data) {
         this.applyOrder(normalizeOrder(res.data), false)
+        return true
       } else {
         this.setData({ error: '订单不存在' })
       }
     } catch (err) {
+      if (requestId !== this._orderRequestId) return false
       console.error('getOrderDetail error', err)
       this.setData({ error: '订单暂时无法加载，请重试' })
     } finally {
-      this.setData({ loading: false })
+      if (requestId === this._orderRequestId) this.setData({ loading: false })
     }
+    return false
   },
 
   applyOrder(order = {}) {
@@ -121,7 +136,9 @@ Page({
     const paymentName = '微信支付'
     this.setData({
       order,
+      reservationBill: buildReservationBill(order),
       productItemsDisplay,
+      physicalOrdersDisplay: (Array.isArray(order.physicalOrders) ? order.physicalOrders : []).map(physicalOrderView).filter(item => item.id),
       productTypeSummary: Array.from(new Set(productItemsDisplay.map(item => item.typeLabel))).join('、'),
       deliveryFiles: (order.deliverFiles || []).map(normalizeFile),
       statusDesc: getOrderStatusDesc(order.customerStatusKey || order.workflowStage || order.status, order),
@@ -143,6 +160,23 @@ Page({
     })
   },
 
+  async goOrderProduct(e) {
+    const item = this.data.productItemsDisplay[Number(e.currentTarget.dataset.index)]
+    if (!item || this._openingOrderProduct) return
+    this._openingOrderProduct = true
+    try {
+      await openOrderProduct(item, this.data)
+    } finally {
+      this._openingOrderProduct = false
+    }
+  },
+
+  openPhysicalOrder(e) {
+    const order = this.data.physicalOrdersDisplay[Number(e.currentTarget.dataset.index)]
+    if (!order || !order.id) return
+    wx.navigateTo({ url: buildUrlWithSource('/pages/physicalOrderDetail/physicalOrderDetail', { id: order.id }, this.data) })
+  },
+
   contactService() {
     openCustomerService()
   },
@@ -153,6 +187,47 @@ Page({
 
   retry() {
     return this.loadOrder()
+  },
+
+  async confirmArrival() {
+    const order = this.data.order || {}
+    if (!order._id || order.canConfirmArrival !== true || this.data.loading
+      || this.data.arrivalConfirming || this.data.arrivalSubmitting) return
+    const orderId = order._id
+    this.setData({ arrivalConfirming: true, arrivalError: '' })
+    try {
+      const choice = await new Promise((resolve, reject) => {
+        wx.showModal({
+          title: '确认到达',
+          content: '请确认您已到达约定的拍摄地点，确认后订单将进入“拍摄中”。',
+          cancelText: '暂未到达',
+          confirmText: '确认到达',
+          success: resolve,
+          fail: () => reject(new Error('暂时无法打开确认窗口，请重试'))
+        })
+      })
+      if (!choice || choice.confirm !== true) return
+      // The order may have refreshed while the confirmation dialog was open.
+      const current = this.data.order || {}
+      if (current._id !== orderId || current.canConfirmArrival !== true) return
+      this.setData({ arrivalConfirming: false, arrivalSubmitting: true })
+      const result = await orderApi.confirmOrderArrival({ orderId })
+      const updated = result && result.data && normalizeOrder(result.data)
+      if (!result || result.success !== true || !updated || updated._id !== orderId || !updated.customerArrivedAt) {
+        throw new Error(result && (result.error || result.message) || '到达状态尚未确认，请刷新后重试')
+      }
+      // Apply only server-confirmed facts and invalidate any earlier read.
+      this._orderRequestId = (this._orderRequestId || 0) + 1
+      this.applyOrder(updated)
+      const refreshed = await this.loadOrder()
+      wx.showToast({ title: refreshed ? '已确认到达' : '到达已确认，请刷新订单', icon: refreshed ? 'success' : 'none' })
+    } catch (err) {
+      const message = err.message || '确认到达失败，请稍后重试'
+      this.setData({ arrivalError: message })
+      wx.showToast({ title: message, icon: 'none' })
+    } finally {
+      this.setData({ arrivalConfirming: false, arrivalSubmitting: false })
+    }
   },
 
   async confirmCompletion() {
@@ -325,6 +400,21 @@ Page({
     this.setData({ cancelVisible: true, cancelFormReason: '', cancelError: '' })
   },
 
+  async retryCancelRefund() {
+    const order = this.data.order || {}
+    if (!order.canRetryCancelRefund || this.data.refundRetrySubmitting) return
+    this.setData({ refundRetrySubmitting: true, refundRetryError: '' })
+    try {
+      const result = await orderApi.cancelOrder({ orderId: order._id, reason: '重试取消订单退款', idempotencyKey: `mini-cancel-refund-${order._id}` })
+      if (!result || result.success !== true) throw new Error(result && (result.error || result.message) || '退款暂未完成，请重试')
+      await this.loadOrder()
+    } catch (error) {
+      this.setData({ refundRetryError: error.message || '退款暂未完成，请重试' })
+    } finally {
+      this.setData({ refundRetrySubmitting: false })
+    }
+  },
+
   closeCancel() {
     if (this.data.cancelSubmitting) return
     this.setData({ cancelVisible: false, cancelError: '' })
@@ -343,7 +433,8 @@ Page({
     this.setData({ cancelSubmitting: true, cancelError: '' })
     try {
       const storageKey = `lxm_cancel_order_${order._id}`
-      let idempotencyKey = wx.getStorageSync(storageKey)
+      const cachedIntent = wx.getStorageSync(storageKey)
+      let idempotencyKey = typeof cachedIntent === 'string' ? cachedIntent : cachedIntent && cachedIntent.key
       if (!idempotencyKey) {
         idempotencyKey = `mini-cancel-${order._id}-${Date.now()}`
         wx.setStorageSync(storageKey, idempotencyKey)
@@ -351,7 +442,8 @@ Page({
       const result = await orderApi.cancelOrder({ orderId: order._id, reason, idempotencyKey })
       if (!result || !result.success) throw new Error((result && (result.error || result.message)) || '取消预约失败')
       this.setData({ cancelVisible: false, cancelFormReason: '' })
-      wx.showToast({ title: '预约已取消', icon: 'success' })
+      wx.showToast({ title: '订单已取消', icon: 'success' })
+      wx.removeStorageSync(storageKey)
       await this.loadOrder()
     } catch (err) {
       console.error('cancel order failed', err)

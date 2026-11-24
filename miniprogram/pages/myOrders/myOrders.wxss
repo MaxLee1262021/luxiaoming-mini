@@ -237,3 +237,4 @@
 .after-sale-submit::after {
   border: 0;
 }
+.order-type-tabs{display:flex;gap:16rpx;padding:24rpx 26rpx 38rpx}.order-type-tabs view{flex:1;text-align:center;padding:20rpx 10rpx;border-radius:18rpx;background:#eee5dc;color:#92755d;font-size:28rpx}.order-type-tabs .selected{background:#493728;color:#fff}.tabs{overflow-x:auto;white-space:nowrap;flex-shrink:0}.tab-item{flex-shrink:0}

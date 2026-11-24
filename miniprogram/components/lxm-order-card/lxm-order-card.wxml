@@ -2,24 +2,32 @@
   <view class="order-hd">
     <view class="status-tag status-{{item.customerStatusKey || item.status}}">
       <view class="status-dot-inner"></view>
-      <text>{{item.canPayFinal ? '待付尾款' : item.canConfirmCompletion ? '待确认完成' : item.statusText}}</text>
+      <text>{{item.statusText}}</text>
     </view>
     <text class="order-no">{{item.orderNo || item._id}}</text>
   </view>
-  <view class="order-body">
+  <block wx:if="{{item.orderType === 'physical'}}"><view class="order-body"><text class="package-name">{{item.items[0].name}}{{item.items.length > 1 ? ' 等' : ''}} · 共{{item.quantity}}件</text><text class="package-price">{{item.paymentMode === 'package' ? '套餐包含' : '¥' + item.totalText}}</text></view><view class="order-time">{{item.items[0].spec}}</view><view class="order-type">{{item.paymentMode === 'package' ? '套餐内周边' : '周边商品'}}{{item.afterSaleStatus && item.afterSaleStatus !== 'none' ? ' · 售后处理中' : ''}}</view><view class="btn-row"><view class="detail-btn" catchtap="emitDetail">查看订单</view></view></block>
+  <block wx:else><view class="order-body">
     <text class="package-name">{{item.packageName}}</text>
     <text class="package-price">¥{{item.packagePrice}}</text>
   </view>
-  <view class="order-spot" wx:if="{{item.spotName || item.seriesName}}">
-    {{item.spotName}}{{item.spotName && item.seriesName ? ' · ' : ''}}{{item.seriesName}}
+  <view class="order-spot">
+    拍摄点位：{{item.reservationInfo.spotNamesText || '暂无点位信息'}}
   </view>
-  <view class="order-time">{{item.date || '拍摄时间待客服/摄影师确认'}} {{item.timePeriod}}</view>
+  <view class="order-time">预约时间：{{item.reservationInfo.timeText || '未填写'}}</view>
   <view class="order-type">{{item.type === 'video' ? '视频摄像' : '照片留影'}}</view>
   <view class="order-payment" wx:if="{{item.canPayDeposit && item.depositDue > 0}}">待付订金 ¥{{item.depositDue}}</view>
   <view class="order-payment" wx:elif="{{item.canPayFinal && item.finalDue > 0}}">待付尾款 ¥{{item.finalDue}}</view>
-  <view class="order-payment" wx:elif="{{item.canConfirmCompletion}}">拍摄已完成，本单无需支付尾款</view>
+  <view class="order-payment" wx:elif="{{item.canConfirmCompletion}}">本单无需支付尾款，拍摄完成后请确认完成</view>
 
   <view class="btn-row">
+    <view class="contact-btn" catchtap="emitContact">联系客服</view>
+    <view class="after-sale-btn" wx:if="{{item.canApplyRefund}}" catchtap="emitRefund">取消预约</view>
+    <view class="cancel-btn" wx:elif="{{item.canCancel}}" catchtap="emitCancel">取消订单</view>
+    <view class="after-sale-btn" wx:if="{{item.canReschedule}}" catchtap="emitReschedule">申请改期</view>
+    <text class="request-status" wx:elif="{{item.rescheduleRequest.status === 'pending'}}">改期待审批</text>
     <view class="detail-btn" catchtap="emitDetail">{{item.canPayFinal ? '支付尾款' : item.canConfirmCompletion ? '确认完成' : '查看详情'}}</view>
   </view>
+  <view class="order-action-hint" wx:if="{{item.refundStatusText}}">{{item.refundStatusText}}</view>
+  </block>
 </view>

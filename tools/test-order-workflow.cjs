@@ -87,7 +87,7 @@ test("server payment state and sanitized timeline survive normalization", () => 
   assert.equal(normalized.statusLogs.length, 1);
 });
 
-test("final payment needs completed shooting and a server grant, without a selection gate", () => {
+test("final payment needs arrival or shooting facts and a server grant, without a selection gate", () => {
   const pendingSelection = order.normalizeOrder({
     id: "selection-pending",
     workflowStage: "selection_pending",
@@ -150,7 +150,14 @@ test("final payment needs completed shooting and a server grant, without a selec
     totalAmount: 100, depositDue: 30, depositPaid: 30, depositFinanceStatus: 'confirmed',
     finalDue: 70, selectionStatus: 'confirmed', canPayFinal: true, paymentPhase: 'final'
   });
-  assert.equal(beforeShootingCompleted.canPay, false);
+  assert.equal(beforeShootingCompleted.canPay, true);
+  assert.equal(beforeShootingCompleted.shootingCompleted, false);
+  for (const patch of [
+    { workflowStage: 'awaiting_shoot', status: 'deposit_paid' },
+    { canPayFinal: false }, { canPayFinal: undefined },
+    { afterSaleActive: true }, { paymentReviewRequired: true },
+    { status: 'cancelled' }, { businessStatus: 'completed' }, { depositPaid: 0 }
+  ]) assert.equal(order.normalizeOrder({ ...beforeShootingCompleted, ...patch }).canPayFinal, false, JSON.stringify(patch));
 
   const finalBeforeDeposit = order.normalizeOrder({
     id: 'final-before-deposit',

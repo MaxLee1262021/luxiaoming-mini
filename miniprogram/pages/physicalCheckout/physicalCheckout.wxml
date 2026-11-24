@@ -1,0 +1,16 @@
+<view class="physical-page">
+  <view class="physical-error" wx:if="{{error}}">{{error}}<view class="physical-row"><button class="physical-secondary" bindtap="load">重新核对</button><text class="physical-link" bindtap="backToCart">返回修改</text></view></view>
+  <view class="physical-card" bindtap="chooseAddress"><text class="physical-small">寄送至</text><view class="physical-between" style="margin-top:16rpx"><view class="physical-grow"><text class="physical-title">{{address ? (address.recipient || address.name) + ' · ' + address.phone : '请填写收货地址'}}</text><text class="physical-sub">{{address ? addressText : '添加或选择一个收货地址'}}</text></view><text>›</text></view></view>
+  <view wx:if="{{loading}}" class="physical-sub physical-empty">正在核对商品和运费…</view>
+  <view class="physical-card" wx:if="{{items.length}}"><text class="physical-title">商品清单</text><view class="physical-line physical-row" wx:for="{{items}}" wx:key="id"><image class="physical-cover" src="{{item.cover}}" mode="aspectFill"/><view class="physical-grow"><text class="physical-title">{{item.name}}</text><text class="physical-sub">{{item.spec}} × {{item.quantity}}</text><text class="physical-small">单价 ¥{{item.priceText}}</text><text wx:if="{{item.deliveryCycle}}" class="physical-small">交付周期：{{item.deliveryCycle}}</text></view><text>¥{{item.lineAmountText}}</text></view></view>
+  <view wx:if="{{quote}}" class="physical-card"><view class="physical-between physical-line"><text>商品金额</text><text>¥{{goodsText}}</text></view><view class="physical-between physical-line"><text>合单运费</text><text>¥{{shippingText}}</text></view><view class="physical-between physical-line"><text>应付合计</text><text class="physical-price">¥{{totalText}}</text></view><text class="physical-label">订单备注（选填）</text><input class="physical-input" value="{{remark}}" maxlength="200" placeholder="需要客服了解的事项" bindinput="remark"/></view>
+  <view class="physical-card" wx:if="{{quote && productDescriptions.length}}">
+    <text class="physical-title">商品说明</text>
+    <view wx:for="{{productDescriptions}}" wx:key="id" class="physical-product-description">
+      <text wx:if="{{productDescriptions.length > 1}}" class="physical-description-name">{{item.name}}</text>
+      <text class="physical-sub physical-description-content">{{item.content}}</text>
+    </view>
+  </view>
+  <checkbox-group bindchange="agree"><label class="physical-row physical-sub"><checkbox value="agreed" checked="{{agreed}}" color="#ef653d"/><text>我已核对商品数量、规格、地址及运费，并了解商品说明。</text></label></checkbox-group>
+  <view class="physical-footer"><view><text class="physical-small">实付款</text><text class="physical-price"> ¥{{totalText}}</text></view><button class="physical-primary" bindtap="submit" loading="{{busy}}" disabled="{{busy || loading || !quote || !address || !agreed}}">{{submissionPending ? '查询并恢复本次订单' : '提交订单并支付'}}</button></view>
+</view>

@@ -85,22 +85,6 @@ button {
   font-size: var(--lxm-fz-sm);
 }
 
-/* B3 · 封面起价角标（右上，避开播放按钮） */
-.video-cover-badge {
-  position: absolute;
-  right: 24rpx;
-  top: 92rpx;
-  z-index: 4;
-  padding: 6rpx 16rpx;
-  border-radius: 999rpx;
-  background: var(--lxm-c-red);
-  color: var(--lxm-c-cream);
-  font-size: var(--lxm-fz-sm);
-  font-weight: 900;
-  line-height: 1;
-  pointer-events: none;
-}
-
 .video-copy {
   position: relative;
   padding: 22rpx 24rpx;
@@ -225,7 +209,6 @@ button {
   margin-right: 0;
 }
 
-/* 营销标签放在文字区，播放、暂停或加载失败时都保留。 */
 .video-marketing-badge {
   max-width: 100%;
   box-sizing: border-box;
@@ -236,37 +219,4 @@ button {
   background: var(--lxm-c-gold);
   color: var(--lxm-c-ink);
   pointer-events: none;
-}
-.video-marketing-badge.is-hot-sale {
-  background: var(--lxm-c-red);
-  color: var(--lxm-c-cream);
-}
-.video-marketing-badge.is-main-push {
-  background: var(--lxm-c-gold);
-  color: var(--lxm-c-ink);
-}
-.video-marketing-badge.is-hot {
-  background: var(--lxm-c-orange);
-  color: var(--lxm-c-ink);
-}
-.video-marketing-badge.is-new {
-  background: var(--lxm-c-cream);
-  color: var(--lxm-c-red-ink);
-}
-
-.video-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8rpx;
-  margin-top: 12rpx;
-}
-.video-style-tag {
-  max-width: 100%;
-  box-sizing: border-box;
-  padding: 5rpx 12rpx;
-  border-radius: 14rpx;
-  background: rgba(255, 247, 239, .12);
-  color: var(--lxm-c-cream);
-  font-size: var(--lxm-fz-xs);
-  line-height: 1.5;
 }

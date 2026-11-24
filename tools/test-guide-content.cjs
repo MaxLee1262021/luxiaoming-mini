@@ -37,7 +37,7 @@ test('publication and front visibility remain independent; pinned guides sort fi
     { id: 'draft', status: '草稿', isShow: true, isTop: true },
     { id: 'deleted', deleted: true },
     { id: 'old-pinned', status: '启用', isTop: true, updatedAt: '2026-11-03T10:00:00Z' },
-    { id: 'legacy', content: ['旧正文'], mediaUrls: ['https://cdn.test/old.jpg'] },
+    { id: 'legacy', createTime: '2020-01-01', content: ['旧正文'], mediaUrls: ['https://cdn.test/old.jpg'] },
     { id: 'draft-legacy', published: false, visible: true },
     { id: 'offline', status: '下架' },
     { id: 'former-pin', isTop: false, pinned: true }
@@ -240,8 +240,8 @@ test('guide RPC client filters legacy unfiltered results and respects secondary 
   let detail = { id: 'hidden', status: '已发布', isShow: false }
   const module = { exports: {} }
   const fixture = [
-    { id: 'route', spotIds: ['a', 'b'], status: '已发布', isShow: true },
-    { id: 'pin', spotId: 'b', status: '已发布', isTop: true },
+    { id: 'route', spotIds: ['a', 'b'], status: '已发布', isShow: true, readCount: '100', score: '4.9' },
+    { id: 'pin', spotId: 'b', status: '已发布', isTop: true, readCount: 2, score: 3.5 },
     { id: 'hidden', spotId: 'b', isShow: false }, { id: 'draft', spotId: 'b', status: '草稿' }
   ]
   const requireFromFile = createRequire(filename)
@@ -258,6 +258,12 @@ test('guide RPC client filters legacy unfiltered results and respects secondary 
   assert.deepEqual(rows.map(item => item._id), ['pin', 'route'])
   assert.equal(requests[0].params.shopId, 'shop')
   assert.equal(requests[0].params.spotId, undefined, 'older servers should not discard secondary associations')
+  for (const sortBy of ['readCount', 'score']) {
+    const sorted = await api.getGuides({ spotId: 'b', sortBy })
+    assert.deepEqual(sorted.map(item => item._id), ['route', 'pin'], 'Client normalization must preserve the selected metric ordering')
+    assert.equal(requests.at(-1).params.sortBy, sortBy)
+    assert.equal(requests.at(-1).params.spotId, undefined)
+  }
   assert.equal(await api.getGuideDetail({ id: 'hidden' }), null)
   detail = { id: 'draft', status: '草稿', isShow: true }
   assert.equal(await api.getGuideDetail({ id: 'draft' }), null)

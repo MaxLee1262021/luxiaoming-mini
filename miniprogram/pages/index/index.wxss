@@ -697,16 +697,11 @@
   flex: 0 0 auto;
 }
 
-.home-package-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 20rpx;
-  padding: 0 28rpx 12rpx;
-}
-
-.home-package-grid lxm-package-card {
+.home-product-track lxm-package-card {
   display: block;
-  min-width: 0;
+  width: 300rpx;
+  flex: 0 0 auto;
+  margin-right: 18rpx;
 }
 
 .home-peripheral-track {

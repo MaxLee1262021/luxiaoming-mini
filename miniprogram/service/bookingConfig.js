@@ -1,6 +1,6 @@
 // 预约价格及须知只读取真实后台；缺失配置保持不可用，不生成本地报价。
 const bookingConfigApi = require('../api/bookingConfig')
-const EMPTY_CONFIG = Object.freeze({ customPrice: Object.freeze({ single: null, extraPerPerson: null }), depositRatio: null, bookingNotice: '', bookingNoticeVersion: '' })
+const EMPTY_CONFIG = Object.freeze({ customPrice: Object.freeze({ single: null, extraPerPerson: null }), depositRatio: null, bookingNotice: '', bookingNoticeVersion: '', bookingSuccessTips: '' })
 let cached = null
 let loading = null
 let latestRequest = null
@@ -30,7 +30,8 @@ function ensureLoaded(refresh = false) {
       customPrice: { single: numberOrNull(price.single ?? price.singlePersonPrice), extraPerPerson: numberOrNull(price.extraPerPerson ?? price.perExtraPerson) },
       depositRatio: normalizeDepositRatio(data.depositRatio ?? data.depositRate),
       bookingNotice: typeof data.bookingNotice === 'string' ? data.bookingNotice.trim() : '',
-      bookingNoticeVersion: String(data.bookingNoticeVersion || data.agreementVersion || '').trim()
+      bookingNoticeVersion: String(data.bookingNoticeVersion || data.agreementVersion || '').trim(),
+      bookingSuccessTips: typeof data.bookingSuccessTips === 'string' ? data.bookingSuccessTips.replace(/\r\n?/g, '\n').trim() : ''
     }
     return cached
   }).catch(error => {

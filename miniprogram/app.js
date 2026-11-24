@@ -6,6 +6,7 @@ const userStore = require('./store/userStore')
 const shareHelper = require('./utils/share')
 const analytics = require('./utils/analytics')
 const merchantShare = require('./service/merchantShare')
+const { CUSTOMER_SERVICE_URL } = require('./service/customerService')
 
 // 全站分享兜底：任何页面未定义 onShareAppMessage / onShareTimeline 时注入默认实现，
 // 保证右上角菜单「转发 / 分享到朋友圈」全站可用，文案统一品牌口吻；页面可自行覆盖。
@@ -39,6 +40,9 @@ wx.showToast = function (opts = {}) {
 
 App({
   onLaunch(options = {}) {
+    // The latest merchant remains the source after exiting and reopening.
+    // Only a later merchant QR replaces it; restoring it is not another scan.
+    this.globalData.source = sourceStore.getSource()
     merchantShare.capture(options, 1, 'launch')
     for (const key of ['lxm_demo_mode', 'lxm_site_page_config', 'lxm_user_profile']) {
       try { wx.removeStorageSync(key) } catch (_) {}
@@ -76,24 +80,28 @@ App({
     merchantShare.flush()
     // 从后台切回前台也补一次来源采集（冷启动时 onLaunch 已做）
     if (options && options.query && Object.keys(options.query).length) {
-      if (options.query.scene || options.query.shopId || options.query.codeId) {
+      if (options.query.scene || options.query.shopId || options.query.codeId || options.query.c) {
         this.captureSource(options.query)
       }
     }
   },
 
-  async loadCustomerServiceConfig() {
-    try {
-      const result = await callCloud('getCorpConfig', {})
-      if (!result || result.success !== true) throw new Error('客服配置加载失败')
-      const config = result.data || {}
-      this.globalData.corpId = String(config.corpId || '').trim()
-      this.globalData.customerServiceUrl = String(config.customerServiceUrl || '').trim()
-    } catch (error) {
-      this.globalData.corpId = ''
-      this.globalData.customerServiceUrl = ''
-      console.warn('客服配置加载失败', error)
-    }
+  loadCustomerServiceConfig() {
+    if (this._customerServiceConfigRequest) return this._customerServiceConfigRequest
+    this._customerServiceConfigRequest = Promise.resolve()
+      .then(() => callCloud('getCorpConfig', {}))
+      .then((result) => {
+        if (!result || result.success !== true) throw new Error('客服配置加载失败')
+        this.globalData.corpId = String((result.data || {}).corpId || '').trim()
+        return this.globalData.corpId
+      })
+      .catch((error) => {
+        this.globalData.corpId = ''
+        console.warn('客服配置加载失败', error)
+        return ''
+      })
+      .finally(() => { this._customerServiceConfigRequest = null })
+    return this._customerServiceConfigRequest
   },
 
   // 全局错误监控：捕获脚本错误与未处理的 Promise 拒绝
@@ -162,15 +170,21 @@ App({
   // 由非 tabBar 落地页 scanEntry 在 onLoad 时调用。
   async resolveMerchantSource(options = {}) {
     if (merchantShare.capture(options, 1, 'landing')) {
+      const source = this.captureSource(options)
       Promise.resolve().then(() => merchantShare.flush()).catch(() => {})
-      return this.getSource()
+      return source
     }
-    const sceneParams = parseScene(options.scene)
-    const c = options.c || sceneParams.c || (options.query && options.query.c) || ''
+    const query = options.query || options
+    const sceneParams = parseScene(query.scene)
+    const c = query.c || sceneParams.c || ''
     if (!c) return this.getSource()
+    const entry = this.captureSource(query)
     try {
       const result = await callCloud('resolveMerchantCode', { c })
       if (result && result.success && result.shopId) {
+        const current = this.getSource()
+        // A slow response for shop A must not replace a newer scan of shop B.
+        if (current.scene !== entry.scene || current.codeId !== entry.codeId) return current
         const source = {
           shopId: result.shopId,
           scene: result.scene || '',
@@ -199,8 +213,8 @@ App({
     openid: null,
     source: {},
     sitePageConfig: {},
-    // 全站客服入口仅使用真实后台getCorpConfig配置。
+    // 企业 ID 从后台加载，全站客服统一使用指定账号链接。
     corpId: '',
-    customerServiceUrl: ''
+    customerServiceUrl: CUSTOMER_SERVICE_URL
   }
 })

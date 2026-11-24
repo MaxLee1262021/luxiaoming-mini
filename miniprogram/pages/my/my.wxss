@@ -428,3 +428,4 @@
   color: var(--lxm-c-muted-2);
   font-size: var(--lxm-fz-xs);
 }
+.physical-link{font-size:25rpx;color:#b9552c}

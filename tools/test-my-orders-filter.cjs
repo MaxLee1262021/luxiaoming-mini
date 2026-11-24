@@ -29,6 +29,9 @@ const api = {
 function loadPage(name, extraDependencies = {}) {
   let definition;
   const dependencies = {
+    '../../service/customerService': {},
+    '../../api/physical': {},
+    '../../utils/physical': require('../miniprogram/utils/physical'),
     '../../api/order': api,
     '../../utils/query': queryUtils,
     '../../utils/order': orderUtils,
@@ -57,6 +60,7 @@ function loadPage(name, extraDependencies = {}) {
 
 const ordersDefinition = loadPage('myOrders');
 const myDefinition = loadPage('my', {
+  '../../service/bookingConfig': {},
   '../../service/customerService': {}, '../../api/client': {},
   '../../store/sourceStore': {}, '../../store/userStore': {}
 });
@@ -71,8 +75,8 @@ const settle = () => new Promise(setImmediate);
 
 assert.deepEqual(plain(ordersDefinition.data.tabs).map(({ key, text }) => ({ key, text })), [
   { key: '', text: '全部订单' },
-  { key: 'reserved', text: '待确认' },
-  { key: 'awaiting_shoot', text: '待拍摄' },
+  { key: 'reserved', text: '已预约' },
+  { key: 'awaiting_shoot', text: '已定档' },
   { key: 'shooting', text: '拍摄中' },
   { key: 'completed', text: '已完成' }
 ]);
@@ -200,7 +204,7 @@ for (const stale of [
   assert.equal(timers.size, 0, 'hidden pages must not keep polling');
   responseData = [rows[0]];
   await live.onShow();
-  assert.equal(live.data.orders[0].statusText, '待确认');
+  assert.equal(live.data.orders[0].statusText, '已预约');
 
   // Quiet synchronization keeps loaded pages, and failed synchronization
   // leaves the last successful list visible until a subsequent retry.

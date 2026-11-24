@@ -4,14 +4,20 @@
   hover-class="lxm-card-lift"
   hover-stay-time="150"
 >
-  <view class="gc-cover gc-cover--{{coverType}}">
-    <image
-      wx:if="{{coverType === 'image'}}"
-      class="gc-cover-img"
-      src="{{coverUrl || '/images/placeholder.png'}}"
-      mode="{{variant === 'waterfall' ? 'widthFix' : 'aspectFill'}}"
-      lazy-load
-    />
+  <view class="gc-cover gc-cover--{{coverType}}" style="{{variant === 'waterfall' && coverType === 'image' ? 'padding-top:' + coverPadding + '%;' : ''}}">
+    <block wx:if="{{coverType === 'image'}}">
+      <image
+        wx:if="{{coverUrl && !coverFailed}}"
+        class="gc-cover-img"
+        src="{{coverUrl}}"
+        mode="aspectFill"
+        data-src="{{coverUrl}}"
+        bindload="onCoverLoad"
+        binderror="onCoverError"
+        lazy-load
+      />
+      <view wx:else class="gc-cover-placeholder">旅拍灵感</view>
+    </block>
     <view wx:else class="gc-cover-badge" style="background:{{badgeBg}};">
       <text>{{badgeText}}</text>
     </view>

@@ -69,7 +69,7 @@
             <view class="item-card__type">{{item.typeLabel}} · ×{{item.quantity}}</view>
           </view>
           <view class="item-card__meta">
-            <text wx:if="{{item.type !== 'peripheral'}}" class="item-card__price">{{item.priceText}}</text>
+            <text class="item-card__price">{{item.priceText}}</text>
             <text class="item-card__arrow">›</text>
           </view>
         </view>

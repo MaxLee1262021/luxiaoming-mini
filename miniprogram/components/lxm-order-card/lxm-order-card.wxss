@@ -14,6 +14,9 @@
   justify-content: space-between;
 }
 
+.request-status { color: var(--lxm-c-gold-deep); font-size: var(--lxm-fz-sm); }
+.order-action-hint { margin-top: 16rpx; color: var(--lxm-c-gray-650); font-size: var(--lxm-fz-sm); line-height: 1.6; }
+
 .order-hd { margin-bottom: 18rpx; }
 
 .status-tag {
@@ -143,6 +146,7 @@
   flex-wrap: wrap;
 }
 
+.contact-btn,
 .cancel-btn,
 .after-sale-btn,
 .detail-btn,
@@ -158,6 +162,7 @@
 }
 
 /* 无障碍：视觉不变，透明热区高度扩至 88rpx（WCAG 2.5.5） */
+.contact-btn::after,
 .cancel-btn::after,
 .after-sale-btn::after,
 .detail-btn::after,
@@ -179,6 +184,10 @@
   color: var(--lxm-c-surface);
 }
 
+.contact-btn {
+  margin-right: auto;
+}
+
 .cancel-btn {
   background: var(--lxm-c-bg);
   color: var(--lxm-c-gray-700);
@@ -194,6 +203,7 @@
   color: var(--lxm-c-muted);
 }
 
+.contact-btn,
 .detail-btn {
   background: var(--lxm-c-gold);
   color: var(--lxm-c-red-ink);

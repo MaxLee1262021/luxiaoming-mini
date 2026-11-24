@@ -1,4 +1,5 @@
 const { normalizeTags } = require('./product')
+const { displayText } = require('./productDisplay')
 
 function nonnegativeInteger(value) {
   const number = Number(value)
@@ -28,7 +29,7 @@ function getAlbumPreviewUrls(album = {}) {
 
 function normalizeAlbumDescription(album = {}, photoCount = getAlbumPhotoCount(album)) {
   const source = String(album.description || album.intro || '').trim()
-  if (!source || !photoCount) return source
+  if (!source || !photoCount || displayText(album.photoCountText)) return source
   return source.replace(/\d+\s*张\s*(?:样片|照片)/g, `${photoCount} 张照片`)
 }
 
@@ -42,11 +43,12 @@ function normalizeAlbumPresentation(album = {}) {
   return {
     ...album,
     photoCount,
+    photoCountText: displayText(album.photoCountText) || `${photoCount} 张照片`,
     sampleCount: photoCount,
     retouchMode,
     retouchCount,
-    retouchText: retouchMode === 'count' ? `${retouchCount} 张` : (retouchMode === 'included' ? '包含' : '不包含'),
-    makeupText: album.makeupIncluded === true ? '包含' : '不包含',
+    retouchText: displayText(album.retouchText) || (retouchMode === 'count' ? `${retouchCount} 张` : (retouchMode === 'included' ? '包含' : '不包含')),
+    makeupText: displayText(album.makeupText) || (album.makeupIncluded === true ? '包含' : '不包含'),
     displayTags,
     sampleUrls,
     cover: album.cover || album.coverImage || album.coverUrl || sampleUrls[0] || '',

@@ -5,6 +5,19 @@ const vm = require('vm')
 
 const root = path.resolve(__dirname, '..')
 const pageConsole = { log() {}, warn() {}, error() {} }
+const { CUSTOMER_SERVICE_URL } = require('../miniprogram/service/customerService')
+
+function loadCustomerService(wx, app) {
+  const module = { exports: {} }
+  const servicePath = 'miniprogram/service/customerService.js'
+  vm.runInNewContext(fs.readFileSync(path.join(root, servicePath), 'utf8'), {
+    module,
+    wx,
+    getApp() { return app || { globalData: {} } },
+    console: pageConsole
+  }, { filename: servicePath })
+  return module.exports
+}
 
 function loadPage(relativePath, dependencies, wx, app) {
   let definition
@@ -13,16 +26,11 @@ function loadPage(relativePath, dependencies, wx, app) {
     Page(value) { definition = value },
     getApp() { return app || { globalData: {} } },
     require(request) {
+      if (request === '../../api/physical') return {}
+      if (request === '../../utils/physical') return require('../miniprogram/utils/physical')
+      if (request === '../../utils/orderStatusFilters') return require('../miniprogram/utils/orderStatusFilters')
       if (request === '../../service/customerService') {
-        const module = { exports: {} }
-        const servicePath = 'miniprogram/service/customerService.js'
-        vm.runInNewContext(fs.readFileSync(path.join(root, servicePath), 'utf8'), {
-          module,
-          wx,
-          getApp() { return app || { globalData: {} } },
-          console: pageConsole
-        }, { filename: servicePath })
-        return module.exports
+        return loadCustomerService(wx, app)
       }
       return dependencies[request] || {}
     },
@@ -96,14 +104,13 @@ function testMyCustomerServiceGuardsUnavailableSdkAndMissingCorpId() {
   assert.strictEqual(opened, 0)
   assert.match(toasts[1].title, /客服暂未配置/)
 
-  const missingUrl = createMyPage(wx, { globalData: { corpId: 'ww-corp-id' } })
-  missingUrl.openCustomerService.call({ ensureAuth() { return true } })
-  assert.strictEqual(opened, 0)
-  assert.match(toasts[2].title, /客服暂未配置/)
-
   const missingCorpId = createMyPage(wx, { globalData: { customerServiceUrl: 'https://work.weixin.qq.com/kfid/test' } })
   missingCorpId.openCustomerService.call({ ensureAuth() { return true } })
   assert.strictEqual(opened, 0)
+
+  const missingUrl = createMyPage(wx, { globalData: { corpId: 'ww-corp-id' } })
+  missingUrl.openCustomerService.call({ ensureAuth() { return true } })
+  assert.strictEqual(opened, 1, 'The fixed service link must not require a global URL')
 }
 
 function testMyCustomerServiceOpensOnlyWhenReadyAndHandlesThrows() {
@@ -119,7 +126,7 @@ function testMyCustomerServiceOpensOnlyWhenReadyAndHandlesThrows() {
   assert.strictEqual(received, undefined)
   page.openCustomerService.call({ ensureAuth() { return true } })
   assert.strictEqual(received.corpId, 'ww-corp-id')
-  assert.strictEqual(received.extInfo.url, customerServiceUrl)
+  assert.strictEqual(received.extInfo.url, CUSTOMER_SERVICE_URL)
 
   received.fail(new Error('request failed'))
   assert.strictEqual(toasts.length, 1)
@@ -132,40 +139,85 @@ function testMyCustomerServiceOpensOnlyWhenReadyAndHandlesThrows() {
 }
 
 function testAllCustomerServiceEntriesUseTheConfiguredAccount() {
-  const app = { globalData: { corpId: 'ww-corp-id', customerServiceUrl: 'https://work.weixin.qq.com/kfid/test' } }
+  const app = { globalData: { corpId: 'ww-corp-id', customerServiceUrl: 'https://work.weixin.qq.com/kfid/retired-account' } }
   const calls = []
   const wx = {
     openCustomerServiceChat(options) { calls.push(options) },
     showToast() { throw new Error('Configured customer service must not show an error') }
   }
-  const pages = ['peripherals', 'photoCollection', 'photoPackageDetail', 'videoProductDetail', 'bookingSuccess', 'orderDetail']
+  const pages = ['photoCollection', 'photoPackageDetail', 'videoProductDetail', 'bookingSuccess', 'orderDetail', 'myOrders', 'physicalOrderDetail']
   for (const name of pages) {
     const page = loadPage(`miniprogram/pages/${name}/${name}.js`, {}, wx, app)
     page.contactService()
   }
   createMyPage(wx, app).openCustomerService.call({ ensureAuth() { return true } })
-  assert.strictEqual(calls.length, 7)
+  assert.strictEqual(calls.length, 8)
   for (const call of calls) {
     assert.strictEqual(call.corpId, app.globalData.corpId)
-    assert.strictEqual(call.extInfo.url, app.globalData.customerServiceUrl)
+    assert.strictEqual(call.extInfo.url, CUSTOMER_SERVICE_URL)
     assert.strictEqual(typeof call.fail, 'function')
   }
+  const bookingSuccessMarkup = fs.readFileSync(path.join(root, 'miniprogram/pages/bookingSuccess/bookingSuccess.wxml'), 'utf8')
+  assert.match(bookingSuccessMarkup, /bindtap="contactService">联系客服/)
+  assert.doesNotMatch(bookingSuccessMarkup, /open-type\s*=\s*["']contact["']/)
 }
 
-function testAppLoadsBothCustomerServiceSettings() {
+function testAppUsesThePinnedCustomerServiceLink() {
   const config = require('../miniprogram/config/env')
   let appDefinition
   vm.runInNewContext(fs.readFileSync(path.join(root, 'miniprogram/app.js'), 'utf8'), {
     Page() {},
     App(value) { appDefinition = value },
     wx: { showToast() {} },
-    require(request) { return request === './config/env' ? config : {} }
+    require(request) {
+      if (request === './config/env') return config
+      if (request === './service/customerService') return { CUSTOMER_SERVICE_URL }
+      return {}
+    }
   }, { filename: 'miniprogram/app.js' })
   assert.strictEqual(config.CORP_ID, undefined)
   assert.strictEqual(config.CUSTOMER_SERVICE_URL, undefined)
   assert.strictEqual(appDefinition.globalData.corpId, '')
-  assert.strictEqual(appDefinition.globalData.customerServiceUrl, '')
+  assert.strictEqual(appDefinition.globalData.customerServiceUrl, 'https://work.weixin.qq.com/kfid/kfc39a3180cff84adda')
   assert.strictEqual(typeof appDefinition.loadCustomerServiceConfig, 'function')
+}
+
+async function testCustomerServicePreparesMissingConfigAndKeepsTheNextTapSynchronous() {
+  const calls = [], toasts = []
+  let finishLoad, loadCount = 0
+  const app = {
+    globalData: {},
+    loadCustomerServiceConfig() {
+      loadCount += 1
+      return new Promise(resolve => { finishLoad = () => { this.globalData.corpId = 'loaded-corp'; resolve() } })
+    }
+  }
+  const wx = { showToast(notice) { toasts.push(notice) }, openCustomerServiceChat(options) { calls.push(options) } }
+  const service = loadCustomerService(wx, app)
+  const first = service.openCustomerService()
+  const second = service.openCustomerService()
+  assert.strictEqual(first, second, 'Repeated taps share the config request')
+  await Promise.resolve()
+  assert.strictEqual(loadCount, 1)
+  assert.strictEqual(calls.length, 0)
+  finishLoad()
+  await first
+  assert.match(toasts.at(-1).title, /客服已就绪.*再次点击/)
+  assert.strictEqual(calls.length, 0, 'An async config response cannot open the chat without another user tap')
+  assert.strictEqual(service.openCustomerService(), true)
+  assert.strictEqual(calls.length, 1, 'A prepared click opens the chat synchronously')
+  assert.strictEqual(calls[0].corpId, 'loaded-corp')
+  assert.strictEqual(calls[0].extInfo.url, CUSTOMER_SERVICE_URL)
+
+  app.globalData.corpId = ''
+  app.loadCustomerServiceConfig = async () => { throw new Error('offline') }
+  await service.openCustomerService()
+  assert.match(toasts.at(-1).title, /客服暂时无法打开/)
+  assert.strictEqual(calls.length, 1)
+  app.loadCustomerServiceConfig = async () => {}
+  await service.openCustomerService()
+  assert.match(toasts.at(-1).title, /客服暂未配置/)
+  assert.strictEqual(calls.length, 1)
 }
 
 function testMyLogoutClearsOnlyAfterConfirmation() {
@@ -296,10 +348,10 @@ async function testPeripheralsBrowseWithoutStoreBindingOrDetailNavigation() {
   assert.strictEqual(page.data.stackFront, 1, 'Swiping right selects the previous card')
 
   const markup = fs.readFileSync(path.join(root, 'miniprogram/pages/peripherals/peripherals.wxml'), 'utf8')
-  assert.doesNotMatch(markup, /专属定制|定制你的专属周边|goStackDetail|store-product|库存|立即购买/)
+  assert.doesNotMatch(markup, /专属定制|定制你的专属周边|goStackDetail|store-product/)
   assert.match(markup, /wx:if="\{\{featuredPeripheral\.hasPrice\}\}"/)
-  assert.strictEqual((markup.match(/<button\b/g) || []).length, 1)
-  assert.match(markup, /bindtap="contactService">咨询客服/)
+  assert.match(markup, /加入购物车/)
+  assert.match(markup, /立即定制/)
 
   page.data.selectedId = 'missing'
   await page.loadPeripherals(true)
@@ -312,12 +364,13 @@ async function testPeripheralsBrowseWithoutStoreBindingOrDetailNavigation() {
 testMyCustomerServiceGuardsUnavailableSdkAndMissingCorpId()
 testMyCustomerServiceOpensOnlyWhenReadyAndHandlesThrows()
 testAllCustomerServiceEntriesUseTheConfiguredAccount()
-testAppLoadsBothCustomerServiceSettings()
+testAppUsesThePinnedCustomerServiceLink()
 testMyLogoutClearsOnlyAfterConfirmation()
 testMyPhoneAuthReportsMissingPrivacyDeclaration()
 testMyUsesFixedAvatarAndDoesNotExposeProfilePicker()
 testExploreLocationGuardHandlesMissingAndFailingMapContexts()
-testPeripheralsBrowseWithoutStoreBindingOrDetailNavigation().then(() => {
+testCustomerServicePreparesMissingConfigAndKeepsTheNextTapSynchronous()
+  .then(() => testPeripheralsBrowseWithoutStoreBindingOrDetailNavigation()).then(() => {
   console.log('Explore, My and peripheral browsing action guard tests passed')
 }).catch(error => {
   console.error(error)

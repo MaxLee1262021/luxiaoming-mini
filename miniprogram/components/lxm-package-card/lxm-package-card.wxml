@@ -1,7 +1,7 @@
 <view
-  class="package-card {{layout === 'horizontal' ? 'is-horizontal' : ''}} {{selectable ? 'is-selectable' : ''}} {{selected ? 'is-selected' : ''}}"
+  class="package-card {{variant === 'home' ? 'is-home' : ''}} {{layout === 'horizontal' ? 'is-horizontal' : ''}} {{selectable ? 'is-selectable' : ''}} {{selected ? 'is-selected' : ''}}"
   style="--pkg-cover-size: {{coverSize || (layout === 'horizontal' ? 180 : 224)}}rpx;"
-  bindtap="onTap"
+  catchtap="onTap"
   hover-class="lxm-card-lift"
   hover-stay-time="150"
 >
@@ -13,13 +13,15 @@
       class="card-cover"
       lazy-load
     />
-    <view class="card-cover-badge" wx:if="{{showCoverPrice && item.price !== undefined && item.price !== ''}}">¥{{item.minPrice || item.price}}起</view>
+    <view class="card-tags" wx:if="{{tags.length}}">
+      <text class="tag" wx:for="{{tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+    </view>
   </view>
 
   <view class="card-body">
     <view class="card-title-row">
       <view class="card-title">{{item.name}}</view>
-      <view class="card-badge {{badge ? '' : marketingBadgeClass}}" wx:if="{{badge || marketingBadge}}">{{badge || marketingBadge}}</view>
+      <view class="card-badge" wx:if="{{badge}}">{{badge}}</view>
     </view>
 
     <!-- 套餐组合内容标签：自动读 includedItems 的 type，显示 照片 / 视频 / 周边（替换原规格行） -->
@@ -28,11 +30,7 @@
     </view>
     <text class="card-item-count" wx:if="{{itemCount}}">{{itemCount}} 件商品 · {{typeCount}} 种类型</text>
 
-    <view class="card-tags" wx:if="{{showDetails && tags.length}}">
-      <text class="tag" wx:for="{{tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
-    </view>
-
-    <view class="card-desc" wx:if="{{showDetails && description}}">{{description}}</view>
+    <view class="card-desc" wx:if="{{variant !== 'home' && showDetails && description}}">{{description}}</view>
 
     <view class="card-selected-tag" wx:if="{{selectable && selected}}">已选</view>
 
@@ -43,8 +41,8 @@
       </view>
     </view>
 
-    <view class="price-original" wx:if="{{item.originalPrice}}">
-      原价 ¥{{item.originalPrice}}
+    <view class="price-original" wx:if="{{variant === 'home' || item.originalPrice}}">
+      <text wx:if="{{item.originalPrice}}">原价 ¥{{item.originalPrice}}</text>
     </view>
   </view>
 </view>

@@ -30,6 +30,13 @@ function findPrefillSelection({ data = {}, prefill = {} } = {}) {
       spot,
       album,
       pkg,
+      context: {
+        spots: data.spots,
+        seriesList: data.allSeries,
+        albums: data.allAlbums,
+        videoProducts: data.allPackages,
+        peripherals: data.allPeripherals
+      },
       defaultPrice: Number(album.price || 0)
     }),
     spotId

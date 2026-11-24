@@ -1,0 +1,18 @@
+<view wx:if="{{visible}}" class="action-mask" catchtap="close" catchtouchmove="stopTap">
+  <view class="action-panel" catchtap="stopTap">
+    <view class="action-heading">
+      <text class="action-title">{{action === 'reschedule' ? '申请改期' : action === 'refund' ? '取消预约' : '取消订单'}}</text>
+      <button class="close-btn" size="mini" disabled="{{submitting}}" bindtap="close">关闭</button>
+    </view>
+    <scroll-view class="action-scroll" scroll-y>
+      <view class="action-hint">{{action === 'reschedule' ? '请选择期望拍摄时间。后台同意后才会更改档期，审批前仍以原档期为准。' : action === 'refund' ? '取消预约后订单将取消，已支付款项自动原路退回。到账以微信退款结果为准。' : '定档前可取消订单。已支付款项将自动原路退款，到账以微信退款结果为准。'}}</view>
+      <block wx:if="{{action === 'reschedule'}}">
+        <picker mode="date" start="{{minDate}}" value="{{date}}" disabled="{{submitting}}" bindchange="onDate"><view class="picker-row"><text>期望日期</text><text>{{date || '请选择日期'}}</text></view></picker>
+        <picker mode="time" value="{{time}}" disabled="{{submitting}}" bindchange="onTime"><view class="picker-row"><text>期望时间</text><text>{{time || '请选择时间'}}</text></view></picker>
+      </block>
+      <textarea class="reason-input" value="{{reason}}" maxlength="500" placeholder="{{action === 'reschedule' ? '请填写改期原因（至少 2 个字）' : '请填写取消原因（至少 2 个字）'}}" disabled="{{submitting}}" bindinput="onReason" />
+      <view class="action-error" wx:if="{{error}}">{{error}}</view>
+    </scroll-view>
+    <view class="action-buttons"><button class="back-btn" disabled="{{submitting}}" bindtap="close">{{action === 'reschedule' ? '暂不申请' : '暂不取消'}}</button><button class="submit-btn" loading="{{submitting}}" disabled="{{submitting}}" bindtap="submit">{{action === 'reschedule' ? '提交申请' : action === 'refund' ? '确认取消预约' : '确认取消'}}</button></view>
+  </view>
+</view>

@@ -58,7 +58,16 @@ function addPackage(page, e) {
   const spotId = pkg.spotId || (Array.isArray(pkg.spotIds) && pkg.spotIds[0]) || page.data.currentSpotId
   const spot = page.data.spotOptions.find(item => item._id === spotId) || {}
   const album = page.data.allAlbums.find(item => item.seriesId === pkg.seriesId) || {}
-  togglePickerCart(page, bookingUtils.buildItemFromPackage({ pkg, series, spot, album }))
+  togglePickerCart(page, bookingUtils.buildItemFromPackage({
+    pkg, series, spot, album,
+    context: {
+      spots: page.data.spotOptions,
+      seriesList: page.data.allSeries,
+      albums: page.data.allAlbums,
+      videoProducts: page.data.allPackages,
+      peripherals: page.data.allPeripherals
+    }
+  }))
 }
 
 function addSeries(page, e) {

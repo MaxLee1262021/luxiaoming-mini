@@ -40,6 +40,12 @@ function includedItemStats(items = []) {
 }
 
 function orderItemDisplay(items = []) {
+  const targetTypes = {
+    album: 'album', photo_album: 'album', photo_single: 'album', sample: 'album', photo_collection: 'album',
+    video: 'video', video_single: 'video', video_package: 'video', video_product: 'video',
+    package: 'package', photo_package: 'package', photo: 'package',
+    peripheral: 'peripheral', accessory: 'peripheral', addon: 'peripheral'
+  }
   const labels = {
     album: '照片留影', photo_album: '照片留影', photo_single: '照片留影',
     video: '视频摄像', video_single: '视频摄像',
@@ -50,11 +56,20 @@ function orderItemDisplay(items = []) {
     const rawPrice = item.unitPrice ?? item.price
     const price = displayText(rawPrice)
     const hasPrice = price !== '' && Number.isFinite(Number(price)) && Number(price) >= 0
-    const type = displayText(item.productType || item.type)
+    const type = displayText(item.productType || item.type).toLowerCase()
+    const targetType = (type === 'photo_single' && item.packageId ? 'package' : targetTypes[type]) || (!type
+      ? (item.videoId ? 'video' : item.packageId ? 'package' : item.albumId ? 'album' : item.peripheralId ? 'peripheral' : '')
+      : '')
+    const typedId = { album: item.albumId, video: item.videoId || item.packageId, package: item.packageId, peripheral: item.peripheralId }[targetType]
     return {
       key: `${item.productId || item.packageId || item.albumId || item.peripheralId || 'item'}-${index}`,
       name: displayText(item.name || item.title || item.packageName || item.albumName || item.peripheralName) || '预约项目',
-      typeLabel: labels[type] || (item.albumId ? '照片留影' : item.peripheralId ? '影像周边' : item.packageId ? '旅拍套餐' : '预约项目'),
+      typeLabel: labels[targetType] || labels[type] || (item.albumId ? '照片留影' : item.peripheralId ? '影像周边' : item.packageId ? '旅拍套餐' : '预约项目'),
+      typeClass: targetType || 'custom',
+      targetType,
+      targetId: targetType ? displayText(item.productId || typedId) : '',
+      spotId: displayText(item.spotId),
+      seriesId: displayText(item.seriesId),
       quantity: itemQuantity(item),
       priceText: hasPrice ? `¥${Number(price)}` : '',
       spotName: displayText(item.spotName),

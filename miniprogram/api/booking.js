@@ -7,7 +7,12 @@ function createBooking(params = {}) {
   return callCloud('createBooking', params)
 }
 
+function cancelBooking(params = {}) {
+  return callCloud('cancelBooking', params)
+}
+
 module.exports = {
   getBookingData,
-  createBooking
+  createBooking,
+  cancelBooking
 }

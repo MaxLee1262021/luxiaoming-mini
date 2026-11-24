@@ -1,52 +1,7 @@
 const { isVideo, normalizePackage, normalizePackageList, normalizeTags, buildPackageBenefits } = require('../utils/product')
 const { normalizeAlbumPresentation } = require('../utils/albumPresentation')
 const { itemQuantity } = require('../utils/productDisplay')
-
-function resolvePackageSpots(pkg = {}, data = {}) {
-  const spotIds = new Set()
-
-  if (pkg.spotId) spotIds.add(pkg.spotId)
-  if (Array.isArray(pkg.spotIds)) pkg.spotIds.forEach(id => spotIds.add(id))
-
-  const allSpots = data.spots || []
-  const albums = data.albums || []
-  const videos = data.videos || data.videoProducts || []
-  const seriesList = data.series ? [data.series] : []
-
-  ;(pkg.includedItems || []).forEach(item => {
-    const t = item.target || {}
-
-    const directSpotId = t.spotId || item.spotId
-    if (directSpotId) {
-      spotIds.add(directSpotId)
-      return
-    }
-
-    if (item.type === 'album' || t.page === 'photoCollection') {
-      const albumId = t.albumId || item.albumId
-      const album = albums.find(a => a._id === albumId || a.albumId === albumId)
-      if (album) {
-        if (album.spotId) spotIds.add(album.spotId)
-        if (album.seriesId) {
-          const series = seriesList.find(s => s._id === album.seriesId)
-          if (series && Array.isArray(series.spotIds)) {
-            series.spotIds.forEach(id => spotIds.add(id))
-          }
-        }
-      }
-    } else if (item.type === 'video' || t.page === 'videoProductDetail') {
-      const productId = t.productId || item.productId
-      const video = videos.find(v => v._id === productId || v.videoId === productId || v.productId === productId)
-      if (video && video.spotId) spotIds.add(video.spotId)
-    }
-  })
-
-  const resolved = Array.from(spotIds)
-    .map(id => allSpots.find(s => s._id === id))
-    .filter(Boolean)
-
-  return resolved
-}
+const { resolvePackageSpots } = require('../utils/packageSpots')
 
 function normalizeDetailPackage(item = {}) {
   return { ...normalizePackage(item), description: item.description ?? item.intro ?? item.desc ?? '' }
@@ -144,7 +99,7 @@ function normalizeRelatedAlbums(albums = [], seriesInfo = {}, spotId = '') {
       cover: normalizedAlbum.cover || normalizedAlbum.coverImage || sampleUrls[0] || '/images/placeholder.png',
       sampleUrls,
       previewUrls: sampleUrls.slice(0, 3),
-      photoCount: normalizedAlbum.photoCount || sampleUrls.length || 0,
+      photoCount: normalizedAlbum.photoCount,
       price: Number(normalizedAlbum.price || 0)
     }
   }).filter(album => album.albumId)
@@ -160,8 +115,7 @@ function buildPhotoPackageDetail(data = {}, options = {}) {
     ? photos.slice(0, 8)
     : (data.samples && data.samples.length ? data.samples : [{ _id: 'cover', url: selectedPackage && selectedPackage.cover || seriesInfo.cover || '/images/placeholder.png', type: 'image' }])
 
-  const packageSpots = resolvePackageSpots(selectedPackage || {}, data)
-  const spots = packageSpots.length ? packageSpots : (data.spots || [])
+  const spots = resolvePackageSpots(selectedPackage || {}, data)
 
   return {
     seriesId: (seriesInfo && seriesInfo._id) || options.seriesId || '',

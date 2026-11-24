@@ -39,8 +39,8 @@
       <view class="package-series" wx:if="{{currentCollection.seriesName}}">风格系列 · {{currentCollection.seriesName}}</view>
       <view class="quick-facts">
         <view class="quick-fact">
-          <text class="fact-value">{{currentCollection.photoCount || 0}}</text>
-          <text class="fact-label">张照片</text>
+          <text class="fact-value">{{currentCollection.photoCountText}}</text>
+          <text class="fact-label">照片张数</text>
         </view>
         <view class="quick-fact">
           <text class="fact-value">{{currentCollection.retouchText}}</text>

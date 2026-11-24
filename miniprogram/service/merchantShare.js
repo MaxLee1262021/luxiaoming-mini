@@ -1,6 +1,7 @@
 const { callCloud, isLoggedOut } = require('../api/client')
 const { parseScene } = require('../utils/query')
 const KEY = 'lxm_share_pending_events'
+const SYNC_TIMEOUT = 15000
 let flushing = null
 let recent = { key: '', at: 0 }
 let coldEntryKey = ''
@@ -61,6 +62,7 @@ function flush() {
   if (isLoggedOut()) return Promise.resolve()
   if (flushing) return flushing
   const attempted = new Set()
+  let scanBlocked = false
   let disabledCodeNotified = false
   // Defer the drain until flushing is assigned. Clear the marker inside the
   // drain, before its promise resolves, so a finishing drain cannot swallow
@@ -68,13 +70,13 @@ function flush() {
   flushing = Promise.resolve().then(async () => {
     try {
       while (!isLoggedOut()) {
-        const event = readPending().find((value) => !attempted.has(value.id))
+        const event = readPending().find((value) => !attempted.has(value.id) && !(scanBlocked && value.name === 'reportShareScan'))
         if (!event) break
         attempted.add(event.id)
         try {
           // Derive the same key for retries and pending events saved by an
           // older client, including a timeout after the server committed.
-          await callCloud(event.name, { ...event.data, requestKey: event.data.requestKey || `entry_${event.id}` })
+          await callCloud(event.name, { ...event.data, requestKey: event.data.requestKey || `entry_${event.id}` }, { timeout: SYNC_TIMEOUT })
           writePending(readPending().filter((value) => value.id !== event.id))
         } catch (error) {
           const code = String(error && error.code || '').toUpperCase()
@@ -86,9 +88,13 @@ function flush() {
               disabledCodeNotified = true
               try { wx.showToast({ title: '该码已停用，请联系门店', icon: 'none' }) } catch (_) {}
             }
+          } else if (event.name === 'reportShareScan') {
+            // Server receipt time determines scan order. A later B must wait
+            // for retryable A, or A's retry could steal B's current binding.
+            scanBlocked = true
           }
           // Auth, rate limiting, server and network failures remain queued.
-          // The next loop still sees new events captured while awaiting HTTP.
+          // Clicks can still drain; later scans retain their capture order.
         }
       }
     } finally { flushing = null }
@@ -96,4 +102,20 @@ function flush() {
   return flushing
 }
 
-module.exports = { incomingEvents, capture, flush }
+function syncFailure() {
+  return Object.assign(new Error('扫码信息同步未完成，请稍后重试支付'), { code: 'SHARE_SCAN_SYNC_PENDING' })
+}
+async function ensureScanSynced({ timeoutMs = SYNC_TIMEOUT } = {}) {
+  const pendingScan = () => readPending().some(event => event.name === 'reportShareScan')
+  if (!pendingScan()) return
+  let timer
+  try {
+    await Promise.race([
+      flush(),
+      new Promise((_resolve, reject) => { timer = setTimeout(() => reject(syncFailure()), timeoutMs) })
+    ])
+  } finally { clearTimeout(timer) }
+  if (pendingScan()) throw syncFailure()
+}
+
+module.exports = { incomingEvents, capture, flush, ensureScanSynced }

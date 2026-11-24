@@ -16,38 +16,55 @@
   </view>
 
   <block wx:elif="{{guides.length}}">
-    <!-- 本期推荐 · 国风杂志流 hero（与双列瀑布流结合） -->
-    <view wx:if="{{featuredGuide && activeChip === '全部'}}" class="gl-feature" bindtap="goGuideDetail" data-id="{{featuredGuide._id}}" role="button" aria-label="查看本期推荐：{{featuredGuide.title}}">
-      <view class="glf-cover">
-        <image class="glf-img" src="{{featuredGuide.image || featuredGuide.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
-        <view class="glf-mask"></view>
-        <view class="glf-seal" aria-hidden="true">鹿</view>
-        <view class="glf-cap">
-          <view class="glf-eyebrow">本期推荐</view>
-          <view class="glf-title">{{featuredGuide.title}}</view>
-          <view wx:if="{{featuredGuide.description}}" class="glf-desc">{{featuredGuide.description}}</view>
-          <view class="glf-meta">
-            <text wx:if="{{featuredGuide.spotName}}" class="glf-spot">{{featuredGuide.spotName}}</text>
-            <text class="glf-dot" wx:if="{{featuredGuide.spotName}}">·</text>
-            <text>{{featuredGuide.readCount || 0}} 人已看</text>
+    <!-- 后台置顶文章轮播展示，下方列表按入口打卡点关联；分类筛选同步作用于两区。 -->
+    <view wx:if="{{visibleFeaturedGuides.length}}" class="gl-feature">
+      <swiper class="gl-feature-swiper" current="{{featuredIndex}}" autoplay="{{visibleFeaturedGuides.length > 1}}" circular="{{visibleFeaturedGuides.length > 1}}" interval="5000" duration="400" bindchange="onFeaturedChange">
+        <swiper-item wx:for="{{visibleFeaturedGuides}}" wx:key="_id" wx:for-item="guide">
+          <view class="glf-cover" bindtap="goGuideDetail" data-id="{{guide._id}}" role="button" aria-label="查看推荐文章：{{guide.title}}">
+            <image class="glf-img" src="{{guide.image || guide.cover || '/images/placeholder.png'}}" mode="aspectFill" />
+            <view class="glf-mask"></view>
+            <view class="glf-seal" aria-hidden="true">麓</view>
+            <view class="glf-cap">
+              <view class="glf-eyebrow">本期推荐</view>
+              <view class="glf-title">{{guide.title}}</view>
+              <view wx:if="{{guide.description}}" class="glf-desc">{{guide.description}}</view>
+              <view class="glf-meta">
+                <text wx:if="{{guide.spotName}}" class="glf-spot">{{guide.spotName}}</text>
+                <text class="glf-dot" wx:if="{{guide.spotName}}">·</text>
+                <text>{{guide.readCount || 0}} 人已看</text>
+              </view>
+            </view>
           </view>
-        </view>
-      </view>
+        </swiper-item>
+      </swiper>
+      <view wx:if="{{visibleFeaturedGuides.length > 1}}" class="gl-feature-pagination">{{featuredIndex + 1}} / {{visibleFeaturedGuides.length}}</view>
     </view>
 
     <scroll-view wx:if="{{chips.length > 1}}" class="gl-chips" scroll-x show-scrollbar="{{false}}">
       <view class="gl-chips-track">
         <view
-          class="gl-chip {{activeChip === item ? 'on' : ''}}"
+          class="gl-chip {{activeChip === item.key ? 'on' : ''}}"
           wx:for="{{chips}}"
-          wx:key="*this"
+          wx:key="key"
           role="button"
-          aria-label="筛选分类：{{item}}"
-          data-cat="{{item}}"
+          aria-label="筛选分类：{{item.label}}"
+          data-cat="{{item.key}}"
           bindtap="onChipTap"
-        >{{item}}</view>
+        >{{item.label}}</view>
       </view>
     </scroll-view>
+
+    <view wx:if="{{feedGuides.length}}" class="gl-sort" aria-label="文章排序">
+      <view
+        wx:for="{{sortOptions}}"
+        wx:key="key"
+        class="gl-sort-option {{activeSort === item.key ? 'on' : ''}}"
+        role="button"
+        aria-label="{{item.key === 'default' ? '默认排序' : item.key === 'readCount' ? '按浏览人数从高到低排序' : '按评分从高到低排序'}}"
+        data-sort="{{item.key}}"
+        bindtap="onSortTap"
+      >{{item.label}}</view>
+    </view>
 
     <view wx:if="{{filteredGuides.length}}" class="gl-waterfall">
       <view class="gl-col">
@@ -71,10 +88,10 @@
     </view>
 
     <lxm-empty-state
-      wx:elif="{{guides.length > 1}}"
+      wx:elif="{{spotId || !visibleFeaturedGuides.length}}"
       type="album"
-      title="该分类暂无旅拍灵感"
-      desc="换个分类，或看看其他拍摄服务。"
+      title="{{spotId && activeChip === 'all' ? '该打卡点暂无相关灵感' : '该分类暂无旅拍灵感'}}"
+      desc="{{spotId && activeChip === 'all' ? '换个打卡点，或看看其他拍摄服务。' : '换个分类，或看看其他拍摄服务。'}}"
       button-text="看打卡点"
       bind:action="goAllPackages"
     />
@@ -83,7 +100,7 @@
   <lxm-empty-state
     wx:else
     type="album"
-    title="旅拍灵感整理中"
+    title="{{spotId ? '该打卡点暂无相关灵感' : '旅拍灵感整理中'}}"
     desc="换个打卡点，或看看其他拍摄服务。"
     button-text="看打卡点"
     bind:action="goAllPackages"

@@ -3,6 +3,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const vm = require('node:vm')
 const { createRequire } = require('node:module')
+const { buildHomeViewData, buildHomeSpotShelf } = require('../miniprogram/service/homeData')
 
 const componentDir = path.resolve(__dirname, '../miniprogram/components/lxm-video-card')
 let definition
@@ -79,48 +80,57 @@ update({ videoUrl: 'https://example.test/main.mp4', previewVideoUrl: 'https://ex
 assert.equal(card.data.previewVideoUrl, 'https://example.test/lightweight.mp4')
 update({ url: 'https://example.test/video.mp4', isMainPush: true })
 assert.equal(card.data.previewVideoUrl, 'https://example.test/video.mp4')
-assert.equal(card.data.marketingBadge, '主推')
+assert.deepEqual(Array.from(card.data.displayTags), [], 'A recommendation flag must not invent a configured label')
 update({ videoUrl: 'https://example.test/photo.jpg', videos: [{ url: 'https://example.test/opaque-photo', mimeType: 'image/jpeg' }, { url: 'https://example.test/extra.mp4' }], tags: ['自然', '自然', '电影感'] })
 assert.equal(card.data.previewVideoUrl, 'https://example.test/extra.mp4', 'Image media must not expose a video preview action')
 assert.deepEqual(Array.from(card.data.displayTags), ['自然', '电影感'])
-update({ isHotSale: true, isMainPush: true, isHot: true })
-assert.equal(card.data.marketingBadge, '爆款')
-
-// Admin-authored marketing labels remain available beside the card copy during playback.
-for (const label of ['主推', '爆款', '新品', '热门']) {
-  update({ tags: [label, '电影感', label] })
-  assert.equal(card.data.marketingBadge, label)
-  assert.deepEqual(Array.from(card.data.displayTags), ['电影感'], 'Do not repeat the highlighted label')
+// Use all labels as authored in the admin, including arbitrary names, in their configured order.
+for (const label of ['测试爆款', '主推', '爆款', '新品', '热门', '热门夜景', '新品质感']) {
+  update({ tags: [label, '电影感', label], isMainPush: true, isHotSale: true })
+  assert.deepEqual(Array.from(card.data.displayTags), [label, '电影感'])
   card.onVideoPlay()
-  assert.equal(card.data.marketingBadge, label, 'Playback must retain configured marketing labels')
+  assert.deepEqual(Array.from(card.data.displayTags), [label, '电影感'], 'Playback must retain configured labels')
   card.onVideoPause()
+  assert.deepEqual(Array.from(card.data.displayTags), [label, '电影感'])
 }
-update({ tag: '新品', tags: ['热门', '电影感'], serviceTags: ['电影感'], isHotSale: true })
-assert.equal(card.data.marketingBadge, '新品', 'Explicit admin labels take precedence over derived legacy flags')
-assert.deepEqual(Array.from(card.data.displayTags), ['热门', '电影感'])
-update({ tag: '视频摄像', styleTags: '主推，旅途限定', tags: ['主推'] })
-assert.equal(card.data.marketingBadge, '主推')
-assert.deepEqual(Array.from(card.data.displayTags), ['旅途限定'])
-update({ tags: ['热门夜景', '新品质感'] })
-assert.equal(card.data.marketingBadge, '', 'Only exact marketing labels are highlighted')
-assert.deepEqual(Array.from(card.data.displayTags), ['热门夜景', '新品质感'])
-for (const value of [false, 0, '0', 'false', 'off', '', null]) {
+update({ tag: '新品', tags: [' 测试爆款 ', '旅途限定', '测试爆款', '', '视频摄像'], serviceTags: ['旧服务标签'], styleTags: ['旧风格'], isHotSale: true })
+assert.deepEqual(Array.from(card.data.displayTags), ['测试爆款', '旅途限定', '视频摄像'], 'Body labels keep the configured text, including labels matching the product type')
+update({ tags: '测试爆款，旅途限定|测试爆款、电影感' })
+assert.deepEqual(Array.from(card.data.displayTags), ['测试爆款', '旅途限定', '电影感'])
+const manyTags = ['江景电影精选样片', '城市情侣旅行记录', '自然光影拍摄体验', '黄昏落日人像短片', '复古胶片色彩风格', '旅行日记纪念视频']
+update({ tags: manyTags })
+assert.deepEqual(Array.from(card.data.displayTags), manyTags, 'The text section preserves every configured label')
+for (const tags of [[], '', '   ']) {
+  update({ tags, tag: '旧标签', serviceTags: ['旧服务标签'], styleTags: ['旧风格'], isMainPush: true, isHotSale: true })
+  assert.deepEqual(Array.from(card.data.displayTags), [], 'Cleared admin tags must stay cleared, including when aliases and recommendation flags remain')
+}
+update({ tag: '旧标签', serviceTags: ['旧服务标签', '旧标签'], styleTags: '旧风格，视频摄像' })
+assert.deepEqual(Array.from(card.data.displayTags), ['旧标签', '旧服务标签', '旧风格', '视频摄像'], 'Legacy records without tags retain their configured labels')
+update({ tags: null, tag: '旧标签', serviceTags: ['旧服务标签'] })
+assert.deepEqual(Array.from(card.data.displayTags), ['旧标签', '旧服务标签'], 'Null legacy tags may use configured aliases')
+for (const value of [false, 0, '0', 'false', 'off', '', null, true, 1, '1', ' true ']) {
   update({ isHotSale: value, isMainPush: value, mainPush: value, isNew: value, isHot: value, hot: value })
-  assert.equal(card.data.marketingBadge, '', `Disabled flag ${JSON.stringify(value)} must not invent a label`)
+  assert.deepEqual(Array.from(card.data.displayTags), [], `Flag ${JSON.stringify(value)} is a recommendation setting, not an admin label`)
 }
-for (const value of [true, 1, '1', ' true ']) {
-  update({ isNew: value })
-  assert.equal(card.data.marketingBadge, '新品')
-  assert.equal(card.data.marketingBadgeClass, 'is-new')
+
+// Both legacy home recommendations and the selected spot shelf must deliver the same admin tags.
+for (const tags of [['测试爆款', '电影感'], []]) {
+  const product = { _id: 'configured-video', name: '测试名称', type: 'video', productKind: 'video_single',
+    spotId: 'spot-a', videoUrl: 'https://example.test/video.mp4', tags, serviceTags: ['旧服务标签'], isMainPush: true }
+  const catalog = { videoSingles: [product] }
+  const cards = [buildHomeViewData(catalog).videoPackages[0], buildHomeSpotShelf(catalog, 'spot-a').videos[0]]
+  for (const item of cards) {
+    assert.deepEqual(item.tags, tags)
+    update(item)
+    assert.deepEqual(Array.from(card.data.displayTags), tags, 'Client catalog normalization must not replace tags with old service metadata')
+  }
 }
-update({ mainPush: 'true' })
-assert.equal(card.data.marketingBadge, '主推')
 
 // Reusing a card for a record without a video must clear both UI state and preview actions.
 update(null)
 assert.equal(card.data.videoMetaText, '')
 assert.equal(card.data.previewVideoUrl, '')
-assert.equal(card.data.marketingBadge, '')
+assert.deepEqual(Array.from(card.data.displayTags), [])
 card.onVideoTap()
 assert.equal(events.length, 0)
 
@@ -181,9 +191,11 @@ assert.ok(template.includes('controls show-center-play-btn="{{true}}"'))
 assert.ok(template.includes('binderror="onVideoError"'))
 assert.ok(template.includes('catchtap="retryVideo"'))
 assert.match(template, /<button[^>]+class="video-detail"[^>]+catchtap="onTap"[^>]*>[\s\S]*?查看详情/)
-assert.match(template, /class="video-marketing-badge[^>]+wx:if="{{marketingBadge}}"/)
-assert.doesNotMatch(template, /marketingBadge && !isPlaying/)
+assert.match(template, /class="video-labels">[\s\S]*?<text[^>]+class="video-marketing-badge[^>]+wx:for="{{displayTags}}"[^>]*>{{item}}<\/text>[\s\S]*?<\/view>/)
+assert.doesNotMatch(template, /showCoverPrice|item\.minPrice|}}起<\/view>/, 'Prices use the normal bottom price')
+assert.match(template, /class="video-price"[^>]*>¥{{item.price}}<\/text>/)
+assert.doesNotMatch(template, /marketingBadge|displayTags\.length && !isPlaying/)
 assert.ok(!template.includes('/images/placeholder.png'))
 assert.ok(template.includes('wx:if="{{videoMetaText}}">{{videoMetaText}}</text>'))
 
-console.log('PASS video card metadata, configured marketing labels, detail action, native playback, navigation isolation, lifecycle, and retries')
+console.log('PASS video card admin labels, clearing and legacy compatibility, catalog passthrough, metadata, native playback, navigation, lifecycle, and retries')

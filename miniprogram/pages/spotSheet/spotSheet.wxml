@@ -84,9 +84,11 @@
         </view>
         <view class="sheet-scroll-wrap">
           <scroll-view class="sheet-scroll package-scroll" scroll-x show-scrollbar="{{false}}" bindscroll="onPackageScroll">
-            <block wx:for="{{selectedSpotProducts.photoPackages}}" wx:key="_id">
-              <lxm-package-card item="{{item}}" bind:tap="onPackageTap" />
-            </block>
+            <view class="package-track">
+              <block wx:for="{{selectedSpotProducts.photoPackages}}" wx:key="_id">
+                <lxm-package-card item="{{item}}" bind:tap="onPackageTap" />
+              </block>
+            </view>
           </scroll-view>
           <view class="sheet-dots" wx:if="{{packageDots.length > 1}}">
             <view wx:for="{{packageDots}}" wx:key="*this" class="sheet-dot {{index === packageDotActive ? 'on' : ''}}"></view>

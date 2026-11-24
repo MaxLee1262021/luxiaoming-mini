@@ -28,25 +28,8 @@ function previewUrl(item) {
   return ''
 }
 
-const MARKETING_BADGES = [
-  { label: '爆款', className: 'is-hot-sale', fields: ['isHotSale'] },
-  { label: '主推', className: 'is-main-push', fields: ['isMainPush', 'mainPush'] },
-  { label: '新品', className: 'is-new', fields: ['isNew'] },
-  { label: '热门', className: 'is-hot', fields: ['isHot', 'hot'] }
-]
-
-function marketingInfo(item, tags) {
-  const enabled = value => [true, 1, '1', 'true'].includes(typeof value === 'string' ? value.trim().toLowerCase() : value)
-  // 明确填写的营销标签优先于旧接口派生的标记，其他标签继续完整展示。
-  return MARKETING_BADGES.find(badge => tags.includes(badge.label)) ||
-    MARKETING_BADGES.find(badge => badge.fields.some(field => enabled(item[field]))) ||
-    { label: '', className: '' }
-}
-
 Component({
   data: {
-    marketingBadge: '',
-    marketingBadgeClass: '',
     videoMetaText: '',
     displayTags: [],
     previewVideoUrl: '',
@@ -66,10 +49,6 @@ Component({
     showBook: {
       type: Boolean,
       value: false
-    },
-    showCoverPrice: {
-      type: Boolean,
-      value: true
     },
     // 短视频单品卡片（视频摄像板块统一使用单品形态）
     variant: {
@@ -91,13 +70,12 @@ Component({
         this.setData({ videoError: false })
       }
       const source = item || {}
-      const tags = displayTags(source.tag, source.tags, source.serviceTags, source.styleTags)
-      const badge = marketingInfo(source, tags)
+      // 后台标签字段为准；明确清空后不再带回旧标签或推荐标记。
+      const tags = source.tags != null ? displayTags(source.tags)
+        : displayTags(source.tag, source.serviceTags, source.styleTags)
       this.setData({
-        marketingBadge: badge.label,
-        marketingBadgeClass: badge.className,
         videoMetaText: videoMeta(source),
-        displayTags: tags.filter(tag => tag !== badge.label && tag !== '视频摄像'),
+        displayTags: tags,
         previewVideoUrl: url
       })
     }

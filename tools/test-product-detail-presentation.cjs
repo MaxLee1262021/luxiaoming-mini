@@ -116,6 +116,42 @@ test('cleared notes/descriptions stay cleared while legacy records may use their
   assert.equal(card.data.description, '旧套餐说明')
 })
 
+test('package cover labels use configured tags while prices and explicit contextual badges stay available', () => {
+  const card = loadDefinition('components/lxm-package-card/lxm-package-card.js', 'Component')
+  card.data.badge = '已选推荐'
+  const bundle = { _id: 'package-tagged', price: 199, minPrice: 99, isMainPush: true, isHotSale: true,
+    tags: [' 测试爆款 ', '旅途限定', '测试爆款'], serviceTags: ['旧服务标签'], displayTags: ['旧展示标签'] }
+  card.observers.item.call(card, bundle)
+  assert.deepEqual(Array.from(card.data.tags), ['测试爆款', '旅途限定'])
+  assert.equal(card.data.badge, '已选推荐', 'A caller-provided contextual badge remains independent from product labels')
+  assert.equal(bundle.price, 199)
+  for (const count of [4, 6]) {
+    const tags = Array.from({ length: count }, (_, index) => `八字标签测试${index}号`)
+    card.observers.item.call(card, { ...bundle, tags })
+    assert.deepEqual(Array.from(card.data.tags), tags, 'All configured labels remain available on the cover')
+  }
+  for (const tags of [[], '', '   ']) {
+    card.observers.item.call(card, { ...bundle, tags })
+    assert.deepEqual(Array.from(card.data.tags), [], 'Cleared admin labels cannot return through stale service or display fields')
+  }
+  card.observers.item.call(card, { serviceTags: ['旧服务标签'], isMainPush: true })
+  assert.deepEqual(Array.from(card.data.tags), ['旧服务标签'])
+  card.observers.item.call(card, { isMainPush: true, isHotSale: true, isHot: true })
+  assert.deepEqual(Array.from(card.data.tags), [], 'Recommendation switches do not supply package labels')
+  card.observers.item.call(card, null)
+  assert.deepEqual(Array.from(card.data.tags), [])
+  const template = fs.readFileSync(path.resolve(__dirname, '../miniprogram/components/lxm-package-card/lxm-package-card.wxml'), 'utf8')
+  const cover = template.split('<view class="card-body">')[0]
+  const body = template.split('<view class="card-body">')[1]
+  assert.doesNotMatch(cover, /item\.price|item\.minPrice|起/)
+  assert.match(template, /class="price-value">{{item\.price}}/)
+  assert.match(template, /class="card-badge" wx:if="{{badge}}">{{badge}}/)
+  assert.match(cover, /class="card-tags" wx:if="{{tags.length}}"/)
+  assert.match(cover, /class="tag"[^>]*wx:for="{{tags}}"/)
+  assert.doesNotMatch(body, /class="card-tags"|wx:for="{{tags}}"/)
+  assert.doesNotMatch(template, /marketingBadge/)
+})
+
 test('order detail displays only order-provided line data without inventing catalog contents or prices', () => {
   const source = [
     { productId: 'photo', productType: 'album', name: '照片商品', qty: 2, unitPrice: 0, spotName: '打卡点' },

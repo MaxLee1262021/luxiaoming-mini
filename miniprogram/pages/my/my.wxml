@@ -27,7 +27,7 @@
 
   <view class="card order-card">
     <view class="card-header">
-      <text class="card-title">订单状态</text>
+      <text class="card-title">拍摄服务订单</text>
     </view>
     <view class="order-status-row">
       <view class="order-status-item" wx:for="{{orderStatusFilters}}" wx:key="key" bindtap="goToOrders" data-status="{{item.key}}">
@@ -38,8 +38,13 @@
     </view>
   </view>
 
+  <view class="card order-card">
+    <view class="card-header" bindtap="goPhysicalOrders" data-status=""><text class="card-title">周边商品订单</text><text class="physical-link">查看全部 ›</text></view>
+    <view class="order-status-row"><view class="order-status-item" wx:for="{{physicalFilters}}" wx:key="key" bindtap="goPhysicalOrders" data-status="{{item.key}}"><view class="status-icon-wrap"><lxm-icon type="order" size="42" color="ink"/></view><text class="status-name">{{item.text}}</text><text class="status-count">{{physicalCounts[item.key] || 0}}单</text></view></view>
+  </view>
   <view class="section-title-text">常用服务</view>
   <view class="service-card">
+    <view class="service-item" hover-class="lxm-card-lift" bindtap="goShippingAddresses"><view class="service-main"><text class="service-text">收货地址</text></view><lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"/></view>
     <view class="service-item" hover-class="lxm-card-lift" bindtap="goToMyFavorites" role="button" aria-label="我的收藏">
       <view class="service-main">
         <text class="service-text">我的收藏</text>
@@ -55,6 +60,12 @@
     <view class="service-item" hover-class="lxm-card-lift" bindtap="goToPeripherals">
       <view class="service-main">
         <text class="service-text">影像周边</text>
+      </view>
+      <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
+    </view>
+    <view class="service-item" hover-class="lxm-card-lift" bindtap="goPhysicalCart" role="button" aria-label="周边购物车">
+      <view class="service-main">
+        <text class="service-text">周边购物车 {{cartQuantity ? '(' + cartQuantity + '件)' : ''}}</text>
       </view>
       <lxm-icon class="service-arrow" type="arrow-right" size="28" color="muted"></lxm-icon>
     </view>

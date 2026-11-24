@@ -1,6 +1,9 @@
 const { API_BASE } = require('../config/env')
 
 function paymentFailure(error = {}) {
+  if (error && error.code === 'SHARE_SCAN_SYNC_PENDING') return {
+    kind: 'scan_sync_pending', toast: '扫码信息同步中，请稍后重试', message: '扫码信息同步未完成，请稍后重试支付。'
+  }
   const errMsg = String(error && (error.errMsg || error.message) || '')
   if (/cancel/i.test(errMsg)) {
     return { kind: 'cancelled', toast: '已取消支付', message: '已取消本次支付，可重新发起支付。' }

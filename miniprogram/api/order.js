@@ -18,7 +18,12 @@ function getOrderStatusCount(params = {}) {
   return callCloud('getOrderStatusCount', params)
 }
 
-function createPayment(params = {}) {
+function confirmOrderArrival(params = {}) {
+  return callCloud('confirmOrderArrival', params)
+}
+
+async function createPayment(params = {}) {
+  await require('../service/merchantShare').ensureScanSynced()
   return callCloud('createPayment', params).then(requireRealPayment)
 }
 
@@ -27,6 +32,8 @@ function getPaymentStatus(params = {}) {
 }
 
 function cancelOrder(params = {}) { return callCloud('cancelOrder', params) }
+function requestOrderRefund(params = {}) { return callCloud('requestOrderRefund', params) }
+function requestOrderReschedule(params = {}) { return callCloud('requestOrderReschedule', params) }
 function submitAfterSale(params) { return callCloud('submitAfterSale', params) }
 function getMyAfterSales(params) { return callCloud('getMyAfterSales', params) }
 
@@ -34,9 +41,12 @@ module.exports = {
   getMyOrders,
   getOrderDetail,
   getOrderStatusCount,
+  confirmOrderArrival,
   createPayment,
   getPaymentStatus,
   cancelOrder,
+  requestOrderRefund,
+  requestOrderReschedule,
   submitAfterSale,
   getMyAfterSales
 }

@@ -6,16 +6,17 @@ const path = require("node:path");
 const script = fs.readFileSync(path.join(__dirname, "../miniprogram/api/client.js"), "utf8");
 function fixture(reply) {
   const storage = new Map([["lxm_openid", "synthetic-openid"], ["lxm_public_token", "synthetic-token"]]);
+  const requests = [];
   const sandbox = { module: { exports: {} }, console, wx: {
     getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, value), removeStorageSync: key => storage.delete(key),
     login() { assert.fail("cached fixture session must be used"); },
-    request(options) { queueMicrotask(() => reply.network ? options.fail(reply.network) : options.success(reply)); },
+    request(options) { requests.push(options); queueMicrotask(() => reply.network ? options.fail(reply.network) : options.success(reply)); },
   }, require(name) {
     if (name === "../config/env") return { API_BASE: "https://synthetic.test/api", API_ERROR: "" };
     throw new Error(name);
   } };
   vm.runInNewContext(script, sandbox);
-  return { client: sandbox.module.exports, storage };
+  return { client: sandbox.module.exports, storage, requests };
 }
 (async () => {
   const stopped = fixture({ statusCode: 200, data: { success: false, code: "SHARE_4004", statusCode: 400, error: "该码已停用，请联系门店" } });
@@ -31,5 +32,10 @@ function fixture(reply) {
   await assert.rejects(network.client.callCloud("reportShareScan"), error => error.code === "ETIMEDOUT" && !error.statusCode);
   const unknown = fixture({ statusCode: 200, data: { success: false, error: "来源采集失败" } });
   await assert.rejects(unknown.client.callCloud("reportShareScan"), error => error.code === undefined && error.statusCode === 200);
+  const bounded = fixture({ statusCode: 200, data: { success: true } });
+  await bounded.client.callCloud("reportShareScan", { scene: "SBOUNDED123" }, { timeout: 15000 });
+  assert.equal(bounded.requests[0].timeout, 15000, "scan RPC transport uses the bounded timeout supplied by its drain");
+  await bounded.client.callCloud("getMyOrders");
+  assert.equal(Object.hasOwn(bounded.requests[1], "timeout"), false, "other RPC defaults are preserved");
   console.log("PASS RPC Error preserves safe code and HTTP status; 401 clears session and network errors remain retryable");
 })().catch(error => { console.error(error); process.exitCode = 1; });

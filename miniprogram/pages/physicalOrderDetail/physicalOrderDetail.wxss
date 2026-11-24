@@ -1,0 +1,35 @@
+@import "../../styles/physical.wxss";
+
+.physical-actions button,
+.physical-address-action {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 104rpx;
+  padding: 18rpx 24rpx;
+  font-size: 30rpx;
+}
+
+.physical-actions button {
+  flex: 1 1 280rpx;
+  min-width: 0;
+  margin: 0;
+}
+
+.physical-address-action {
+  width: 100%;
+  margin-top: 24rpx;
+  color: #c4522f;
+}
+
+.physical-order-actions {
+  flex-wrap: nowrap;
+  gap: 20rpx;
+}
+
+.physical-order-actions button {
+  flex: 1 1 0;
+  padding-right: 12rpx;
+  padding-left: 12rpx;
+}

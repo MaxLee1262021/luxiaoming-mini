@@ -15,7 +15,8 @@ function detectBlockType(text = '') {
 // 后台下发的段落数组 → 渲染块列表
 function normalizeParagraphs(paragraphs = []) {
   const blocks = []
-  ;(paragraphs || []).forEach((line) => {
+  const lines = Array.isArray(paragraphs) ? paragraphs : typeof paragraphs === 'string' ? paragraphs.split(/\r?\n/) : []
+  lines.forEach((line) => {
     const text = String(line || '').trim()
     if (!text) return
     blocks.push({ type: detectBlockType(text), text })
@@ -24,24 +25,25 @@ function normalizeParagraphs(paragraphs = []) {
 }
 
 // 归一化后台配置为渲染结构，兼容两种下发形态：
-// 1. 结构化 sections: [{ title, paragraphs: ['...', '· ...'] }]
-// 2. 纯文本 content: '...'（按 \n 分段，· 开头视为列表项）
+// 1. 纯文本 content: '...'（按换行分段，· 开头视为列表项）
+// 2. 旧结构化 sections: [{ title, paragraphs: ['...', '· ...'] }] 或 content
 function normalizeRemote(remote = {}) {
   if (!remote || typeof remote !== 'object') return null
 
   let sections = null
-  if (Array.isArray(remote.sections) && remote.sections.length) {
-    sections = remote.sections
-      .map((section) => ({
-        title: String(section.title || '').trim() || DEFAULT_TITLE,
-        blocks: normalizeParagraphs(section.paragraphs)
-      }))
-      .filter((section) => section.blocks.length)
-  } else if (typeof remote.content === 'string' && remote.content.trim()) {
+  if (typeof remote.content === 'string' && remote.content.trim()) {
     sections = [{
       title: String(remote.title || '').trim() || DEFAULT_TITLE,
-      blocks: normalizeParagraphs(String(remote.content).split('\n'))
+      blocks: normalizeParagraphs(remote.content)
     }]
+  } else if (Array.isArray(remote.sections) && remote.sections.length) {
+    sections = remote.sections
+      .filter((section) => section && typeof section === 'object')
+      .map((section) => ({
+        title: String(section.title || '').trim() || DEFAULT_TITLE,
+        blocks: normalizeParagraphs(Array.isArray(section.paragraphs) && section.paragraphs.length ? section.paragraphs : section.content)
+      }))
+      .filter((section) => section.blocks.length)
   }
 
   if (!sections || !sections.length) return null
@@ -69,7 +71,8 @@ Page({
           this.setData({
             title: normalized.title,
             sections: normalized.sections,
-            updateTime: normalized.updateTime
+            updateTime: normalized.updateTime,
+            error: ''
           })
           return
         }

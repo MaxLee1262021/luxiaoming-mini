@@ -3,16 +3,14 @@
     <video wx:if="{{previewVideoUrl && !videoError}}" id="product-video" class="video-player" src="{{previewVideoUrl}}" poster="{{item.cover || ''}}" object-fit="cover" controls show-center-play-btn="{{true}}" bindplay="onVideoPlay" bindpause="onVideoPause" bindended="onVideoPause" binderror="onVideoError" />
     <view wx:elif="{{!previewVideoUrl}}" class="video-unavailable">暂无预览视频</view>
     <view wx:if="{{videoError}}" class="video-error"><text>视频暂时无法播放</text><button class="video-retry" catchtap="retryVideo">重试</button></view>
-    <view class="video-cover-badge" wx:if="{{showCoverPrice && !isPlaying && !videoError && item.price !== undefined && item.price !== ''}}">¥{{item.minPrice || item.price}}起</view>
   </view>
     <view class="video-copy">
       <view class="video-labels">
         <text class="video-tag">视频摄像</text>
-        <text class="video-marketing-badge {{marketingBadgeClass}}" wx:if="{{marketingBadge}}">{{marketingBadge}}</text>
+        <text class="video-marketing-badge" wx:for="{{displayTags}}" wx:key="*this">{{item}}</text>
       </view>
       <text class="video-title">{{item.name || item.title}}</text>
       <text class="video-meta" wx:if="{{videoMetaText}}">{{videoMetaText}}</text>
-      <view class="video-tags" wx:if="{{displayTags.length}}"><text class="video-style-tag" wx:for="{{displayTags}}" wx:key="*this">{{item}}</text></view>
       <view class="video-bottom">
         <button class="video-detail" catchtap="onTap" aria-label="查看{{item.name || item.title}}详情"><text>查看详情</text><text class="video-detail-arrow">›</text></button>
         <text class="video-price" wx:if="{{item.price !== undefined && item.price !== ''}}">¥{{item.price}}</text>

@@ -1,3 +1,4 @@
+const contentOrder = require('../utils/contentOrder')
 const { normalizePackageList, normalizePackage, buildVideoFields, buildPackageBenefits, isVideoSingle, filterVisibleProducts } = require('../utils/product')
 const { displayTags, displayText, displayVideoDuration, shootingInstructions } = require('../utils/productDisplay')
 
@@ -129,7 +130,7 @@ function buildVideoProductDetail(data = {}, params = {}) {
 
   const recommendations = allPackages
     .filter(item => item._id !== product._id && item.isVideo && isVideoSingle(item))
-    .sort((a, b) => (b.hotScore || 0) - (a.hotScore || 0))
+    .sort((a, b) => contentOrder.compare('packages', a, b))
     .slice(0, 6)
 
   return {

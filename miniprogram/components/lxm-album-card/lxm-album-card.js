@@ -1,8 +1,12 @@
 const { normalizeAlbumPresentation } = require('../../utils/albumPresentation')
+const { displayTags } = require('../../utils/productDisplay')
 
 Component({
   data: {
-    album: {}
+    album: {},
+    photoCountBelowCover: false,
+    coverTags: [],
+    coverTagText: ''
   },
   properties: {
     item: {
@@ -50,22 +54,15 @@ Component({
 
   observers: {
     'item': function (item) {
-      // 营销角标：爆款 > 主推 > 热门（后台 isHotSale/isMainPush/isHot 控制，前端统一角标）
-      let marketingBadge = ''
-      let marketingBadgeClass = ''
-      if (item) {
-        if (item.isHotSale) {
-          marketingBadge = '爆款'
-          marketingBadgeClass = 'is-hot-sale'
-        } else if (item.isMainPush) {
-          marketingBadge = '主推'
-          marketingBadgeClass = 'is-main-push'
-        } else if (item.isHot) {
-          marketingBadge = '热门'
-          marketingBadgeClass = 'is-hot'
-        }
-      }
-      this.setData({ album: normalizeAlbumPresentation(item || {}), marketingBadge, marketingBadgeClass })
+      const source = item || {}
+      // 明确配置的标签（包括清空）优先，不从首页推荐开关生成展示文案。
+      const coverTags = source.tags != null ? displayTags(source.tags)
+        : displayTags(source.tag, source.serviceTags, source.styleTags)
+      const coverTagText = coverTags.length > 1 ? `${coverTags[0]} +${coverTags.length - 1}` : coverTags[0] || ''
+      const album = normalizeAlbumPresentation(source)
+      // 长说明在封面下方自然展开，避免挤出固定高度封面里的商品名和价格。
+      const photoCountBelowCover = album.photoCountText.length > 16 || /[\r\n]/.test(album.photoCountText)
+      this.setData({ album, photoCountBelowCover, coverTags, coverTagText })
     }
   },
 

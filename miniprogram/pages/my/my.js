@@ -1,11 +1,14 @@
 const app = getApp()
 const { openCustomerService } = require('../../service/customerService')
+const bookingConfig = require('../../service/bookingConfig')
 const { logout, getOpenid } = require('../../api/client')
 const orderApi = require('../../api/order')
 const sourceStore = require('../../store/sourceStore')
 const userStore = require('../../store/userStore')
 const { buildUrlWithSource } = require('../../utils/query')
 const { ORDER_STATUS_FILTERS, normalizeOrderFilter } = require('../../utils/orderStatusFilters')
+const physicalApi = require('../../api/physical')
+const { PHYSICAL_FILTERS } = require('../../utils/physical')
 
 Page({
   data: {
@@ -18,6 +21,9 @@ Page({
     authLoading: false,
     phone: '',
     orderStatusFilters: ORDER_STATUS_FILTERS,
+    physicalFilters: PHYSICAL_FILTERS,
+    physicalCounts: {},
+    cartQuantity: 0,
     orderCounts: {
       pendingConfirmation: 0,
       awaitingShoot: 0,
@@ -59,7 +65,7 @@ Page({
   async refreshUserState() {
     this.loadUserInfo()
     if (!userStore.isAuthed()) {
-      this.setData({ orderCounts: { pendingConfirmation: 0, awaitingShoot: 0, shooting: 0, completed: 0 } })
+      this.setData({ orderCounts: { pendingConfirmation: 0, awaitingShoot: 0, shooting: 0, completed: 0 }, physicalCounts: {}, cartQuantity: 0 })
       return
     }
     try {
@@ -69,6 +75,7 @@ Page({
       console.warn('sync user profile failed', err)
     }
     this.loadOrderCounts()
+    this.loadPhysicalCounts()
   },
 
   async loadOrderCounts() {
@@ -93,6 +100,23 @@ Page({
       console.warn('load order status count failed', err)
     }
   },
+
+  async loadPhysicalCounts() {
+    const account = getOpenid()
+    try {
+      const [counts, cart] = await Promise.all([physicalApi.getPhysicalOrderCounts(), physicalApi.getPhysicalCart()])
+      if (!userStore.isAuthed() || account !== getOpenid()) return
+      this.setData({ physicalCounts: counts.statusCounts || counts.counts || counts, cartQuantity: Number(cart.totalQuantity) || 0 })
+    } catch (_) { /* Other personal services remain available when these requests fail. */ }
+  },
+
+  goPhysicalOrders(e) {
+    if (!this.ensureAuth()) return
+    wx.navigateTo({ url: this.buildUrl('/pages/myOrders/myOrders', { orderType: 'physical', status: e.currentTarget.dataset.status || '' }) })
+  },
+
+  goPhysicalCart() { if (this.ensureAuth()) wx.navigateTo({ url: '/pages/physicalCart/physicalCart' }) },
+  goShippingAddresses() { if (this.ensureAuth()) wx.navigateTo({ url: '/pages/shippingAddresses/shippingAddresses' }) },
 
   captureSource(options = {}) {
     const source = options && Object.keys(options).length
@@ -185,11 +209,23 @@ Page({
     wx.navigateTo({ url: this.buildUrl('/pages/peripherals/peripherals') })
   },
 
-  goToNotice() {
-    if (!this.ensureAuth()) return
+  async goToNotice() {
+    if (this._noticeLoading || !this.ensureAuth()) return
+    this._noticeLoading = true
+    let content = ''
+    try {
+      wx.showLoading({ title: '加载中…', mask: true })
+      const config = await bookingConfig.ensureLoaded(true)
+      content = config.bookingNotice
+    } catch (err) {
+      console.warn('load booking notice failed', err)
+    } finally {
+      wx.hideLoading()
+      this._noticeLoading = false
+    }
     wx.showModal({
       title: '预约须知',
-      content: '1. 建议提前预约，方便安排摄影师和拍摄路线。\n2. 拍摄当天请准时到达约定地点。\n3. 如遇天气原因，可联系客服协商改期。\n4. 照片和短视频交付周期以旅拍套餐详情为准。',
+      content: content || '预约须知暂未配置或加载失败，请稍后重试或联系客服。',
       showCancel: false
     })
   },
@@ -216,7 +252,10 @@ Page({
           role: null,
           authReady: false,
           authLoading: false,
-          phone: ''
+          phone: '',
+          physicalCounts: {},
+          cartQuantity: 0,
+          orderCounts: { pendingConfirmation: 0, awaitingShoot: 0, shooting: 0, completed: 0 }
         })
         wx.showToast({ title: '已退出登录', icon: 'success' })
       }

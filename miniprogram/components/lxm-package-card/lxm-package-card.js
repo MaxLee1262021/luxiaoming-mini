@@ -11,6 +11,11 @@ Component({
       type: String,
       value: 'vertical'
     },
+    // 首页固定卡片尺寸；其他入口继续按内容自然增高。
+    variant: {
+      type: String,
+      value: 'default'
+    },
     // 可选中模式：开启后点击触发 select 事件（而非 tap），并显示选中描边
     selectable: {
       type: Boolean,
@@ -35,12 +40,8 @@ Component({
       type: Number,
       value: 0
     },
-    // 是否展示服务标签与套餐说明。
+    // 是否展示套餐说明；配置标签始终在封面展示。
     showDetails: {
-      type: Boolean,
-      value: true
-    },
-    showCoverPrice: {
       type: Boolean,
       value: true
     },
@@ -61,22 +62,9 @@ Component({
 
   observers: {
     'item': function (item) {
-      const tags = displayTags(item && item.serviceTags, item && item.tags, item && item.displayTags)
-      // 营销角标：爆款 > 主推 > 热门（后台 isHotSale/isMainPush/isHot 控制，前端统一角标）
-      let marketingBadge = ''
-      let marketingBadgeClass = ''
-      if (item) {
-        if (item.isHotSale) {
-          marketingBadge = '爆款'
-          marketingBadgeClass = 'is-hot-sale'
-        } else if (item.isMainPush) {
-          marketingBadge = '主推'
-          marketingBadgeClass = 'is-main-push'
-        } else if (item.isHot) {
-          marketingBadge = '热门'
-          marketingBadgeClass = 'is-hot'
-        }
-      }
+      const source = item || {}
+      const tags = source.tags != null ? displayTags(source.tags)
+        : displayTags(source.tag, source.serviceTags, source.styleTags, source.displayTags)
       // 套餐组合内容标签：从 includedItems 派生「照片 / 视频 / 周边」，去重保序
       const map = { album: '照片', video: '视频', peripheral: '周边' }
       const comp = []
@@ -85,7 +73,7 @@ Component({
         const label = map[it.type]
         if (label && comp.indexOf(label) === -1) comp.push(label)
       })
-      this.setData({ tags, marketingBadge, marketingBadgeClass, compositionTags: comp, description: displayText(item && (item.description ?? item.intro)), ...includedItemStats(items) })
+      this.setData({ tags, compositionTags: comp, description: displayText(item && (item.description ?? item.intro)), ...includedItemStats(items) })
     }
   },
 

@@ -323,11 +323,18 @@
   align-items: center;
 }
 .hscroll {
-  display: flex;
-  gap: 20rpx;
+  width: 100%;
+  box-sizing: border-box;
   overflow-x: auto;
   padding: 4rpx 4rpx 16rpx;
   white-space: nowrap;
+}
+/* 与首页一致：用内部容器排列卡片，scroll-view 仅负责横向滚动。 */
+.hscroll-track {
+  display: inline-flex;
+  gap: 20rpx;
+  vertical-align: top;
+  white-space: normal;
 }
 .hscroll::-webkit-scrollbar {
   display: none;

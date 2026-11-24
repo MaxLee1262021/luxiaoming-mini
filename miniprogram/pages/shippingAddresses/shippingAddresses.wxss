@@ -1,0 +1,19 @@
+@import "../../styles/physical.wxss";
+
+.physical-page {
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
+.physical-footer .physical-primary,
+.physical-sheet .physical-primary {
+  min-width: 0;
+  height: 104rpx;
+  min-height: 104rpx;
+  padding: 0 24rpx;
+  border-radius: 52rpx;
+  font-size: 30rpx;
+}
+
+.physical-sheet .physical-primary {
+  width: 100%;
+}

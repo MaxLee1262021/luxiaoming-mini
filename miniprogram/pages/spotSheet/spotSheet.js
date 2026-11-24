@@ -1,3 +1,4 @@
+const contentOrder = require('../../utils/contentOrder')
 const app = getApp()
 const homeApi = require('../../api/home')
 const spotApi = require('../../api/spot')
@@ -240,10 +241,10 @@ Page({
       return id && rows.findIndex(other => (other && (other._id || other.id || other.name)) === id) === index
     })
     return {
-      photoSingles: unique(photoSingles),
-      videos: unique(videos),
+      photoSingles: unique(photoSingles).sort((a, b) => contentOrder.compare('albums', a, b)),
+      videos: unique(videos).sort((a, b) => contentOrder.compare('packages', a, b)),
       peripherals: unique(peripherals),
-      photoPackages: unique(photoPackages)
+      photoPackages: unique(photoPackages).sort((a, b) => contentOrder.compare('packages', a, b))
     }
   },
 

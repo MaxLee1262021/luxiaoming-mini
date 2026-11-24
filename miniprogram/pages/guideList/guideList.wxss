@@ -9,7 +9,7 @@
 
 /* 加载态 hero 骨架：高度与真实 hero 一致，避免加载完布局跳变 */
 .gl-skeleton-hero {
-  height: 380rpx;
+  height: 440rpx;
   border-radius: var(--lxm-r-md);
   margin-bottom: 44rpx;
 }
@@ -82,6 +82,28 @@
   align-items: flex-start;
 }
 
+.gl-sort {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+  min-height: 88rpx;
+}
+
+.gl-sort-option {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  min-height: 88rpx;
+  color: var(--lxm-c-gray-750);
+  font-size: var(--lxm-fz-sm);
+}
+
+.gl-sort-option.on {
+  color: var(--lxm-c-red-ink);
+  font-weight: var(--lxm-fw-bold);
+}
+
 .gl-col {
   flex: 1 1 0%;
   min-width: 0;
@@ -101,6 +123,7 @@
 
 /* 本期推荐 · 国风杂志流 hero */
 .gl-feature {
+  position: relative;
   margin-bottom: 44rpx;
   border-radius: var(--lxm-r-md);
   background: var(--lxm-c-surface);
@@ -109,10 +132,27 @@
   box-shadow: 0 12rpx 26rpx rgba(64, 39, 26, 0.12);
 }
 
+.gl-feature-swiper {
+  height: 440rpx;
+}
+
+.gl-feature-pagination {
+  position: absolute;
+  top: 22rpx;
+  left: 22rpx;
+  padding: 6rpx 16rpx;
+  border-radius: 999rpx;
+  background: rgba(42, 33, 27, 0.6);
+  color: var(--lxm-c-cream);
+  font-size: var(--lxm-fz-xs);
+  line-height: 1.4;
+  pointer-events: none;
+}
+
 .glf-cover {
   position: relative;
   width: 100%;
-  min-height: 380rpx;
+  height: 100%;
   display: flex;
   align-items: flex-end;
   overflow: hidden;
@@ -137,7 +177,7 @@
   background: linear-gradient(to top, rgba(42, 33, 27, 0.84) 0%, rgba(42, 33, 27, 0.32) 55%, rgba(42, 33, 27, 0) 100%);
 }
 
-/* 鹿印章：右上角圆形，呼应品牌视觉 */
+/* 麓印章：右上角圆形，呼应品牌视觉 */
 .glf-seal {
   position: absolute;
   top: 22rpx;
@@ -160,7 +200,7 @@
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  padding: 100rpx 24rpx 22rpx;
+  padding: 72rpx 24rpx 24rpx;
 }
 
 .glf-eyebrow {
@@ -200,16 +240,18 @@
 .glf-meta {
   margin-top: 12rpx;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   gap: 10rpx;
   font-size: var(--lxm-fz-xs);
   line-height: 1.4;
   color: rgba(255, 247, 239, 0.86);
+  white-space: nowrap;
 }
 
 .glf-spot {
-  max-width: 100%;
-  word-break: break-all;
+  min-width: 0;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-weight: 700;
 }

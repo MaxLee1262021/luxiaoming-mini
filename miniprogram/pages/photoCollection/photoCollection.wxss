@@ -170,12 +170,13 @@
 
 .quick-facts {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12rpx;
   margin-top: 22rpx;
 }
 
 .quick-fact {
+  min-width: 0;
   padding: 17rpx 12rpx;
   border-radius: 20rpx;
   background: var(--lxm-c-gray-150);
@@ -187,7 +188,10 @@
   color: var(--lxm-c-red-ink);
   font-size: var(--lxm-fz-lg);
   font-weight: 900;
-  line-height: 1.1;
+  line-height: 1.4;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .fact-label {

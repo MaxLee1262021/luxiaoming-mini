@@ -16,7 +16,7 @@ const PUBLIC_BROWSING_RPCS = new Set([
   'getSeriesDetail', 'getPhotoCollection', 'getPeripherals', 'getGuides',
   'listGuides', 'getGuide', 'resolveMerchantCode', 'getCities',
   'getPrivacyPolicy', 'getSearchConfig', 'getBookingConfig',
-  'getFootprintConfig', 'getCorpConfig', 'getVideoSingles'
+  'getFootprintConfig', 'getCorpConfig', 'getVideoSingles', 'getPhysicalCatalog'
 ])
 
 function getOpenid() { return _openid }
@@ -94,7 +94,7 @@ function doLogin() {
 }
 
 // 原始请求：POST /api/rpc/{name}，请求体 { data, openid }。
-function callRaw(name, data, { clearOnUnauthorized = true } = {}) {
+function callRaw(name, data, { clearOnUnauthorized = true, timeout } = {}) {
   return new Promise((resolve, reject) => {
     if (API_ERROR) {
       reject(new Error(API_ERROR))
@@ -103,6 +103,7 @@ function callRaw(name, data, { clearOnUnauthorized = true } = {}) {
     wx.request({
       url: `${API_BASE}/rpc/${name}`,
       method: 'POST',
+      ...(Number.isFinite(timeout) && timeout > 0 ? { timeout } : {}),
       header: {
         'Content-Type': 'application/json',
         ...(_token ? { Authorization: `Bearer ${_token}` } : {})
@@ -143,7 +144,7 @@ function rpcResponseError(result, httpStatus, fallback) {
 //   内部会先确保已登录，再请求后台 POST /api/rpc/{name}；
 //   成功返回结果对象（含 success/data 等）；
 //   服务器返回 success===false 时 reject，调用方 catch 即可拿到 message。
-async function callCloud(name, data = {}) {
+async function callCloud(name, data = {}, options = {}) {
   const isPublicBrowse = PUBLIC_BROWSING_RPCS.has(name)
   // The server has no revoke endpoint yet. Keep an explicit local logout from
   // being silently undone by an automatic session refresh; phone binding is
@@ -152,7 +153,7 @@ async function callCloud(name, data = {}) {
     throw new Error('当前已退出登录，请先授权手机号')
   }
   if (!isPublicBrowse) await ensureLogin()
-  return await callRaw(name, data, { clearOnUnauthorized: !isPublicBrowse })
+  return await callRaw(name, data, { clearOnUnauthorized: !isPublicBrowse, timeout: options.timeout })
 }
 
 // 主动登录（app onLaunch 调一次即可，后续请求自动复用 openid）。

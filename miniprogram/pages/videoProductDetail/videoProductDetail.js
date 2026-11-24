@@ -18,6 +18,9 @@ Page({
     spot: {},
     spots: [],
     samples: [],
+    currentSample: 0,
+    isVideoPlaying: false,
+    isVideoFullscreen: false,
     recommendations: [],
     videoFields: [],
     packageBenefits: [],
@@ -66,6 +69,20 @@ Page({
     this.loadData(true).finally(() => wx.stopPullDownRefresh())
   },
 
+  onShow() {
+    this._pageHidden = false
+  },
+
+  onHide() {
+    this._pageHidden = true
+    this.pauseCurrentVideo()
+  },
+
+  onUnload() {
+    this._pageHidden = true
+    this.pauseCurrentVideo()
+  },
+
   async loadData(refresh = false) {
     if (!this.data.productId) {
       this.setData({ loading: false, error: '缺少视频摄像商品信息' })
@@ -111,11 +128,17 @@ Page({
 
 
   applyDetail(detail) {
+    this.pauseCurrentVideo()
+    const samples = detail.samples || []
+    const firstVideo = samples.findIndex(item => item.type === 'video' && item.url)
     this.setData({
       product: detail.product,
       spot: detail.spot,
       spots: (detail.spot && detail.spot._id) ? [{ _id: detail.spot._id, name: detail.spot.name }] : [],
-      samples: detail.samples,
+      samples,
+      currentSample: firstVideo < 0 ? 0 : firstVideo,
+      isVideoPlaying: false,
+      isVideoFullscreen: false,
       recommendations: detail.recommendations,
       videoFields: detail.videoFields,
       packageBenefits: detail.packageBenefits,
@@ -129,6 +152,52 @@ Page({
     this.loadData()
   },
 
+  onSampleChange(e) {
+    const currentSample = Number(e.detail.current)
+    if (!Number.isInteger(currentSample) || !this.data.samples[currentSample] || currentSample === this.data.currentSample) return
+    this.pauseCurrentVideo()
+    this.setData({ currentSample, isVideoPlaying: false, isVideoFullscreen: false })
+  },
+
+  pauseCurrentVideo() {
+    if (this.data.isVideoPlaying) wx.createVideoContext('detail-video', this).pause()
+    this.setData({ isVideoPlaying: false })
+  },
+
+  toggleVideoPlayback() {
+    const sample = this.data.samples[this.data.currentSample]
+    if (this._pageHidden || !sample || sample.type !== 'video' || !sample.url) return
+    const context = wx.createVideoContext('detail-video', this)
+    if (this.data.isVideoPlaying) context.pause()
+    else context.play()
+    this.setData({ isVideoPlaying: !this.data.isVideoPlaying })
+  },
+
+  onVideoPlay(e) {
+    if (Number(e.currentTarget.dataset.index) !== this.data.currentSample) return
+    if (this._pageHidden) {
+      wx.createVideoContext('detail-video', this).pause()
+      return
+    }
+    this.setData({ isVideoPlaying: true })
+  },
+
+  onVideoPause(e) {
+    if (Number(e.currentTarget.dataset.index) !== this.data.currentSample) return
+    this.setData({ isVideoPlaying: false })
+  },
+
+  onVideoError(e) {
+    if (Number(e.currentTarget.dataset.index) !== this.data.currentSample) return
+    this.setData({ isVideoPlaying: false })
+    wx.showToast({ title: '视频暂时无法播放，请稍后重试', icon: 'none' })
+  },
+
+  onVideoFullscreenChange(e) {
+    if (Number(e.currentTarget.dataset.index) !== this.data.currentSample) return
+    this.setData({ isVideoFullscreen: !!e.detail.fullScreen })
+  },
+
   previewVideo(e) {
     const index = Number(e.currentTarget.dataset.index || 0)
     const sources = (this.data.samples || [])
@@ -140,14 +209,16 @@ Page({
       }))
     if (!sources.length) return
     if (wx.previewMedia) {
+      this.pauseCurrentVideo()
       wx.previewMedia({ current: index, sources })
       return
     }
     const selected = sources[index]
     if (selected && selected.type === 'video') {
-      wx.showToast({ title: '请升级微信后预览视频', icon: 'none' })
+      wx.createVideoContext('detail-video', this).requestFullScreen({})
       return
     }
+    this.pauseCurrentVideo()
     wx.previewImage({ current: selected && selected.url, urls: sources.filter(item => item.type === 'image').map(item => item.url) })
   },
 

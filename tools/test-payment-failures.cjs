@@ -43,6 +43,7 @@ const orderApi = {
 let bookingDefinition
 evaluate('pages/bookingInfo/bookingInfo.js', {
   '../../api/order': orderApi,
+  '../../service/merchantShare': { async ensureScanSynced() {} },
   '../../utils/paymentFeedback': feedback,
   '../../utils/query': require('../miniprogram/utils/query'),
   '../../service/bookingConfig': { getConfig: () => ({}) }
@@ -50,6 +51,7 @@ evaluate('pages/bookingInfo/bookingInfo.js', {
 let orderDefinition
 evaluate('pages/orderDetail/orderDetail.js', {
   '../../api/order': orderApi,
+  '../../service/merchantShare': { async ensureScanSynced() {} },
   '../../utils/paymentFeedback': feedback,
   '../../service/orderFileActions': { actions: {}, data: {} },
   '../../utils/query': require('../miniprogram/utils/query')

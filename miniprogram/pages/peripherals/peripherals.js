@@ -2,7 +2,16 @@ const app = getApp()
 const peripheralApi = require('../../api/peripheral')
 const { filterVisibleProducts } = require('../../utils/product')
 const { normalizePeripheral } = require('../../utils/peripheralPresentation')
-const { openCustomerService } = require('../../service/customerService')
+const physicalApi = require('../../api/physical')
+const { rows: physicalRows, money, newKey } = require('../../utils/physical')
+const { skuOptions, initialSkuSelection, selectSkuStyle, selectSkuSpec } = require('../../utils/physicalSkuSelection')
+
+const PURCHASE_REASON_TEXT = {
+  '商品购买暂未开放': '商城暂未开放购买，请稍后再来。',
+  '定制商品请咨询客服': '该商品需要照片定制，请联系客服确认制作要求。',
+  '商品暂不可购买': '该商品尚未开放购买，请联系客服了解。',
+  '库存或销售参数未就绪': '该商品的库存或配送信息待商家确认，请联系客服。'
+}
 
 Page({
   data: {
@@ -17,10 +26,23 @@ Page({
     allPeripherals: [],
     stackLayers: [],
     stackFront: 0,
-    stackRotation: 0
+    stackRotation: 0,
+    cartNavTopPx: 26,
+    cartQuantity: 0,
+    purchaseVisible: false,
+    purchaseProduct: null,
+    purchaseSkus: [],
+    purchaseSelection: { style: null, spec: null, styles: [], specs: [], hint: '' },
+    purchasePriceText: '',
+    selectedSku: null,
+    purchaseQuantity: 1,
+    purchaseMode: 'cart',
+    purchaseBusy: false,
+    purchaseError: ''
   },
 
   onLoad(options = {}) {
+    this.initCartPosition()
     const source = app.captureSource ? app.captureSource(options) : {}
     this.setData({
       shopId: options.shopId || source.shopId || '',
@@ -30,6 +52,136 @@ Page({
     wx.setNavigationBarTitle({ title: '影像周边' })
     this.loadPeripherals(true)
   },
+
+  onShow() { this.loadCartCount() },
+
+  initCartPosition() {
+    try {
+      const menu = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null
+      const system = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
+      this.setData({ cartNavTopPx: menu && menu.top ? menu.top : (system.statusBarHeight || 20) + 8 })
+    } catch (_) {
+      // 与导航栏使用相同的默认位置。
+    }
+  },
+
+  async loadCartCount() {
+    const { getOpenid, isLoggedOut } = require('../../api/client')
+    const request = this._cartCountRequest = (this._cartCountRequest || 0) + 1
+    const openid = getOpenid()
+    if (this._cartCountOpenid !== openid || !openid || isLoggedOut()) {
+      this._cartCountOpenid = openid
+      this.setData({ cartQuantity: 0 })
+    }
+    if (!openid || isLoggedOut()) return
+    try {
+      const cart = await physicalApi.getPhysicalCart()
+      if (request !== this._cartCountRequest) return
+      if (getOpenid() !== openid || isLoggedOut()) {
+        this.setData({ cartQuantity: 0 })
+        return
+      }
+      const total = cart && cart.totalQuantity
+      const quantity = Number(total)
+      const cartQuantity = total !== undefined && total !== null && total !== '' && Number.isInteger(quantity) && quantity >= 0
+        ? quantity
+        : physicalRows(cart).reduce((sum, row) => {
+          const count = Number(row.quantity)
+          return sum + (Number.isInteger(count) && count > 0 ? count : 0)
+        }, 0)
+      this.setData({ cartQuantity })
+    } catch (_) {
+      if (request === this._cartCountRequest && (getOpenid() !== openid || isLoggedOut())) this.setData({ cartQuantity: 0 })
+    }
+  },
+
+  goCart() { wx.navigateTo({ url: '/pages/physicalCart/physicalCart' }) },
+
+  async openPurchase(e) {
+    if (this.data.purchaseBusy || !this.data.featuredPeripheral) return
+    const mode = e.currentTarget.dataset.mode || 'cart'
+    const featured = this.data.featuredPeripheral
+    this.setData({ purchaseBusy: true, purchaseError: '' })
+    try {
+      const result = await physicalApi.getPhysicalCatalog({ id: featured._id || featured.id })
+      const featuredId = String(featured._id || featured.id)
+      const candidates = [...physicalRows(result), result.product, result]
+      const product = candidates.find(row => row && String(row.id || row.productId || row._id) === featuredId)
+      const skus = skuOptions(physicalRows(product && product.skus))
+      if (!product || product.purchasable === false || !skus.some(sku => sku.purchasable)) {
+        const reason = product && (product.disabledReason || product.unavailableReason || product.reason)
+        const message = PURCHASE_REASON_TEXT[reason] || reason || (result.enabled === false
+          ? '商城暂未开放购买，请稍后再来。'
+          : !product ? '该商品已下架或不再出售，请选择其他商品。' : '该商品暂时无法购买，请联系客服了解详情。')
+        wx.showModal({
+          title: mode === 'direct' ? '暂时无法购买' : '暂时无法加入购物车',
+          content: message,
+          showCancel: false,
+          confirmText: '知道了'
+        })
+        return
+      }
+      const prices = skus.filter(sku => sku.purchasable && sku.price !== null && sku.price !== undefined && Number.isFinite(Number(sku.price))).map(sku => Number(sku.price))
+      const minPrice = Math.min(...prices), maxPrice = Math.max(...prices)
+      const purchasePriceText = !prices.length ? '—' : minPrice === maxPrice ? money(minPrice) : `${money(minPrice)}–${money(maxPrice)}`
+      const purchaseSelection = initialSkuSelection(skus)
+      this.setData({ purchaseVisible: true, purchaseProduct: { ...product, id: product.id || product.productId || featured._id, cover: product.cover || featured.cover || '/images/placeholder.png' }, purchaseSkus: skus, purchaseSelection, purchasePriceText, selectedSku: purchaseSelection.sku, purchaseQuantity: 1, purchaseMode: mode })
+    } catch (error) { wx.showToast({ title: error.message || '购买信息暂不可用', icon: 'none' }) }
+    finally { this.setData({ purchaseBusy: false }) }
+  },
+
+  selectPurchaseStyle(e) {
+    if (this.data.purchaseBusy) return
+    this.applyPurchaseSelection(selectSkuStyle(this.data.purchaseSkus, this.data.purchaseSelection, e.currentTarget.dataset.value))
+  },
+  selectPurchaseSpec(e) {
+    if (this.data.purchaseBusy) return
+    this.applyPurchaseSelection(selectSkuSpec(this.data.purchaseSkus, this.data.purchaseSelection, e.currentTarget.dataset.value))
+  },
+  applyPurchaseSelection(purchaseSelection) {
+    const sku = purchaseSelection.sku
+    const available = sku ? Number(sku.availableQuantity ?? sku.available) : NaN
+    const quantity = Number.isFinite(available) ? Math.min(this.data.purchaseQuantity, available) : this.data.purchaseQuantity
+    this.setData({ purchaseSelection, selectedSku: sku, purchaseQuantity: quantity, purchaseError: '' })
+  },
+  purchaseQuantityChange(e) {
+    if (this.data.purchaseBusy) return
+    const quantity = e.detail && e.detail.value !== undefined ? Number(e.detail.value) : this.data.purchaseQuantity + Number(e.currentTarget.dataset.delta)
+    const sku = this.data.selectedSku
+    const available = sku ? Number(sku.availableQuantity ?? sku.available) : NaN
+    if (!Number.isInteger(quantity) || quantity < 1 || (Number.isFinite(available) && quantity > available)) {
+      this.setData({ purchaseQuantity: this.data.purchaseQuantity, purchaseError: quantity < 1 ? '数量至少为1' : Number.isFinite(available) && quantity > available ? '购买数量超过当前可售数量' : '请输入有效的购买数量' })
+      return
+    }
+    this.setData({ purchaseQuantity: quantity, purchaseError: '' })
+  },
+  closePurchase() { if (!this.data.purchaseBusy) this.setData({ purchaseVisible: false }) },
+  async confirmPurchase() {
+    if (this.data.purchaseBusy) return
+    const sku = this.data.selectedSku
+    if (!sku) return this.setData({ purchaseError: this.data.purchaseSelection.hint || '请选择样式和规格' })
+    const quantity = this.data.purchaseQuantity
+    const available = Number(sku.availableQuantity ?? sku.available)
+    if (!Number.isInteger(quantity) || quantity < 1 || (Number.isFinite(available) && quantity > available)) return this.setData({ purchaseError: '购买数量超过当前可售数量' })
+    this.setData({ purchaseBusy: true, purchaseError: '' })
+    try {
+      const { login, isLoggedOut } = require('../../api/client')
+      if (isLoggedOut()) throw new Error('当前已退出登录，请到“我的”重新授权')
+      await login()
+      const selection = { productId: this.data.purchaseProduct.id, skuId: sku.id, quantity }
+      if (this.data.purchaseMode === 'direct') {
+        wx.navigateTo({ url: '/pages/physicalCheckout/physicalCheckout?checkoutSource=direct&productId=' + encodeURIComponent(selection.productId) + '&skuId=' + encodeURIComponent(selection.skuId) + '&quantity=' + quantity })
+      } else {
+        await physicalApi.updatePhysicalCart({ operation: 'add', ...selection, idempotencyKey: newKey() })
+        wx.showToast({ title: '已加入购物车', icon: 'success' })
+        await this.loadCartCount()
+      }
+      this.setData({ purchaseVisible: false })
+    } catch (error) { this.setData({ purchaseError: error.message || '操作未完成，请重试' }) }
+    finally { this.setData({ purchaseBusy: false }) }
+  },
+
+  noop() {},
 
   initialStack(list, keepCurrent = false) {
     const selectedId = keepCurrent && this.data.featuredPeripheral ? this.data.featuredPeripheral._id : this.data.selectedId
@@ -187,9 +339,5 @@ Page({
     } else {
       wx.showToast({ title: '请升级微信后预览视频', icon: 'none' })
     }
-  },
-
-  contactService() {
-    openCustomerService()
   }
 })

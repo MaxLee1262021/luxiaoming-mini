@@ -2,6 +2,12 @@
   <lxm-nav-bar title="影像周边" showBack="{{true}}" theme="light" placeholder="{{true}}" />
   <lxm-privacy-modal />
 
+  <view class="cart-entry" style="--cart-nav-top: {{cartNavTopPx}}px;" bindtap="goCart" hover-class="cart-entry--pressed" role="button" aria-label="周边购物车，{{cartQuantity}}件商品">
+    <lxm-icon type="cart" size="56" color="gold" />
+    <text class="cart-entry-count" wx:if="{{cartQuantity > 0}}">{{cartQuantity > 99 ? '99+' : cartQuantity}}</text>
+  </view>
+
+  <view class="peripherals-content">
   <view class="lxm-skeleton-wrap" wx:if="{{loading}}">
     <view class="lxm-skeleton-card" wx:for="{{[1,2,3,4]}}" wx:key="*this">
       <view class="lxm-skeleton lxm-skeleton-cover"></view>
@@ -102,8 +108,52 @@
       </view>
     </view>
 
-    <view class="consult-bar">
-      <button class="consult-button" bindtap="contactService">咨询客服</button>
+    <view class="commerce-bar">
+      <button class="commerce-add" bindtap="openPurchase" data-mode="cart" disabled="{{purchaseBusy}}">加入购物车</button>
+      <button class="commerce-buy" bindtap="openPurchase" data-mode="direct" disabled="{{purchaseBusy}}">立即定制</button>
     </view>
   </block>
+  </view>
+  <view wx:if="{{purchaseVisible}}" class="physical-mask purchase-mask" bindtap="closePurchase" catchtouchmove="noop">
+    <view class="physical-sheet purchase-sheet" catchtap="noop">
+      <view class="purchase-heading">
+        <text class="purchase-name">{{purchaseProduct.name}}</text>
+        <view class="purchase-close" bindtap="closePurchase" role="button" aria-label="关闭选购弹窗">×</view>
+      </view>
+      <view class="purchase-summary">
+        <image class="purchase-cover" src="{{purchaseProduct.cover}}" mode="aspectFill" />
+        <view class="purchase-summary-body">
+          <text class="purchase-price">¥<text class="purchase-price-value">{{selectedSku ? selectedSku.priceText : purchasePriceText}}</text></text>
+          <text class="purchase-selection">{{selectedSku ? '已选：' + selectedSku.specLabel : (purchaseSelection.style !== null ? '已选样式：' + (purchaseSelection.style || '默认样式') + '，请选择规格' : '请选择样式和规格')}}</text>
+          <view class="purchase-quantity-row">
+            <view class="physical-stepper purchase-stepper">
+              <button data-delta="-1" bindtap="purchaseQuantityChange" disabled="{{purchaseBusy || purchaseQuantity <= 1}}" aria-label="减少数量">−</button>
+              <input type="number" value="{{purchaseQuantity}}" bindchange="purchaseQuantityChange" disabled="{{purchaseBusy}}" aria-label="购买数量" />
+              <button data-delta="1" bindtap="purchaseQuantityChange" disabled="{{purchaseBusy || (selectedSku && (selectedSku.availableQuantity > 0 || selectedSku.available > 0) && purchaseQuantity >= (selectedSku.availableQuantity || selectedSku.available))}}" aria-label="增加数量">＋</button>
+            </view>
+            <text class="purchase-stock">{{selectedSku ? '有货' : '数量'}}</text>
+          </view>
+        </view>
+      </view>
+      <scroll-view class="purchase-options-scroll" scroll-y show-scrollbar="{{false}}">
+        <view class="purchase-options-heading">样式</view>
+        <view class="purchase-options">
+          <view wx:for="{{purchaseSelection.styles}}" wx:key="value" class="purchase-option {{purchaseSelection.style === item.value ? 'active' : ''}} {{!item.available ? 'unavailable' : ''}}" data-value="{{item.value}}" bindtap="selectPurchaseStyle" role="button" aria-label="{{item.label}}{{item.available ? '' : '，暂不可售'}}" aria-disabled="{{!item.available || purchaseBusy}}" aria-pressed="{{purchaseSelection.style === item.value}}">
+            <text>{{item.label}}</text><text wx:if="{{!item.available}}" class="purchase-unavailable">暂不可售</text>
+          </view>
+        </view>
+        <view class="purchase-options-heading">规格<text wx:if="{{purchaseSelection.style === null}}" class="purchase-options-hint">请先选择样式</text></view>
+        <view class="purchase-options">
+          <view wx:for="{{purchaseSelection.specs}}" wx:key="value" class="purchase-option {{purchaseSelection.spec === item.value ? 'active' : ''}} {{!item.available ? 'unavailable' : ''}}" data-value="{{item.value}}" bindtap="selectPurchaseSpec" role="button" aria-label="{{item.label}}{{item.available ? '' : purchaseSelection.style === null ? '，请先选择样式' : '，暂不可售'}}" aria-disabled="{{!item.available || purchaseBusy}}" aria-pressed="{{purchaseSelection.spec === item.value}}">
+            <text>{{item.label}}</text><text wx:if="{{!item.available && purchaseSelection.style !== null}}" class="purchase-unavailable">暂不可售</text>
+          </view>
+        </view>
+      </scroll-view>
+      <view class="purchase-footer">
+        <text wx:if="{{purchaseError}}" class="purchase-error">{{purchaseError}}</text>
+        <text class="purchase-note">{{purchaseMode === 'cart' ? '加入购物车后，结算时将重新确认价格与库存。' : '价格与库存以提交订单时为准。'}}</text>
+        <button class="physical-primary purchase-submit" bindtap="confirmPurchase" disabled="{{purchaseBusy || !selectedSku}}" loading="{{purchaseBusy}}">{{purchaseMode === 'direct' ? '立即结算' : '加入购物车'}}</button>
+      </view>
+    </view>
+  </view>
 </view>

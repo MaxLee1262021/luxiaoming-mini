@@ -17,26 +17,49 @@
 
   <block wx:else>
     <view class="hero" wx:if="{{moduleVisible.video && samples.length}}">
-      <swiper class="hero-swiper" indicator-dots circular autoplay interval="4200">
+      <swiper class="hero-swiper" current="{{currentSample}}" indicator-dots="{{samples.length > 1 && samples[currentSample].type !== 'video'}}" circular bindchange="onSampleChange">
         <block wx:for="{{samples}}" wx:key="_id">
           <swiper-item>
-            <view class="hero-media" bindtap="previewVideo" data-index="{{index}}">
+            <view class="hero-media" wx:if="{{item.type === 'video' && item.url}}">
               <video
-                wx:if="{{item.type === 'video' && item.url}}"
+                wx:if="{{index === currentSample}}"
+                id="detail-video"
                 class="hero-cover hero-video"
                 src="{{item.url}}"
                 poster="{{item.cover || ''}}"
+                title="{{item.title || product.name}}"
                 object-fit="cover"
-                muted
-                controls="{{false}}"
+                autoplay
+                controls
+                show-progress
+                show-play-btn
+                show-fullscreen-btn="{{false}}"
                 show-center-play-btn="{{false}}"
-              ></video>
-              <image wx:else class="hero-cover" src="{{item.url || item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+                data-index="{{index}}"
+                bindplay="onVideoPlay"
+                bindpause="onVideoPause"
+                bindended="onVideoPause"
+                binderror="onVideoError"
+                bindfullscreenchange="onVideoFullscreenChange"
+              >
+                <!-- 单击画面切换播放；底部留给原生进度、播放和全屏控件。 -->
+                <cover-view class="video-tap-surface {{isVideoFullscreen ? 'video-tap-surface--fullscreen' : ''}}" catchtap="toggleVideoPlayback">
+                  <cover-view wx:if="{{!isVideoPlaying}}" class="video-play-icon">▶</cover-view>
+                </cover-view>
+                <cover-view wx:if="{{!isVideoFullscreen}}" class="video-expand" data-index="{{index}}" catchtap="previewVideo">
+                  <cover-view class="video-expand__corner video-expand__corner--tl"></cover-view>
+                  <cover-view class="video-expand__corner video-expand__corner--tr"></cover-view>
+                  <cover-view class="video-expand__corner video-expand__corner--bl"></cover-view>
+                  <cover-view class="video-expand__corner video-expand__corner--br"></cover-view>
+                </cover-view>
+              </video>
+              <image wx:else class="hero-cover" src="{{item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
+            </view>
+            <view wx:else class="hero-media" bindtap="previewVideo" data-index="{{index}}">
+              <image class="hero-cover" src="{{item.url || item.cover || '/images/placeholder.png'}}" mode="aspectFill" lazy-load />
               <view class="hero-mask"></view>
-              <view class="play-chip" wx:if="{{item.type === 'video' && item.url}}">播放预览</view>
               <view class="hero-meta">
                 <text>{{item.title || product.name}}</text>
-                <text wx:if="{{item.type === 'video' && item.durationText}}">{{item.durationText}}</text>
               </view>
             </view>
           </swiper-item>

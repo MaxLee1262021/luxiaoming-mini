@@ -10,6 +10,7 @@ const { HOME_SPOT_PAGE_SIZE, buildHomeSpots, buildHomeSpotShelf, buildHomeViewDa
 const { setSitePageConfig } = require('../../service/siteConfig')
 const { routeSearchSuggestion } = require('../../utils/searchNav')
 const { buildSearchSuggestions } = require('../../utils/searchSuggestions')
+const { BRAND_TITLE } = require('../../utils/share')
 const cityStore = require('../../store/cityStore')
 
 const defaultHomeModules = normalizeModuleConfig()
@@ -122,11 +123,10 @@ Page({
     this.onHide()
   },
 
-  // 首页专属分享：带上当前选中的打卡点，吸引好友点开
+  // 首页分享统一使用品牌文案
   onShareAppMessage() {
-    const spotName = this.data.activeSpotName || ''
     return {
-      title: spotName ? `麓小鸣旅拍｜${spotName}打卡点，把长沙拍成你的旅行封面` : '麓小鸣旅拍｜把城市拍成你的旅行封面',
+      title: BRAND_TITLE,
       path: '/pages/index/index'
     }
   },

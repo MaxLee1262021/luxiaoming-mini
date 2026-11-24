@@ -1,3 +1,4 @@
+<page-meta page-style="{{showCustomerServiceModal ? 'overflow: hidden;' : ''}}" />
 <view class="container">
   <lxm-nav-bar showBack="{{true}}" />
   <lxm-privacy-modal />
@@ -28,16 +29,12 @@
       <text class="info-value price">{{packageName}} ¥{{packagePrice}}</text>
     </view>
     <view class="info-row" wx:if="{{spotName}}">
-      <text class="info-label">拍摄地点</text>
+      <text class="info-label">拍摄点位</text>
       <text class="info-value">{{spotName}}</text>
     </view>
-    <view class="info-row" wx:if="{{seriesName}}">
-      <text class="info-label">拍摄风格</text>
-      <text class="info-value">{{seriesName}}</text>
-    </view>
     <view class="info-row">
-      <text class="info-label">拍摄时间</text>
-      <text class="info-value">客服/摄影师沟通确认</text>
+      <text class="info-label">预约时间</text>
+      <text class="info-value">{{date || '未填写'}} {{timePeriod}}</text>
     </view>
     <view class="info-row" wx:if="{{contactName}}">
       <text class="info-label">联系人</text>
@@ -52,7 +49,7 @@
       <text class="info-value">{{contactWechat}}</text>
     </view>
     <view class="info-row" wx:if="{{message}}">
-      <text class="info-label">特殊需求</text>
+      <text class="info-label">预约备注</text>
       <text class="info-value message">{{message}}</text>
     </view>
     <view class="info-row" wx:if="{{workflowStage === 'awaiting_deposit' && depositDue > 0}}">
@@ -62,17 +59,36 @@
   </view>
 
   <view class="btn-group">
+    <button class="btn-secondary" bindtap="contactService">联系客服</button>
     <button class="btn-primary" bindtap="goOrderDetail" wx:if="{{orderId || orderNo}}">查看订单</button>
-    <button class="btn-secondary" bindtap="goMyOrders">查看我的订单</button>
-    <button class="btn-secondary light" bindtap="contactService">去企业微信联系客服</button>
-    <button class="btn-secondary light" bindtap="goBookingAgain">再约一单</button>
-    <button class="btn-tertiary" bindtap="goHome">返回首页</button>
   </view>
 
   <view class="tips-card">
     <view class="tips-title">温馨提示</view>
-    <view class="tips-content">
-      定金支付后订单为“待确认”，客服安排摄影师后进入“待拍摄”。到场后由客服登记为“拍摄中”；拍摄完成后支付尾款确认本次拍摄，订单进入“已完成”。照片交付记录可在订单详情查看。
+    <view class="tips-content">{{bookingSuccessTips}}</view>
+  </view>
+
+  <view wx:if="{{showCustomerServiceModal}}" class="service-modal-mask" catchtap="noop" catchtouchmove="noop">
+    <view class="service-modal-card" aria-role="dialog" aria-label="预约成功，联系专属客服" catchtap="noop">
+      <button class="service-modal-close" bindtap="closeCustomerServiceModal" aria-label="关闭联系客服提示" hover-class="service-modal-close-pressed">
+        <text class="service-modal-close-mark" aria-hidden="true">×</text>
+      </button>
+      <scroll-view class="service-modal-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+        <view class="service-modal-content">
+          <view class="service-modal-avatar" aria-hidden="true"><text>👩🏻‍💼</text></view>
+          <view class="service-modal-title">预约成功!</view>
+          <view class="service-modal-copy">
+            <view>为了给您安排最合适的摄影师</view>
+            <view>请点击下方按钮联系专属客服</view>
+            <view class="service-modal-emphasis">确认拍摄细节与具体时间</view>
+          </view>
+          <button class="service-modal-contact" bindtap="contactService" hover-class="service-modal-contact-pressed" aria-label="一键联系专属客服">
+            <view class="service-modal-chat" aria-hidden="true"><text>···</text></view>
+            <text>一键联系专属客服</text>
+          </button>
+          <button class="service-modal-later" bindtap="closeCustomerServiceModal" hover-class="service-modal-later-pressed">暂不联系，稍后再说</button>
+        </view>
+      </scroll-view>
     </view>
   </view>
 </view>

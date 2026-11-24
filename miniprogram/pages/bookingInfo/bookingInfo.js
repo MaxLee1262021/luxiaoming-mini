@@ -11,13 +11,17 @@ const userStore = require('../../store/userStore')
 const { getPageModuleConfig, isPageModuleVisible } = require('../../service/siteConfig')
 const analytics = require('../../utils/analytics')
 const { paymentFailure, logPaymentFailure } = require('../../utils/paymentFeedback')
+const { resolvePackageSpots } = require('../../utils/packageSpots')
+const { addressText } = require('../../utils/physical')
+const { normalizeAlbumPresentation } = require('../../utils/albumPresentation')
 
-function requestWechatPayment(paymentParams = {}) {
+async function requestWechatPayment(paymentParams = {}) {
   const { timeStamp, nonceStr, package: packageValue, signType, paySign } = paymentParams
   if (!timeStamp || !nonceStr || !packageValue || !signType || !paySign) {
     return Promise.reject(new Error('支付参数不完整，请重新发起支付'))
   }
   if (!wx.requestPayment) return Promise.reject(new Error('当前微信版本不支持支付，请升级后重试'))
+  await require('../../service/merchantShare').ensureScanSynced()
   return new Promise((resolve, reject) => {
     wx.requestPayment({
       timeStamp: String(timeStamp),
@@ -70,6 +74,10 @@ Page({
     allSeries: [],
     allAlbums: [],
     allPackages: [],
+    allPeripherals: [],
+    requiresShipping: false,
+    shippingAddress: null,
+    shippingAddressText: '',
     filteredSeries: [],
     filteredAlbums: [],
     filteredPackages: [],
@@ -285,6 +293,7 @@ Page({
     const spots = bookingData.spots
     const allSeries = bookingData.allSeries
     const allPackages = bookingData.allPackages
+    const allPeripherals = bookingData.allPeripherals
     const allAlbums = bookingData.allAlbums
     const currentSpotId = this.data.prefillSpotId || ''
     this.setData({
@@ -292,15 +301,16 @@ Page({
       allSeries,
       allAlbums,
       allPackages,
+      allPeripherals,
       currentSpotId
     })
-    this.setData({ sheetProducts: this.buildSheetProducts({ allPackages, allSeries, allAlbums, spotOptions: spots }) })
+    this.setData({ sheetProducts: this.buildSheetProducts({ allPackages, allSeries, allAlbums, allPeripherals, spotOptions: spots }) })
     this.updatePickerLists(currentSpotId)
     this.initPrefill()
   },
 
   // 把拍摄商品归一化为「添加拍摄项目」弹窗可选择的行，周边仅支持展示和客服咨询。
-  buildSheetProducts({ allPackages = [], allSeries = [], allAlbums = [], spotOptions = [] } = {}) {
+  buildSheetProducts({ allPackages = [], allSeries = [], allAlbums = [], allPeripherals = [], spotOptions = [] } = {}) {
     const productUtils = require('../../utils/product')
     const itemId = item => String((item && (item._id || item.id || item.albumId)) || '')
     const findSeries = id => (allSeries || []).find(s => itemId(s) === String(id || '')) || {}
@@ -328,6 +338,13 @@ Page({
       const isVid = productUtils.isVideo(pkg)
       if (!productUtils.isPublicProduct(pkg) || (isVid && !productUtils.isVideoSingle(pkg))) return
       const series = findSeries(pkg.seriesId)
+      const applicableSpots = resolvePackageSpots(pkg, {
+        spots: spotOptions,
+        seriesList: allSeries,
+        albums: allAlbums,
+        videoProducts: allPackages,
+        peripherals: allPeripherals
+      })
       const meta = isVid
         ? [pkg.videoDuration, pkg.finishedVideoCount].filter(Boolean).join(' · ') || '短视频成片'
         : [pkg.duration ? pkg.duration + '分钟' : '', pkg.retouchCount ? '精修' + pkg.retouchCount + '张' : ''].filter(Boolean).join(' · ') || '旅拍套餐'
@@ -344,7 +361,7 @@ Page({
           price: pkg.price || 0,
           meta,
           catLabel: isVid ? '视频摄像' : '旅拍套餐',
-          src: { ...pkg, _id: itemId(pkg), spotId, spotName: spot.name || pkg.spotName || '' },
+          src: { ...pkg, _id: itemId(pkg), applicableSpots, spotId, spotName: spot.name || pkg.spotName || '' },
           series,
           spot
         })
@@ -364,7 +381,7 @@ Page({
           name: album.name,
           cover: album.cover || album.coverImage || (album.sampleUrls && album.sampleUrls[0]) || '/images/placeholder.png',
           price: album.price || 0,
-          meta: (album.photoCount || (album.sampleUrls && album.sampleUrls.length) || 0) + ' 张照片',
+          meta: normalizeAlbumPresentation(album).photoCountText,
           catLabel: '照片留影',
           src: { ...album, _id: itemId(album), albumId: itemId(album), spotId },
           series,
@@ -382,7 +399,7 @@ Page({
       wx.removeStorageSync('lxm_booking_basket')
       if (basketItems.length) {
         const items = basketItems.filter(item => !bookingPicker.isPeripheralItem(item) && !item.custom).map(item => {
-          const result = bookingDataService.findPrefillSelection({ data: { spots: this.data.spotOptions, allSeries: this.data.allSeries, allPackages: this.data.allPackages, allAlbums: this.data.allAlbums }, prefill: { packageId: item.packageId, albumId: item.albumId, seriesId: item.seriesId, spotId: item.spotId } })
+          const result = bookingDataService.findPrefillSelection({ data: { spots: this.data.spotOptions, allSeries: this.data.allSeries, allPackages: this.data.allPackages, allAlbums: this.data.allAlbums, allPeripherals: this.data.allPeripherals }, prefill: { packageId: item.packageId, albumId: item.albumId, seriesId: item.seriesId, spotId: item.spotId } })
           return result.item
         }).filter(item => item.custom || item.packageId || item.albumId)
         if (items.length !== basketItems.length) {
@@ -424,6 +441,7 @@ Page({
         spots: this.data.spotOptions,
         allSeries: this.data.allSeries,
         allPackages: this.data.allPackages,
+        allPeripherals: this.data.allPeripherals,
         allAlbums: this.data.allAlbums
       },
       prefill: {
@@ -532,6 +550,7 @@ Page({
     const depositDue = bookingUtils.sumDepositDue(this.data.items, depositRatio)
     this.setData({
       totalPrice,
+      requiresShipping: bookingUtils.bookingRequiresShipping(items, this.data.allPackages || []),
       pricingUnavailable,
       depositUnavailable: depositDue === null,
       depositRatio,
@@ -541,6 +560,58 @@ Page({
   },
 
   onNameInput(e) { this.setData({ name: e.detail.value }) },
+
+  chooseShippingAddress() {
+    if (!this.data.requiresShipping || this.data.submitting || this.data.paymentSubmitting) return
+    if (this.data.bookingRequestKey && !this.data.bookingId) {
+      wx.showToast({ title: '请先查询预约状态，确认后再修改收货地址', icon: 'none' })
+      return
+    }
+    wx.navigateTo({
+      url: '/pages/shippingAddresses/shippingAddresses?select=1',
+      events: {
+        addressSelected: ({ address } = {}) => this.acceptShippingAddress(address)
+      }
+    })
+  },
+
+  async acceptShippingAddress(address) {
+    if (!address || !address.id || this.data.submitting || this.data.paymentSubmitting) return
+    const bookingId = this.data.bookingId
+    if (this.data.bookingRequestKey && !bookingId) {
+      wx.showToast({ title: '请先查询预约状态，确认后再修改收货地址', icon: 'none' })
+      return
+    }
+    if (!bookingId) {
+      this.setData({ shippingAddress: address, shippingAddressText: addressText(address) })
+      return
+    }
+    this.setData({ submitting: true })
+    try {
+      // The server freezes the address when checkout is created. It must
+      // verify/close every payable trade before a new address can replace it.
+      const result = await bookingApi.cancelBooking({ bookingId })
+      if (!result || result.success !== true) throw new Error(result && (result.error || result.message) || '预约支付状态暂未确认，请稍后重试修改地址')
+      const booking = result.data && typeof result.data === 'object' ? result.data : result
+      if (booking.bookingStatus === 'confirmed' || booking.orderId || booking.orderNo) {
+        if (!this.redirectToBookingSuccess(booking)) throw new Error('预约已支付，请在我的订单中查看')
+        return
+      }
+      if (booking.bookingStatus !== 'cancelled' || String(booking.bookingId || '') !== String(bookingId)) throw new Error('原预约尚未作废，请稍后重试修改地址')
+      this.resetCancelledBooking(bookingId)
+      this.setData({ shippingAddress: address, shippingAddressText: addressText(address) })
+    } catch (error) {
+      wx.showToast({ title: error.message || '收货地址修改失败，请重试', icon: 'none' })
+    } finally {
+      this.setData({ submitting: false })
+    }
+  },
+
+  resetCancelledBooking(bookingId) {
+    if (bookingId) wx.removeStorageSync(`lxm_booking_payment_intent_${bookingId}`)
+    this._pendingDepositDue = 0
+    this.setData({ bookingRequestKey: '', bookingId: '', paymentStatus: 'not_created', paymentMessage: '' })
+  },
 
   onPhoneInput(e) {
     const phone = e.detail.value
@@ -719,8 +790,8 @@ Page({
       // 下单前把实时来源（商家二维码扫码溯源）并入 payload
       const source = (app.getSource && app.getSource()) || {}
       this.setData({
-        shopId: this.data.shopId || source.shopId || '',
-        scene: this.data.scene || source.scene || '',
+        shopId: source.shopId || '',
+        scene: source.scene || '',
         codeId: source.codeId || '',
         placementType: source.placementType || '',
         placementLabel: source.placementLabel || ''
@@ -739,6 +810,12 @@ Page({
       const res = await bookingApi.createBooking(payload)
       if (res && res.success) {
         const created = (res.data && typeof res.data === 'object') ? res.data : res
+        if (created.bookingStatus === 'cancelled') {
+          this.resetCancelledBooking(created.bookingId || this.data.bookingId)
+          wx.showToast({ title: '原预约已作废，请重新提交', icon: 'none' })
+          return
+        }
+        if (created.bookingStatus === 'cancelling') throw new Error('预约支付状态正在核对，请稍后重试')
         const orderId = created.orderId || created._id || created.id || res.orderId || res._id || ''
         const orderNo = created.orderNo || res.orderNo || ''
         // A booking that still needs deposit/service confirmation is stored as

@@ -14,11 +14,10 @@ const checks = [
     const js = read('pages/index/index.js')
     return /rank-num/.test(wxml) && /rank-cover/.test(wxml) && /rank-name/.test(wxml) && /bindtap="onSpotTabTap"/.test(wxml) && /return this\.loadSpotProducts\(\)/.test(js) && /<lxm-album-card/.test(wxml) && /<lxm-video-card/.test(wxml) && /<lxm-package-card/.test(wxml) && /filteredPeripherals/.test(wxml)
   }],
-  ['S3 照片标签、视频文字区营销标签和详情套餐容器', () => {
+  ['S3 照片标签、视频文字区营销标签', () => {
     const album = read('components/lxm-album-card/lxm-album-card.wxml')
     const video = read('components/lxm-video-card/lxm-video-card.wxml')
-    const sheet = read('pages/spotSheet/spotSheet.wxss')
-    return /class="album-type"/.test(album) && /\.album-type[\s\S]*left:\s*10rpx[\s\S]*top:\s*10rpx/.test(read('components/lxm-album-card/lxm-album-card.wxss')) && /class="video-labels"[\s\S]*class="video-marketing-badge/.test(video) && /\.package-scroll[\s\S]*height:\s*520rpx/.test(sheet)
+    return /class="album-type"/.test(album) && /\.album-type[\s\S]*left:\s*10rpx[\s\S]*top:\s*10rpx/.test(read('components/lxm-album-card/lxm-album-card.wxss')) && /class="video-labels"[\s\S]*class="video-marketing-badge/.test(video)
   }],
   ['S4 照片单图预览和相关推荐', () => {
     const wxml = read('pages/photoCollection/photoCollection.wxml')
@@ -37,9 +36,9 @@ const checks = [
     const service = read('service/packageDetail.js')
     return !/套餐服务|item-card__specs/.test(wxml) && /wx:for="\{\{serviceTags\}\}"/.test(wxml) && !service.includes('resolveItemSpecs') && /goIncludedItem/.test(wxml)
   }],
-  ['S7 打卡点横滑卡片留出安全空间', () => {
+  ['S7 打卡点套餐横滑区随内容撑高并留出安全空间', () => {
     const css = read('pages/spotSheet/spotSheet.wxss')
-    return /\.package-scroll[\s\S]*height:\s*520rpx/.test(css) && /padding-right:\s*28rpx/.test(css) && /vertical-align:\s*top/.test(css)
+    return /\.package-scroll\s*\{[^}]*height:\s*auto/.test(css) && /\.package-track\s*\{[^}]*padding-bottom:\s*24rpx/.test(css) && /padding-right:\s*28rpx/.test(css) && /vertical-align:\s*top/.test(css)
   }],
   ['S8 热度位置、标签层级和立即定制', () => {
     const wxml = read('pages/spotSheet/spotSheet.wxml')

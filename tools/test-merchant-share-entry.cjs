@@ -12,37 +12,65 @@ function fixture() {
     constructor(...args) { super(...(args.length ? args : [state.now])); }
     static now() { return state.now; }
   }
-  const sandbox = { module: { exports: {} }, Date: EntryDate, Math, wx: {
-    getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, value), showToast: value => toasts.push(value),
+  const client = { isLoggedOut: () => state.loggedOut, callCloud: async (name, data, options) => {
+    calls.push({ name, data, options }); return state.respond(name, data);
+  } };
+  const sandbox = { module: { exports: {} }, Date: EntryDate, Math, setTimeout, clearTimeout, wx: {
+    getStorageSync: key => storage.get(key), setStorageSync: (key, value) => storage.set(key, value),
+    removeStorageSync: key => storage.delete(key), showToast: value => toasts.push(value),
   }, require(name) {
-    if (name === "../api/client") return { isLoggedOut: () => state.loggedOut, callCloud: async (name, data) => {
-      calls.push({ name, data }); return state.respond(name, data);
-    } };
+    if (name === "../api/client") return client;
     if (name === "../utils/query") return require("../miniprogram/utils/query");
     throw new Error(name);
   } };
   vm.runInNewContext(script, sandbox);
-  return { service: sandbox.module.exports, calls, storage, toasts, state, wx: sandbox.wx, pending: () => storage.get(KEY) || [] };
+  return { service: sandbox.module.exports, client, calls, storage, toasts, state, wx: sandbox.wx, pending: () => storage.get(KEY) || [] };
 }
-function appWithShare(f, existingSource) {
+function paymentApis(f) {
+  const result = {};
+  for (const name of ["order", "physical"]) {
+    const module = { exports: {} };
+    vm.runInNewContext(fs.readFileSync(path.join(__dirname, `../miniprogram/api/${name}.js`), "utf8"), {
+      module, require(id) {
+        if (id === "./client") return f.client;
+        if (id === "../service/merchantShare") return f.service;
+        throw new Error(id);
+      }
+    });
+    result[name] = module.exports;
+  }
+  return result;
+}
+function appWithShare(f, existingSource = {}, resolveLegacy = async () => undefined) {
   let app;
   let legacyResolveCalls = 0;
+  const storeModule = { exports: {} };
+  vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../miniprogram/store/sourceStore.js"), "utf8"), {
+    module: storeModule, wx: f.wx, require: () => require("../miniprogram/utils/query"),
+  });
+  const sourceStore = storeModule.exports;
+  sourceStore.setSource(existingSource);
   const sandbox = { App: value => { app = value; }, Page: value => value, wx: f.wx, getCurrentPages: () => [], console,
     require(name) {
       if (name === "./service/merchantShare") return f.service;
-      if (name === "./store/sourceStore") return { getSource: () => existingSource, captureSource: () => existingSource };
+      if (name === "./service/customerService") return require("../miniprogram/service/customerService");
+      if (name === "./store/sourceStore") return sourceStore;
+      if (name === "./store/cityStore") return { setCity() {} };
       if (name === "./utils/query") return require("../miniprogram/utils/query");
       if (name === "./config/env") return { API_BASE: "https://synthetic.test/api" };
-      if (name === "./api/client") return { callCloud: async () => { legacyResolveCalls++; }, login: async () => "synthetic-user" };
-      if (name === "./store/userStore") return {};
+      if (name === "./api/client") return { callCloud: async (name, data) => {
+        if (name === "resolveMerchantCode") { legacyResolveCalls++; return resolveLegacy(data); }
+        return { success: true, data: {} };
+      }, login: async () => "synthetic-user" };
+      if (name === "./store/userStore") return { isLoggedOut: () => true };
       if (name === "./utils/share") return {};
-      if (name === "./utils/analytics") return {};
+      if (name === "./utils/analytics") return { track() {} };
       throw new Error(name);
     },
   };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, "../miniprogram/app.js"), "utf8"), sandbox);
   app.globalData.source = existingSource;
-  return { app, legacyResolveCalls: () => legacyResolveCalls };
+  return { app, sourceStore, legacyResolveCalls: () => legacyResolveCalls };
 }
 function failure(code, statusCode) { return Object.assign(new Error("synthetic request failure"), { code, statusCode }); }
 function deferred() { let resolve, reject; const promise = new Promise((yes, no) => { resolve = yes; reject = no; }); return { promise, resolve, reject }; }
@@ -134,15 +162,61 @@ async function check(name, work) { await work(); console.log("PASS " + name); }
     assert.deepEqual(f.calls.map(row => row.name + ":" + (row.data.scene || row.data.linkId)), ["reportShareScan:SWAITAAA", "reportShareScan:SWAITBBB", "reportShareClick:late-click"]);
     assert.equal(f.pending().length, 0); assert.equal(f.calls[2].data.scene, undefined);
   });
-  await check("a failed A is retained once while newly queued B still reports in the same flush", async () => {
+  await check("a failed scan A holds scan B until retry success while clicks continue draining", async () => {
     const f = fixture(), started = deferred(), gate = deferred();
     f.state.respond = async (_name, data) => { if (data.scene === "SFAILAAA") { started.resolve(); await gate.promise; throw failure(undefined, 503); } return { success: true }; };
     f.service.capture({ scene: "SFAILAAA" }); const running = f.service.flush(); await started.promise;
-    f.service.capture({ scene: "SVALIDBBB" }); const joined = f.service.flush(); gate.resolve(); await Promise.all([running, joined]);
-    assert.deepEqual(f.calls.map(row => row.data.scene), ["SFAILAAA", "SVALIDBBB"]);
-    assert.equal(f.pending().length, 1); assert.equal(f.pending()[0].data.scene, "SFAILAAA");
+    f.service.capture({ scene: "SVALIDBBB" });
+    f.service.capture({ staffWecomId: "staff", linkId: "later-click" });
+    const joined = f.service.flush(); gate.resolve(); await Promise.all([running, joined]);
+    assert.deepEqual(f.calls.map(row => row.data.scene || row.data.linkId), ["SFAILAAA", "later-click"]);
+    assert.equal(f.pending().length, 2); assert.equal(f.pending()[0].data.scene, "SFAILAAA");
+    f.state.respond = async () => ({ success: true });
+    await f.service.flush();
+    assert.deepEqual(f.calls.map(row => row.data.scene || row.data.linkId), ["SFAILAAA", "later-click", "SFAILAAA", "SVALIDBBB"]);
+    assert.equal(f.pending().length, 0);
+    assert.equal(f.calls[0].data.requestKey, f.calls[2].data.requestKey);
   });
-  await check("merchant landing returns immediately while reporting never resolves, preserving the queued event and existing source", async () => {
+  await check("service and physical payment RPCs wait for all pending merchant scans before creating payment", async () => {
+    for (const kind of ["order", "physical"]) {
+      const f = fixture(), apis = paymentApis(f), started = deferred(), gate = deferred();
+      f.state.respond = async (_name, data) => { if (data.scene === "SWAITAAA") { started.resolve(); await gate.promise; } return { success: true }; };
+      f.service.capture({ scene: "SWAITAAA" });
+      const paying = kind === "order" ? apis.order.createPayment({ orderId: "service-order", phase: "final" }) : apis.physical.createPhysicalPayment({ orderId: "physical-order" });
+      await started.promise;
+      f.service.capture({ scene: "SWAITBBB" });
+      assert.deepEqual(f.calls.map(row => row.name), ["reportShareScan"]);
+      assert.equal(f.calls[0].options.timeout, 15000);
+      gate.resolve(); await paying;
+      assert.deepEqual(f.calls.map(row => row.data.scene || row.name), ["SWAITAAA", "SWAITBBB", kind === "order" ? "createPayment" : "createPhysicalPayment"]);
+    }
+  });
+  await check("failed scan synchronization prevents either payment API until the original scan sequence succeeds", async () => {
+    const f = fixture(), apis = paymentApis(f);
+    f.service.capture({ scene: "SRETRYAAA" }); f.service.capture({ scene: "SRETRYBBB" });
+    f.state.respond = async () => { throw failure(undefined, 503); };
+    await assert.rejects(apis.order.createPayment({ orderId: "service-order" }), { code: "SHARE_SCAN_SYNC_PENDING" });
+    await assert.rejects(apis.physical.createPhysicalPayment({ orderId: "physical-order" }), { code: "SHARE_SCAN_SYNC_PENDING" });
+    assert.equal(f.calls.some(row => /create.*Payment/.test(row.name)), false);
+    assert.equal(f.pending().length, 2);
+    f.state.respond = async () => ({ success: true });
+    await apis.physical.createPhysicalPayment({ orderId: "physical-order" });
+    assert.deepEqual(f.calls.slice(-3).map(row => row.data.scene || row.name), ["SRETRYAAA", "SRETRYBBB", "createPhysicalPayment"]);
+  });
+  await check("scan synchronization has a bounded wait and a click-only queue does not delay payment", async () => {
+    const f = fixture(), gate = deferred();
+    f.state.respond = async () => gate.promise;
+    f.service.capture({ scene: "STIMEOUTAAA" });
+    await assert.rejects(f.service.ensureScanSynced({ timeoutMs: 5 }), { code: "SHARE_SCAN_SYNC_PENDING" });
+    assert.equal(f.pending().length, 1);
+    gate.resolve({ success: true }); await f.service.flush();
+    f.service.capture({ staffWecomId: "staff", linkId: "pending-click" });
+    const before = f.calls.length;
+    await f.service.ensureScanSynced();
+    assert.equal(f.calls.length, before, "click-only events do not start a blocking drain");
+    assert.equal(f.pending().length, 1);
+  });
+  await check("merchant landing preserves its raw order source immediately while scan reporting is unresolved", async () => {
     const f = fixture(), started = deferred(), gate = deferred();
     const previous = { shopId: "existing-binding-shop", codeId: "existing-code" };
     f.storage.set("lxm_source", previous);
@@ -153,14 +227,81 @@ async function check(name, work) { await work(); console.log("PASS " + name); }
       loaded.app.resolveMerchantSource({ scene: "SNONBLOCKING123" }),
       new Promise((_resolve, reject) => { timer = setTimeout(() => reject(new Error("landing waited for its reporting request")), 500); }),
     ]).finally(() => clearTimeout(timer));
-    assert.equal(returned, previous);
+    assert.equal(returned.scene, "SNONBLOCKING123");
+    assert.equal(returned.shopId, ""); assert.equal(returned.codeId, "");
     await started.promise;
     assert.equal(f.pending().length, 1, "an unresolved request is still durably queued");
-    assert.equal(f.storage.get("lxm_source"), previous);
-    assert.equal(loaded.app.globalData.source, previous);
+    assert.equal(f.storage.get("lxm_source"), returned);
+    assert.equal(loaded.app.globalData.source, returned);
+    assert.equal(loaded.app.captureSource({}).scene, returned.scene, "empty internal page options retain the new scene");
     assert.equal(loaded.legacyResolveCalls(), 0);
     gate.resolve(); await f.service.flush();
     assert.equal(f.pending().length, 0, "the background report can complete after returning to the homepage");
     assert.equal(f.calls.length, 1); assert.equal(f.calls[0].name, "reportShareScan");
+  });
+  await check("a natural cold launch and foreground return retain the latest merchant until another scan", async () => {
+    const previous = { shopId: "old-shop", codeId: "old-code", scene: "c=old-code" };
+    const f = fixture(), loaded = appWithShare(f, previous);
+    loaded.app.onLaunch({ query: {} });
+    for (const [key, value] of Object.entries(previous)) assert.equal(loaded.app.getSource()[key], value);
+    assert.equal(f.storage.get("lxm_source"), loaded.app.getSource());
+    loaded.app.onShow({ query: {} });
+    loaded.app.onShow({ query: { staffWecomId: "staff", linkId: "link" } });
+    for (const [key, value] of Object.entries(previous)) assert.equal(loaded.app.getSource()[key], value, "ordinary launches and customer-service clicks cannot replace the merchant");
+    await f.service.flush();
+    assert.equal(f.calls.filter(row => row.name === "reportShareScan").length, 0, "restoring attribution never records another scan");
+    loaded.app.onShow({ query: { scene: "SNEWENTRY123" } });
+    assert.equal(loaded.app.getSource().scene, "SNEWENTRY123");
+    loaded.app.onShow({ query: {} });
+    assert.equal(loaded.app.getSource().scene, "SNEWENTRY123", "payment or authorization foreground return retains source");
+    assert.equal(loaded.app.captureSource({}).scene, "SNEWENTRY123");
+    await f.service.flush();
+  });
+  await check("a first direct launch starts without a merchant and a new cold scan replaces the persisted merchant", async () => {
+    const f = fixture(), loaded = appWithShare(f);
+    loaded.app.onLaunch({ query: {} });
+    for (const field of ["shopId", "scene", "codeId"]) assert.equal(loaded.app.getSource()[field] || "", "");
+    loaded.sourceStore.setSource({ scene: "SOLDMERCHANT123", sourceType: "merchant_qrcode" });
+    loaded.app.onLaunch({ query: { scene: "SNEWMERCHANT456" } });
+    assert.equal(loaded.app.getSource().scene, "SNEWMERCHANT456");
+    assert.equal(f.storage.get("lxm_source").scene, "SNEWMERCHANT456");
+    await f.service.flush();
+    assert.deepEqual(f.calls.filter(row => row.name === "reportShareScan").map(row => row.data.scene), ["SNEWMERCHANT456"]);
+  });
+  await check("cold and hot raw merchant scenes replace old code and distributor fields, including encoded scene input", async () => {
+    const f = fixture(), loaded = appWithShare(f, { shopId: "old-shop", codeId: "old-code", distributorId: "old-distributor" });
+    loaded.app.onLaunch({ query: { scene: "SSTOREAAA123" } });
+    assert.equal(loaded.app.getSource().scene, "SSTOREAAA123");
+    loaded.app.onShow({ query: { scene: "%53STOREBBB123" } });
+    const current = loaded.app.captureSource({});
+    assert.equal(current.scene, "SSTOREBBB123");
+    assert.equal(current.shopId, ""); assert.equal(current.codeId, ""); assert.equal(current.distributorId, "");
+    loaded.app.captureSource({ scene: "SNOTMERCHANT", staffWecomId: "staff", linkId: "link" });
+    assert.equal(loaded.app.getSource().scene, "SSTOREBBB123", "customer-service clicks cannot introduce appended merchant scenes");
+    await f.service.flush();
+  });
+  await check("legacy hot-entry candidates replace old attribution before lookup and a late response cannot override a newer merchant", async () => {
+    const f = fixture(), gate = deferred();
+    const loaded = appWithShare(f, { shopId: "prior-shop", codeId: "prior-code" }, async () => gate.promise);
+    loaded.app.onShow({ query: { c: "legacy-A" } });
+    assert.equal(loaded.app.getSource().scene, "c=legacy-A");
+    assert.equal(loaded.app.getSource().shopId, "");
+    const resolving = loaded.app.resolveMerchantSource({ c: "legacy-A" });
+    loaded.app.onShow({ query: { scene: "SSTOREBBB123" } });
+    gate.resolve({ success: true, shopId: "shop-A", scene: "c=legacy-A" });
+    assert.equal((await resolving).scene, "SSTOREBBB123");
+    assert.equal(loaded.app.getSource().shopId, "");
+    assert.equal(loaded.app.getSource().codeId, "");
+    await f.service.flush();
+  });
+  await check("internal navigation carrying the resolved legacy code retains its city and placement", async () => {
+    const f = fixture(), loaded = appWithShare(f, {}, async () => ({
+      success: true, shopId: "legacy-shop", scene: "c=current-code",
+      cityId: "city-current", city: "Current city", placementType: "counter", placementLabel: "Front counter",
+    }));
+    await loaded.app.resolveMerchantSource({ c: "current-code" });
+    const current = loaded.app.captureSource({ scene: "c=current-code", shopId: "legacy-shop" });
+    assert.equal(current.shopId, "legacy-shop"); assert.equal(current.cityId, "city-current");
+    assert.equal(current.placementType, "counter"); assert.equal(current.placementLabel, "Front counter");
   });
 })().catch(error => { console.error(error); process.exitCode = 1; });

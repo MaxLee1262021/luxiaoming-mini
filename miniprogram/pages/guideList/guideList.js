@@ -1,14 +1,9 @@
 const app = getApp()
 const guideApi = require('../../api/guide')
-const { buildUrlWithSource } = require('../../utils/query')
+const { buildUrlWithSource, decodeQueryValue } = require('../../utils/query')
+const { matchesSpot, sortGuides } = require('../../utils/guideContent')
 
-// 旅拍灵感（攻略）分类：按标题 / 描述关键词派生，避免依赖后台字段
-const CAT_KEYWORDS = {
-  '机位': ['机位'],
-  '路线': ['路线'],
-  '夜景': ['夜景'],
-  '亲子': ['亲子']
-}
+const categoryOf = guide => typeof guide.category === 'string' ? guide.category.trim() : ''
 
 Page({
   data: {
@@ -17,10 +12,14 @@ Page({
     spotName: '',
     title: '旅拍灵感',
     guides: [],
-    featuredGuide: null,
+    featuredGuides: [],
+    visibleFeaturedGuides: [],
+    featuredIndex: 0,
     feedGuides: [],
-    chips: ['全部'],
-    activeChip: '全部',
+    chips: [{ key: 'all', label: '全部' }],
+    activeChip: 'all',
+    sortOptions: [{ key: 'default', label: '默认排序' }, { key: 'readCount', label: '浏览人数 ↓' }, { key: 'score', label: '评分 ↓' }],
+    activeSort: 'default',
     filteredGuides: [],
     leftGuides: [],
     rightGuides: []
@@ -29,7 +28,7 @@ Page({
   onLoad(options = {}) {
     const source = app.captureSource ? app.captureSource(options) : {}
     const spotId = options.spotId || ''
-    const spotName = options.spotName || ''
+    const spotName = decodeQueryValue(options.spotName)
     this.setData({
       spotId,
       spotName,
@@ -46,69 +45,58 @@ Page({
 
   async loadGuides() {
     try {
-      const guides = await guideApi.getGuides({ spotId: this.data.spotId })
-      this.tagGuides(guides)
-      // 本期推荐（国风杂志流 hero）：优先取后台标记 isFeatured/pinned=true 的攻略置顶；
-      // 无标记时回退为列表首条。该攻略仅作 hero 展示，不重复出现在双列瀑布流。
-      let featuredGuide = null
-      let feed = guides
-      const pinnedIdx = guides.findIndex(g => g.isTop === true || g.pinned === true)
-      const featuredIdx = pinnedIdx !== -1 ? pinnedIdx : guides.findIndex(g => g.isFeatured === true)
-      if (featuredIdx !== -1) {
-        featuredGuide = guides[featuredIdx]
-        feed = guides.filter((_, i) => i !== featuredIdx)
-      } else {
-        featuredGuide = guides[0] || null
-        feed = guides.slice(1)
-      }
-      this.setData({ guides, featuredGuide, feedGuides: feed, loading: false })
-      this.applyChips(feed)
+      const allGuides = await guideApi.getGuides()
+      // 顶部只展示后台置顶文章，不受入口打卡点限制，也不自动提升普通文章。
+      const featuredGuides = allGuides.filter(guide => guide.isTop === true || (guide.isTop === undefined && guide.pinned === true))
+      const featuredIds = new Set(featuredGuides.map(guide => guide._id))
+      // 点位入口的下方列表保留全部关联文章，包括已在顶部展示的关联置顶文章。
+      const feedGuides = this.data.spotId
+        ? allGuides.filter(guide => matchesSpot(guide, this.data.spotId))
+        : allGuides.filter(guide => !featuredIds.has(guide._id))
+      const guides = allGuides.filter(guide => featuredIds.has(guide._id) || matchesSpot(guide, this.data.spotId))
+      this.setData({ guides, featuredGuides, feedGuides, loading: false })
+      this.applyChips(guides)
     } catch (err) {
       console.error('load guides error', err)
       this.setData({ loading: false })
     }
   },
 
-  tagGuides(list = []) {
-    list.forEach(g => {
-      const text = (g.title || '') + (g.description || '')
-      const cats = []
-      Object.keys(CAT_KEYWORDS).forEach(cat => {
-        if (CAT_KEYWORDS[cat].some(k => text.indexOf(k) !== -1) && cats.indexOf(cat) === -1) {
-          cats.push(cat)
-        }
-      })
-      g._cats = cats
-    })
-  },
-
   applyChips(list = []) {
-    const present = Object.keys(CAT_KEYWORDS).filter(cat => list.some(g => g._cats && g._cats.indexOf(cat) !== -1))
-    const chips = ['全部', ...present]
-    const activeChip = this.data.activeChip
-    const filtered = activeChip === '全部' ? list : list.filter(g => g._cats && g._cats.indexOf(activeChip) !== -1)
+    const categories = [...new Set(list.map(categoryOf).filter(Boolean))]
+    const chips = [{ key: 'all', label: '全部' }, ...categories.map(category => ({ key: 'category:' + category, label: category, category }))]
+    if (list.some(guide => !categoryOf(guide))) chips.push({ key: 'uncategorized', label: '未分类' })
+    const activeChip = chips.some(chip => chip.key === this.data.activeChip) ? this.data.activeChip : 'all'
+    const chip = chips.find(item => item.key === activeChip)
+    const matches = guide => activeChip === 'all' || (activeChip === 'uncategorized' ? !categoryOf(guide) : categoryOf(guide) === chip.category)
+    const visibleFeaturedGuides = this.data.featuredGuides.filter(matches)
+    const filtered = sortGuides(this.data.feedGuides.filter(matches), this.data.activeSort)
     const left = []
     const right = []
     filtered.forEach((g, i) => {
       if (i % 2 === 0) left.push(g)
       else right.push(g)
     })
-    this.setData({ chips, activeChip, filteredGuides: filtered, leftGuides: left, rightGuides: right })
+    this.setData({ chips, activeChip, visibleFeaturedGuides, featuredIndex: 0, filteredGuides: filtered, leftGuides: left, rightGuides: right })
   },
 
   onChipTap(e) {
     const cat = e.currentTarget.dataset.cat
-    if (cat === this.data.activeChip) return
-    const list = this.data.feedGuides
-    const filtered = cat === '全部' ? list : list.filter(g => g._cats && g._cats.indexOf(cat) !== -1)
-    const left = []
-    const right = []
-    filtered.forEach((g, i) => {
-      if (i % 2 === 0) left.push(g)
-      else right.push(g)
-    })
-    this.setData({ activeChip: cat, filteredGuides: filtered, leftGuides: left, rightGuides: right })
+    if (cat === this.data.activeChip || !this.data.chips.some(chip => chip.key === cat)) return
+    this.setData({ activeChip: cat })
+    this.applyChips(this.data.guides)
     wx.pageScrollTo({ scrollTop: 0, duration: 200 })
+  },
+
+  onFeaturedChange(e) {
+    this.setData({ featuredIndex: e.detail.current })
+  },
+
+  onSortTap(e) {
+    const sort = e.currentTarget.dataset.sort
+    if (sort === this.data.activeSort || !this.data.sortOptions.some(option => option.key === sort)) return
+    this.setData({ activeSort: sort })
+    this.applyChips(this.data.guides)
   },
 
   goGuideDetail(e) {

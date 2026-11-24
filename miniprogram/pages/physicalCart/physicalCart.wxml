@@ -1,0 +1,36 @@
+<view class="physical-page">
+  <view class="physical-between" style="margin-bottom:24rpx"><text class="physical-title">把与城市的故事，变成可触摸的纪念。</text><text class="physical-link" bindtap="clearInvalid">清理失效</text></view>
+  <text class="physical-sub" style="margin-bottom:24rpx">选择需要的商品，一次结算。价格与库存以提交订单时为准。</text>
+  <view class="physical-error" wx:if="{{error}}">{{error}}<button class="physical-secondary" bindtap="load">重新加载</button></view>
+  <view wx:if="{{loading && !items.length}}" class="physical-empty physical-sub">正在读取购物车…</view>
+  <view wx:if="{{!loading && !error && !items.length}}" class="physical-card physical-empty"><text class="physical-title">购物车还是空的</text><text class="physical-sub">逛逛影像周边，收藏旅行的温度。</text><button class="physical-primary" style="margin-top:30rpx" bindtap="browse">去逛周边</button></view>
+  <view wx:for="{{items}}" wx:key="id" class="physical-card">
+    <view class="physical-row"><view class="cart-select" bindtap="toggle" data-index="{{index}}" role="checkbox" aria-label="选择{{item.name}}" aria-checked="{{item.selected !== false}}"><view class="cart-select-circle {{item.selected !== false ? 'selected' : ''}}"><text wx:if="{{item.selected !== false}}" class="cart-select-mark">✓</text></view></view><image class="physical-cover" src="{{item.cover}}" mode="aspectFill"/><view class="physical-grow"><text class="physical-title">{{item.name}}</text><text class="physical-link" bindtap="openSpec" data-index="{{index}}">{{item.spec || '默认规格'}} ›</text><text class="physical-price">¥{{item.priceText}}</text></view></view>
+    <text wx:if="{{!item.valid}}" class="physical-error" style="display:block;margin-top:20rpx">{{item.invalidReason || item.reason || '商品暂不可购买，请调整选择'}}</text>
+    <view class="physical-between" style="margin-top:20rpx"><text class="physical-link" bindtap="remove" data-index="{{index}}">删除</text><view class="physical-stepper"><button bindtap="quantity" data-index="{{index}}" data-delta="-1" disabled="{{busy}}">−</button><input type="number" value="{{item.quantity}}" data-index="{{index}}" bindchange="quantity" disabled="{{busy}}"/><button bindtap="quantity" data-index="{{index}}" data-delta="1" disabled="{{busy}}">＋</button></view></view>
+  </view>
+  <view class="physical-footer"><view class="cart-select cart-select-all" bindtap="toggleAll" role="checkbox" aria-label="全选商品" aria-checked="{{allSelected}}"><view class="cart-select-circle {{allSelected ? 'selected' : ''}}"><text wx:if="{{allSelected}}" class="cart-select-mark">✓</text></view><text>全选</text></view><view class="cart-summary"><text class="physical-price">¥{{totalText}}</text><text class="physical-sub">运费以结算页为准</text></view><button class="physical-primary cart-checkout" disabled="{{!selectedQuantity || busy || loading || !!error}}" bindtap="checkout">去结算（{{selectedQuantity}}）</button></view>
+  <view wx:if="{{specItem}}" class="physical-mask" bindtap="closeSpec">
+    <view class="physical-sheet cart-spec-sheet" catchtap="noop">
+      <view class="physical-between">
+        <text class="physical-title">修改样式与规格</text>
+        <text class="physical-close" bindtap="closeSpec" role="button" aria-label="关闭样式与规格选择">×</text>
+      </view>
+      <text class="physical-sub">{{specItem.name}}</text>
+      <view class="cart-spec-summary">
+        <text wx:if="{{specSelection.sku}}" class="physical-price">¥{{specSelection.sku.priceText}}</text>
+        <text class="physical-sub">{{specSelection.sku ? '已选：' + specSelection.sku.specLabel : specSelection.hint}}</text>
+      </view>
+      <text class="cart-spec-heading">样式</text>
+      <view class="physical-tags">
+        <view wx:for="{{specSelection.styles}}" wx:key="value" class="physical-tag {{specSelection.style === item.value ? 'active' : ''}} {{!item.available ? 'unavailable' : ''}}" data-value="{{item.value}}" bindtap="chooseStyle" role="button" aria-label="{{item.label}}{{item.available ? '' : '，暂不可售'}}" aria-disabled="{{!item.available || busy}}" aria-pressed="{{specSelection.style === item.value}}">{{item.label}}</view>
+      </view>
+      <text class="cart-spec-heading">规格</text>
+      <text wx:if="{{specSelection.style === null}}" class="physical-sub">请先选择样式</text>
+      <view class="physical-tags">
+        <view wx:for="{{specSelection.specs}}" wx:key="value" class="physical-tag {{specSelection.spec === item.value ? 'active' : ''}} {{!item.available ? 'unavailable' : ''}}" data-value="{{item.value}}" bindtap="chooseSpec" role="button" aria-label="{{item.label}}{{item.available ? '' : '，当前样式不可选'}}" aria-disabled="{{!item.available || busy}}" aria-pressed="{{specSelection.spec === item.value}}">{{item.label}}</view>
+      </view>
+      <button class="physical-primary" bindtap="confirmSpec" disabled="{{busy || !specSelection.sku}}" loading="{{busy}}">确认修改</button>
+    </view>
+  </view>
+</view>

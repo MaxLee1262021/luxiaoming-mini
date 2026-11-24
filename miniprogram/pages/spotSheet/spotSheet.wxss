@@ -318,11 +318,12 @@
 }
 
 .album-scroll {
-  height: 286rpx;
+  height: auto;
 }
 
 .album-scroll lxm-album-card {
   display: inline-block;
+  vertical-align: top;
 }
 
 .video-scroll {
@@ -334,13 +335,22 @@
 }
 
 .package-scroll {
-  height: 520rpx;
+  height: auto;
   padding-top: 4rpx;
   box-sizing: border-box;
 }
 
-.package-scroll lxm-package-card {
-  display: inline-block;
+/* 横滑区随最高套餐卡片撑高，长标题、标签、说明及价格均完整展示。 */
+.package-track {
+  display: inline-flex;
+  align-items: flex-start;
+  vertical-align: top;
+  padding-bottom: 24rpx;
+  white-space: normal;
+}
+
+.package-track lxm-package-card {
+  display: block;
   width: 320rpx;
   flex: 0 0 auto;
   margin-right: 20rpx;

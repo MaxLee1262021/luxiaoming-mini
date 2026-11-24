@@ -50,6 +50,35 @@ const card = { data: {}, setData(patch) { Object.assign(this.data, patch) } }
 cardDefinition.observers.item.call(card, photo)
 assert.equal(card.data.album.photoCount, 6)
 assert.equal(card.data.album.cover, normalized.cover)
+assert.deepEqual(card.data.coverTags, ['自然光', '清新'], 'Cover tags use the admin tags field without merging an older style alias')
+assert.equal(card.data.coverTagText, '自然光 +1')
+cardDefinition.observers.item.call(card, { ...photo, tags: [' 测试爆款 ', '旅途限定', '测试爆款'], serviceTags: ['旧服务标签'], isMainPush: true })
+assert.deepEqual(card.data.coverTags, ['测试爆款', '旅途限定'], 'Arbitrary cover labels retain admin order and remove duplicates')
+assert.equal(card.data.album.price, 699, 'Cover labels must not replace the actual product price')
+for (const count of [4, 6]) {
+  const tags = Array.from({ length: count }, (_, index) => `八字标签测试${index}号`)
+  cardDefinition.observers.item.call(card, { ...photo, tags })
+  assert.deepEqual(card.data.coverTags, tags, 'All configured labels remain available in the growing text area')
+  assert.equal(card.data.coverTagText, `${tags[0]} +${count - 1}`, 'The cover summarizes the remaining labels instead of clipping a tall list')
+}
+for (const tags of [[], '', '   ']) {
+  cardDefinition.observers.item.call(card, { ...photo, tags, tag: '旧标签', serviceTags: ['旧服务标签'], isHotSale: true })
+  assert.deepEqual(card.data.coverTags, [], 'Cleared tags must not be restored by style, service, or recommendation fields')
+}
+cardDefinition.observers.item.call(card, { tag: '旧标签', serviceTags: ['旧服务标签'], styleTags: ['旧标签'] })
+assert.deepEqual(card.data.coverTags, ['旧标签', '旧服务标签'])
+cardDefinition.observers.item.call(card, { isMainPush: true, isHotSale: true, isHot: true })
+assert.deepEqual(card.data.coverTags, [], 'Recommendation switches do not supply photo cover labels')
+cardDefinition.observers.item.call(card, null)
+assert.deepEqual(card.data.coverTags, [], 'Reused cards clear labels when the record is removed')
+const cardMarkup = fs.readFileSync(path.resolve(__dirname, '../miniprogram/components/lxm-album-card/lxm-album-card.wxml'), 'utf8')
+assert.match(cardMarkup, /class="album-cover-tags[^>]*coverTags\.length/)
+assert.match(cardMarkup, /class="album-marketing-badge">{{coverTagText}}/)
+assert.match(cardMarkup, /class="album-media"/)
+assert.match(cardMarkup, /class="album-configured-tags" wx:if="{{coverTags.length > 1}}"/)
+assert.match(cardMarkup, /class="album-configured-tag"[^>]*wx:for="{{coverTags}}"/)
+assert.doesNotMatch(cardMarkup, /marketingBadge|起<\/view>/)
+assert.match(cardMarkup, /class="album-price"[^>]*>[\s\S]*?¥{{album\.price}}/)
 
 let pageDefinition
 global.wx = {

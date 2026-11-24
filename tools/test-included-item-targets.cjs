@@ -1,4 +1,8 @@
-const fixturePackage = { _id: 'fixture-package', name: '合成测试套餐', includedItems: [{ type: 'album', name: '合成照片', price: 10, target: { page: 'photoCollection', albumId: 'fixture-album' } }] }
+const fixturePackage = { _id: 'fixture-package', name: '合成测试套餐', includedItems: [
+  { type: 'album', name: '合成照片', price: 10, target: { page: 'photoCollection', albumId: 'fixture-album' } },
+  { type: 'peripheral', name: '精装相册', price: '99.9', quantity: 2, target: { page: 'peripheral', id: 'gift&1' } },
+  { type: 'peripheral', name: '纪念相框', target: { page: 'peripheral', peripheralId: 'frame&1' } }
+] }
 const detail = require('../miniprogram/service/packageDetail')
 const assert = require('node:assert/strict')
 const fs = require('node:fs')
@@ -6,9 +10,11 @@ const path = require('node:path')
 const vm = require('node:vm')
 const { createRequire } = require('node:module')
 const pkg = fixturePackage
-const built = detail.buildPhotoPackageDetail({ currentPackage: pkg }, { packageId: pkg._id })
+const built = detail.buildPhotoPackageDetail({ currentPackage: pkg, peripherals: [{ _id: 'frame&1', price: 29.9 }] }, { packageId: pkg._id })
 const items = built.includedItems || []
 if (!items.length || !items.every(item => item.target)) throw new Error('Included item target missing')
+assert.deepEqual(items.map(item => item.priceText), ['¥10', '¥99.9', '¥29.9'], 'Package peripherals expose their declared or catalog unit price')
+assert.equal(items[1].quantity, 2, 'The unit price remains independent from the included quantity')
 console.log(`included item targets PASS (${items.length} items)`)
 
 const pagePath = path.resolve(__dirname, '../miniprogram/pages/photoPackageDetail/photoPackageDetail.js')
@@ -37,6 +43,6 @@ page.data.includedItems = [{ type: 'album', target: { page: 'photoCollection', a
 page.goIncludedItem({ currentTarget: { dataset: { index: 0 } } })
 assert.equal(navigations.at(-1), '/pages/photoCollection/photoCollection?albumId=album-a&spotId=spot-a&shopId=source-shop&scene=source-scene')
 const markup = fs.readFileSync(pagePath.replace(/\.js$/, '.wxml'), 'utf8')
-assert.match(markup, /wx:if="\{\{item\.type !== 'peripheral'\}\}" class="item-card__price"/)
+assert.match(markup, /<text class="item-card__price">\{\{item\.priceText\}\}<\/text>/, 'Every included item displays its unit price, including peripherals')
 assert.match(markup, /selectedPackage\.price/, 'Photography package prices must remain visible')
-console.log('included peripheral links open display pages, preserve source, and hide only peripheral prices PASS')
+console.log('included peripheral links preserve source and display their prices PASS')

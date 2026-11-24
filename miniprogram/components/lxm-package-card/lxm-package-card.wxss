@@ -91,29 +91,6 @@
   background: var(--lxm-c-red);
 }
 
-/* B3 · 封面起价角标 */
-.card-cover-badge {
-  position: absolute;
-  right: 12rpx;
-  bottom: 12rpx;
-  z-index: 3;
-  padding: 6rpx 16rpx;
-  border-radius: 999rpx;
-  background: var(--lxm-c-red);
-  color: var(--lxm-c-cream);
-  font-size: var(--lxm-fz-sm);
-  font-weight: 900;
-  line-height: 1;
-  pointer-events: none;
-}
-
-.package-card.is-horizontal .card-cover-badge {
-  right: 8rpx;
-  bottom: 8rpx;
-  font-size: var(--lxm-fz-2xs);
-  padding: 5rpx 12rpx;
-}
-
 .card-play {
   position: absolute;
   left: 50%;
@@ -181,20 +158,6 @@
   font-weight: 900;
 }
 
-/* 营销角标配色：爆款（红）> 主推（金）> 热门（橙），由商品字段驱动 */
-.card-badge.is-hot-sale {
-  background: var(--lxm-c-red);
-  color: var(--lxm-c-cream);
-}
-.card-badge.is-main-push {
-  background: var(--lxm-c-gold);
-  color: var(--lxm-c-ink);
-}
-.card-badge.is-hot {
-  background: var(--lxm-c-orange);
-  color: var(--lxm-c-ink);
-}
-
 .card-selected-tag {
   align-self: flex-start;
   margin-top: 10rpx;
@@ -207,24 +170,40 @@
 }
 
 .card-tags {
+  position: absolute;
+  right: 12rpx;
+  bottom: 12rpx;
+  z-index: 3;
+  max-width: calc(100% - 24rpx);
   display: flex;
   flex-wrap: wrap;
+  justify-content: flex-end;
   gap: 7rpx;
-  margin-top: 10rpx;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .tag {
   font-size: var(--lxm-fz-2xs);
-  color: var(--lxm-c-red-ink);
-  background: var(--lxm-c-gray-250);
-  padding: 5rpx 12rpx;
+  color: var(--lxm-c-cream);
+  background: var(--lxm-c-red);
+  padding: 6rpx 16rpx;
   border-radius: 999rpx;
   font-weight: 900;
   max-width: 100%;
   box-sizing: border-box;
   white-space: normal;
   line-height: 1.5;
+}
+
+.package-card.is-horizontal .card-tags {
+  right: 8rpx;
+  bottom: 8rpx;
+  max-width: calc(100% - 16rpx);
+}
+
+.package-card.is-horizontal .tag {
+  padding: 5rpx 12rpx;
 }
 
 /* 套餐组合内容标签：照片 / 视频 / 周边（替换原规格行） */
@@ -304,6 +283,59 @@
   color: var(--lxm-c-gray-700);
   font-size: var(--lxm-fz-xs);
   line-height: 1.5;
+}
+
+/* 首页宽 300rpx，正文净宽 260rpx：28rpx 字号每行约 9 字。
+   三行标题占 28 × 1.35 × 3 = 113.4rpx；整卡定高并保留原价行。 */
+.package-card.is-home {
+  box-sizing: border-box;
+  height: 560rpx;
+  min-height: 560rpx;
+}
+
+.package-card.is-home .card-body {
+  padding: 16rpx 18rpx 18rpx;
+}
+
+.package-card.is-home .card-title-row {
+  display: block;
+  height: 113.4rpx;
+  flex: 0 0 113.4rpx;
+  overflow: hidden;
+}
+
+.package-card.is-home .card-title {
+  display: -webkit-box;
+  height: 113.4rpx;
+  line-height: 37.8rpx;
+  overflow: hidden;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  word-break: break-all;
+}
+
+.package-card.is-home .card-compose,
+.package-card.is-home .card-item-count,
+.package-card.is-home .card-price-row,
+.package-card.is-home .price-original {
+  flex-shrink: 0;
+}
+
+.package-card.is-home .compose-tag,
+.package-card.is-home .price-main {
+  line-height: 1.2;
+}
+
+.package-card.is-home .card-item-count {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.package-card.is-home .price-original {
+  height: 30rpx;
+  line-height: 30rpx;
+  white-space: nowrap;
 }
 
 @media (max-width: 360px) {

@@ -45,6 +45,7 @@ const wx = {
 function loadPage(name) {
   let definition;
   const dependencies = {
+    '../../api/physical': {}, '../../utils/physical': require('../miniprogram/utils/physical'),
     '../../api/order': api, '../../utils/order': orderUtils,
     '../../utils/orderStatusFilters': filters, '../../utils/query': queryUtils,
     '../../utils/productDisplay': require('../miniprogram/utils/productDisplay'),
@@ -72,7 +73,7 @@ function loadPage(name) {
   ]) {
     const normalized = orderUtils.normalizeOrder({ ...paidDeposit, ...patch });
     assert.equal(normalized.businessStatusKey, 'reserved', JSON.stringify(patch));
-    assert.equal(normalized.statusText, '待确认');
+    assert.equal(normalized.statusText, '已预约');
     assert.equal(normalized.workflowStage, 'awaiting_dispatch');
     assert.equal(normalized.canRefundDeposit, true);
     assert.equal(filters.orderListStatus(normalized), 'reserved');
@@ -88,8 +89,8 @@ function loadPage(name) {
   });
   assert.equal(earlyDelivery.workflowStage, 'shooting');
   assert.equal(earlyDelivery.shootingCompleted, false);
-  assert.equal(earlyDelivery.canPayFinal, false);
-  assert.equal(orderUtils.normalizeOrder({ ...earlyDelivery, workflowStage: 'awaiting_final_payment' }).canPayFinal, false);
+  assert.equal(earlyDelivery.canPayFinal, true, 'the shooting stage and server grant open final payment independently of delivery');
+  assert.equal(orderUtils.normalizeOrder({ ...earlyDelivery, workflowStage: 'awaiting_final_payment' }).canPayFinal, true);
 
   const booking = loadPage('bookingInfo');
   booking.data.depositDue = 30;
@@ -99,20 +100,20 @@ function loadPage(name) {
   const success = loadPage('bookingSuccess');
   await success.loadOrderDetail(target.searchParams.get('orderNo'), target.searchParams.get('orderId'));
   assert.equal(success.data.businessStatusKey, 'reserved');
-  assert.equal(success.data.statusText, '待确认');
+  assert.equal(success.data.statusText, '已预约');
   success.goOrderDetail();
   target = new URL(navigation.at(-1), 'https://mini.example.invalid');
   const detail = loadPage('orderDetail');
   await detail.onLoad(Object.fromEntries(target.searchParams));
-  assert.equal(detail.data.order.statusText, '待确认');
+  assert.equal(detail.data.order.statusText, '已预约');
   assert.match(detail.data.statusDesc, /等待客服安排摄影师/);
   assert.equal(detail.data.order.canRefundDeposit, true);
 
   const orders = loadPage('myOrders');
   const my = loadPage('my');
   const scenarios = [
-    ['reserved', '待确认', paidDeposit],
-    ['awaiting_shoot', '待拍摄', { ...paidDeposit, businessStatus: 'awaiting_shoot', workflowStage: 'awaiting_shoot', dispatchStatus: 'assigned', canRefundDeposit: false }],
+    ['reserved', '已预约', paidDeposit],
+    ['awaiting_shoot', '已定档', { ...paidDeposit, businessStatus: 'awaiting_shoot', workflowStage: 'awaiting_shoot', dispatchStatus: 'assigned', canRefundDeposit: false }],
     ['shooting', '拍摄中', { ...paidDeposit, businessStatus: 'shooting', workflowStage: 'shooting', status: 'shooting', shootingStartedAt: '2026-10-26T09:00:00Z', canRefundDeposit: false, canPayFinal: true, paymentPhase: 'final' }],
     ['shooting', '拍摄中', { ...paidDeposit, businessStatus: 'shooting', workflowStage: 'awaiting_final_payment', shootingCompleted: true, shootingCompletedAt: '2026-10-26T10:00:00Z', selectionStatus: 'pending', canRefundDeposit: false, canPayFinal: true, paymentPhase: 'final' }],
     ['completed', '已完成', { ...paidDeposit, businessStatus: 'completed', workflowStage: 'paid', status: 'paid', shootingCompleted: true, finalPaid: 70, finalPaymentStatus: 'confirmed', canRefundDeposit: false }],
@@ -140,7 +141,7 @@ function loadPage(name) {
     assert.equal(requests.at(-1).businessStatus, key);
     const filter = filters.ORDER_STATUS_FILTERS.find(item => item.key === key);
     assert.equal(my.data.orderCounts[filter.countKey], 1);
-    if (key === 'shooting') assert.equal(detail.data.order.canPayFinal, payload.shootingCompleted === true && payload.paymentReviewRequired !== true);
+    if (key === 'shooting') assert.equal(detail.data.order.canPayFinal, payload.canPayFinal === true && payload.paymentReviewRequired !== true);
     if (key === 'completed') {
       assert.equal(detail.data.order.canPay, false);
       assert.equal(detail.data.order.deliveryVisible, false, 'delivery is independent of order completion');
@@ -172,6 +173,8 @@ function loadPage(name) {
     { paymentReviewRequired: true }, { afterSaleActive: true }, { businessStatus: 'completed' },
     { status: 'cancelled' }, { depositPaid: 0 }, { finalPaymentStatus: 'confirmed' }
   ]) assert.equal(orderUtils.normalizeOrder({ ...zeroBalance, ...patch }).canConfirmCompletion, false, JSON.stringify(patch));
+  const arrivedZeroBalance = { ...zeroBalance, workflowStage: 'shooting', shootingCompleted: false, customerArrivedAt: '2026-11-16T03:00:00Z' };
+  assert.equal(orderUtils.normalizeOrder(arrivedZeroBalance).canConfirmCompletion, true, 'zero balance completion needs no customer-service completion action');
   const detailMarkup = fs.readFileSync(path.join(miniRoot, 'pages/orderDetail/orderDetail.wxml'), 'utf8');
   assert.match(detailMarkup, /wx:for="\{\{orderStatusFilters\}\}"/);
   assert.doesNotMatch(detailMarkup, /step-label">(?:已支付|已交付|已拍摄)/);

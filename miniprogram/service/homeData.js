@@ -8,6 +8,11 @@ const { normalizePeripheral } = require('../utils/peripheralPresentation')
 const { getSpotCover } = require('./spotFilter')
 const { publicGuides } = require('../utils/guideContent')
 
+const contentOrder = require('../utils/contentOrder')
+const sortContent = (key, rows) => (rows || []).slice().sort((a, b) => contentOrder.compare(key, a, b))
+const compareConfiguredContent = (key, left, right) => contentOrder.rank(left.sort) || contentOrder.rank(right.sort)
+  ? contentOrder.compare(key, left, right) : 0
+
 const HOME_SPOT_PAGE_SIZE = 20
 
 function mergePreviewList(list = [], fallback = []) {
@@ -108,7 +113,7 @@ function buildBookingAlbums(albums = [], series = [], spots = []) {
   spots.forEach(item => {
     if (!spotsById.has(item._id)) spotsById.set(item._id, item)
   })
-  return filterVisibleProducts(albums || []).map(album => {
+  return filterVisibleProducts(albums || []).slice().sort((a, b) => compareConfiguredContent('albums', a, b)).map(album => {
     const albumId = album._id || album.id || album.albumId || ''
     const currentSeries = seriesById.get(String(album.seriesId || '')) || {}
     const inheritedSpotId = album.spotBindingExplicit === true ? '' : (Array.isArray(currentSeries.spotIds) && currentSeries.spotIds[0]) || ''
@@ -206,7 +211,7 @@ function normalizeHomeVideoItem(item = {}) {
 }
 
 function pickHomeVideoItems(list = [], limit = 4) {
-  return sortByHotScore(list).filter(isVideoSingle).slice(0, limit)
+  return sortContent('packages', list).filter(isVideoSingle).slice(0, limit)
 }
 
 // 旧接口保留完整候选目录在逻辑层，先按点位过滤，再限制横滑预览数量。
@@ -241,9 +246,9 @@ function buildHomeSpotShelf(data = {}, spotId = '', scoped = false, complete = s
   const allPackages = mergeManyLists(data.packages, data.allPackages, data.hotPackages)
     .filter(item => filterVisibleProducts([item]).length)
   const albums = buildBookingAlbums(filterVisibleProducts(data.albums || []).filter(matches), series, data.spots || [])
-  const packages = sortByHotScore(allPackages.filter(matches).map(normalizePackage)
+  const packages = sortContent('packages', allPackages.filter(matches).map(normalizePackage)
     .filter(item => item.displayType === 'photo' && !isVideoSingle(item)))
-  const videos = sortByHotScore(mergeManyLists(data.videoSingles, data.videoProducts, allPackages.filter(isVideoSingle))
+  const videos = sortContent('packages', mergeManyLists(data.videoSingles, data.videoProducts, allPackages.filter(isVideoSingle))
     .filter(isVideoSingle).filter(item => filterVisibleProducts([item]).length).filter(matches).map(normalizeHomeVideoItem))
   const peripherals = filterStorePeripherals(data.peripherals || []).filter(item => {
     if (!matchesCity(item)) return false
@@ -300,7 +305,7 @@ function buildHomeViewData(data = {}) {
       || item.isFeatured
   ))
   const hotPackages = (recommendedPhotoPackages.length ? recommendedPhotoPackages : photoPackages)
-    .sort((a, b) => (b.hotScore || 0) - (a.hotScore || 0))
+    .sort((a, b) => recommendationIds.size ? compareConfiguredContent('packages', a, b) : contentOrder.compare('packages', a, b))
     .slice(0, 6)
   const videoPackages = mergeManyLists(
     explicitVideoProducts,
@@ -343,7 +348,7 @@ function buildHomeViewData(data = {}) {
     bookingAlbums: buildBookingAlbums(mergedAlbums, photoSeries, mergedSpots).slice(0, 10),
     hotSpots: homeSpots,
     guides: mergedGuides,
-    packages: allPackages,
+    packages: sortContent('packages', allPackages),
     hotPackages,
     videoPackages: homeVideoProducts,
     peripherals: mergedPeripherals,

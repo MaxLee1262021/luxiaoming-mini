@@ -66,7 +66,7 @@ const orderApi = require('../miniprogram/api/order');
 const orderFiles = require('../miniprogram/service/orderFileActions');
 
 function page(extra = {}) {
-  return { ...orderFiles.actions, data: { ...orderFiles.data, order: { _id: 'order-own', canAfterSale: true }, ...extra },
+  return { ...orderFiles.actions, data: { ...orderFiles.data, order: { _id: 'order-own', status: 'completed', workflowStage: 'completed', canAfterSale: true }, ...extra },
     setData(patch) { Object.assign(this.data, patch); }, async loadOrder() { this.reloaded = true; } };
 }
 

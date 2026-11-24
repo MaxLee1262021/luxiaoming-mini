@@ -180,9 +180,11 @@
           <text class="home-product-title">{{moduleConfig.hotPackages.title || '旅拍套餐'}}</text>
           <text class="home-product-spot">{{activeSpotName}}</text>
         </view>
-        <view class="home-package-grid">
-          <lxm-package-card wx:for="{{filteredPackages}}" wx:key="_id" item="{{item}}" bind:tap="onPackageTap" />
-        </view>
+        <scroll-view class="home-product-scroll" scroll-x show-scrollbar="{{false}}">
+          <view class="home-product-track">
+            <lxm-package-card wx:for="{{filteredPackages}}" wx:key="_id" variant="home" item="{{item}}" bind:tap="onPackageTap" />
+          </view>
+        </scroll-view>
       </view>
 
       <lxm-custom-booking-card

@@ -25,6 +25,11 @@ function fixture(initial = awaitingFinal) {
   const control = { invokeCount: 0, statusReads: 0, detailReads: 0, create: undefined, status: undefined };
   const api = {
     async getOrderDetail() { control.detailReads++; return { success: true, data: plain(serverOrder) }; },
+    async confirmOrderArrival() {
+      serverOrder = { ...serverOrder, status: 'shooting', businessStatus: 'shooting', workflowStage: 'shooting',
+        customerArrivedAt: '2026-11-16T03:00:00Z', canConfirmArrival: false, canPayFinal: true, canPay: true, paymentPhase: 'final' };
+      return { success: true, data: plain(serverOrder) };
+    },
     async createPayment(query) {
       requests.push(plain(query));
       if (control.create) return control.create(query);
@@ -43,13 +48,17 @@ function fixture(initial = awaitingFinal) {
   const wx = {
     getStorageSync: key => storage.get(key) || '', setStorageSync: (key, value) => storage.set(key, value),
     removeStorageSync: key => storage.delete(key), showToast: toast => toasts.push(toast),
+    showModal(options) { options.success({ confirm: true }); },
     requestPayment(options) { control.invokeCount++; options.success({ errMsg: 'requestPayment:ok' }); }
   };
   const dependencies = {
     '../../api/order': api, '../../utils/order': orderUtils,
+    '../../utils/physical': require('../miniprogram/utils/physical'),
     '../../utils/query': {}, '../../utils/orderStatusFilters': {},
     '../../service/orderFileActions': { data: {}, actions: { async loadAfterSales() {} } },
-    '../../service/mediaFiles': { normalizeFile: value => value }, '../../utils/paymentFeedback': {},
+    '../../service/mediaFiles': { normalizeFile: value => value }, '../../utils/paymentFeedback': { paymentFailure: require('../miniprogram/utils/paymentFeedback').paymentFailure, logPaymentFailure() {} },
+    '../../service/merchantShare': { async ensureScanSynced() { if (control.scanSync) await control.scanSync(); } },
+    '../../service/orderProductNavigation': {},
     '../../service/customerService': {}, '../../utils/productDisplay': { orderItemDisplay: () => [] }
   };
   vm.runInNewContext(fs.readFileSync(path.join(miniRoot, 'pages/orderDetail/orderDetail.js'), 'utf8'), {
@@ -63,6 +72,33 @@ function fixture(initial = awaitingFinal) {
 const payFinal = page => page.handlePaymentTap({ currentTarget: { dataset: { phase: 'final' } } });
 const pendingFinal = { ...awaitingFinal, paymentStatus: 'pending', finalPaymentStatus: 'pending' };
 const paymentKey = `lxm_payment_intent_${awaitingFinal.id}_final`;
+
+test('arrival immediately opens final payment and only server-confirmed payment completes the order', async () => {
+  const f = fixture({ ...awaitingFinal, status: 'deposit_paid', businessStatus: 'awaiting_shoot', workflowStage: 'awaiting_shoot',
+    shootingCompleted: false, canConfirmArrival: true, canPayFinal: false, canPay: false, paymentPhase: '' });
+  await f.page.loadOrder();
+  assert.equal(f.page.data.order.canConfirmArrival, true);
+  assert.equal(f.page.data.order.canPayFinal, false);
+  await f.page.confirmArrival();
+  assert.equal(f.page.data.order.statusText, '拍摄中');
+  assert.equal(f.page.data.order.shootingCompleted, false);
+  assert.equal(f.page.data.order.canPayFinal, true);
+  assert.equal(f.page.data.order.nextAction, '支付尾款');
+  assert.equal(f.requests.length, 0);
+
+  f.control.status = async () => ({ success: true, data: { status: 'pending', paymentParams } });
+  await payFinal(f.page);
+  assert.equal(f.control.invokeCount, 1);
+  assert.equal(f.requests[0].selectionAccepted, true);
+  assert.equal(f.page.data.order.statusText, '拍摄中', 'WeChat success without server confirmation cannot complete the order');
+  assert.equal(f.page.data.order.canPayFinal, true);
+
+  f.control.status = undefined;
+  await f.page.refreshPaymentStatus({ silent: true });
+  assert.equal(f.page.data.order.statusText, '已完成');
+  assert.equal(f.page.data.order.canPayFinal, false);
+  assert.equal(f.page.data.order.canConfirmArrival, false);
+});
 
 test('finance placeholders cannot override the current phase payment status or open a resume loop', async () => {
   const placeholder = { id: 'final-placeholder', phase: 'final', amount: 70, status: 'pending' };
@@ -156,6 +192,36 @@ test('a pending payment with parameters resumes directly without creating anothe
   assert.equal(f.requests.length, 0);
   assert.equal(f.control.invokeCount, 1);
   assert.equal(f.page.data.order.businessStatusKey, 'completed');
+});
+
+test('resuming an existing payment keeps status queries available while waiting for the latest merchant scan before opening WeChat', async () => {
+  const f = fixture(pendingFinal);
+  await f.page.loadOrder();
+  f.control.status = async () => ({ success: true, data: { status: 'pending', provider: 'wechat_pay', paymentParams } });
+  let release, started;
+  const ready = new Promise(resolve => { started = resolve; });
+  const gate = new Promise(resolve => { release = resolve; });
+  f.control.scanSync = async () => { started(); await gate; };
+  const paying = payFinal(f.page);
+  await ready;
+  assert.equal(f.statusQueries.length, 1, 'the existing payment can be queried before scan synchronization');
+  assert.equal(f.requests.length, 0); assert.equal(f.control.invokeCount, 0);
+  release(); await paying;
+  assert.equal(f.control.invokeCount, 1);
+});
+
+test('an unsynced scan prevents a resumed wallet invocation and shows a retry message without preventing status queries', async () => {
+  const f = fixture(pendingFinal);
+  await f.page.loadOrder();
+  f.control.status = async () => ({ success: true, data: { status: 'pending', provider: 'wechat_pay', paymentParams } });
+  f.control.scanSync = async () => { throw Object.assign(new Error('pending scan'), { code: 'SHARE_SCAN_SYNC_PENDING' }); };
+  await payFinal(f.page);
+  assert.equal(f.control.invokeCount, 0); assert.equal(f.requests.length, 0);
+  assert.equal(f.statusQueries.length, 2, 'payment status remains readable after the blocked invocation');
+  assert.ok(f.toasts.some(toast => /扫码信息同步/.test(toast.title)));
+  f.control.scanSync = undefined;
+  await payFinal(f.page);
+  assert.equal(f.control.invokeCount, 1, 'retry can open the wallet after synchronization succeeds');
 });
 
 test('an already confirmed payment only refreshes the order and clears the request key', async () => {
@@ -322,11 +388,14 @@ test('final payment invokes WeChat and completes only after server confirmation 
   assert.equal(f.page.data.order.canPayFinal, false);
 });
 
-test('zero balance completion uses the server acknowledgement without invoking WeChat', async () => {
-  const zero = { ...awaitingFinal, finalDue: 0, totalAmount: 30, canPay: false, canPayFinal: false, canConfirmCompletion: true };
+test('zero balance completion after arrival needs only the customer acknowledgement and never invokes WeChat', async () => {
+  const zero = { ...awaitingFinal, status: 'shooting', workflowStage: 'shooting', shootingCompleted: false,
+    customerArrivedAt: '2026-11-16T03:00:00Z', finalDue: 0, totalAmount: 30, canPay: false, canPayFinal: false, canConfirmCompletion: true };
   const f = fixture(zero);
   await f.page.loadOrder();
   assert.equal(f.page.data.order.canConfirmCompletion, true);
+  assert.equal(f.page.data.order.statusText, '拍摄中');
+  assert.equal(f.page.data.order.shootingCompleted, false);
   f.control.create = async () => {
     f.setServerOrder({ ...zero, status: 'completed', businessStatus: 'completed', workflowStage: 'completed',
       canConfirmCompletion: false, completionSource: 'zero_balance', finalPaymentStatus: 'confirmed' });

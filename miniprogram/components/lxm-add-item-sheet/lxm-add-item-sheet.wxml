@@ -85,7 +85,9 @@
           </view>
           <view wx:else class="hscroll-wrap">
             <scroll-view scroll-x class="hscroll" show-scrollbar="{{false}}">
-              <template is="hcard" wx:for="{{item.items}}" wx:for-item="p" wx:key="uid" data="{{...p, added: cartMap[p.uid]}}" />
+              <view class="hscroll-track">
+                <template is="hcard" wx:for="{{item.items}}" wx:for-item="p" wx:key="uid" data="{{...p, added: cartMap[p.uid]}}" />
+              </view>
             </scroll-view>
             <view class="hscroll-fade" aria-hidden="true"></view>
           </view>
@@ -97,11 +99,13 @@
         <view class="sec-title"><text>约拍定制</text></view>
         <view class="hscroll-wrap">
           <scroll-view scroll-x class="hscroll" show-scrollbar="{{false}}">
-            <view class="hcard custom" catchtap="addCustom">
-              <view class="deer">📷</view>
-              <view class="ct">想拍「{{panel.spotName}}」？</view>
-              <view class="cs">这个打卡点暂无上架拍摄项目，发起约拍定制，摄影顾问帮你规划专属拍摄。</view>
-              <view class="cbtn">发起约拍定制</view>
+            <view class="hscroll-track">
+              <view class="hcard custom" catchtap="addCustom">
+                <view class="deer">📷</view>
+                <view class="ct">想拍「{{panel.spotName}}」？</view>
+                <view class="cs">这个打卡点暂无上架拍摄项目，发起约拍定制，摄影顾问帮你规划专属拍摄。</view>
+                <view class="cbtn">发起约拍定制</view>
+              </view>
             </view>
           </scroll-view>
           <view class="hscroll-fade" aria-hidden="true"></view>

@@ -131,21 +131,30 @@ test('unconfigured footprints do not invent local stamps or reward promises', ()
   assert.equal(result.subText, '')
 })
 
-test('customer service settings load from the database and remain empty after a failed refresh', async () => {
+test('customer service loads the enterprise ID without replacing the pinned link on refresh or failure', async () => {
   let app
   let fail = false
+  let requests = 0
   load('app.js', {
-    './api/client': { async callCloud(name) { assert.equal(name, 'getCorpConfig'); if (fail) throw new Error('offline'); return { success: true, data: { corpId: 'database-corp', customerServiceUrl: 'https://work.weixin.qq.com/kfid/database' } } } }
+    './api/client': { async callCloud(name) { requests++; assert.equal(name, 'getCorpConfig'); if (fail) throw new Error('offline'); return { success: true, data: { corpId: 'database-corp', customerServiceUrl: 'https://work.weixin.qq.com/kfid/database' } } } }
   }, { Page() {}, App: value => { app = value }, wx: { showToast() {} } })
   assert.equal(app.globalData.corpId, '')
-  assert.equal(app.globalData.customerServiceUrl, '')
-  await app.loadCustomerServiceConfig()
+  assert.equal(app.globalData.customerServiceUrl, 'https://work.weixin.qq.com/kfid/kfc39a3180cff84adda')
+  const request = app.loadCustomerServiceConfig()
+  assert.strictEqual(app.loadCustomerServiceConfig(), request)
+  await request
+  assert.equal(requests, 1)
   assert.equal(app.globalData.corpId, 'database-corp')
-  assert.equal(app.globalData.customerServiceUrl, 'https://work.weixin.qq.com/kfid/database')
+  assert.equal(app.globalData.customerServiceUrl, 'https://work.weixin.qq.com/kfid/kfc39a3180cff84adda')
   fail = true
   await app.loadCustomerServiceConfig()
+  assert.equal(requests, 2)
   assert.equal(app.globalData.corpId, '')
-  assert.equal(app.globalData.customerServiceUrl, '')
+  assert.equal(app.globalData.customerServiceUrl, 'https://work.weixin.qq.com/kfid/kfc39a3180cff84adda')
+  fail = false
+  await app.loadCustomerServiceConfig()
+  assert.equal(requests, 3)
+  assert.equal(app.globalData.corpId, 'database-corp')
 })
 
 test('production dependency graph contains no sample catalog or demo mode entry point', () => {

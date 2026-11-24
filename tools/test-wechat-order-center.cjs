@@ -22,7 +22,9 @@ const dependencies = {
   "../../utils/query": { buildUrlWithSource() { return ""; } },
   "../../utils/order": require("../miniprogram/utils/order"),
   "../../utils/productDisplay": require("../miniprogram/utils/productDisplay"),
+  "../../utils/physical": require("../miniprogram/utils/physical"),
   "../../utils/orderStatusFilters": require("../miniprogram/utils/orderStatusFilters"),
+  "../../service/orderProductNavigation": {},
   "../../service/orderFileActions": {
     data: {},
     actions: { loadAfterSales() {}, cancelFileDownload() {} }

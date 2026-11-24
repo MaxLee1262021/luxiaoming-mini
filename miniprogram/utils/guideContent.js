@@ -1,5 +1,6 @@
 // Shared presentation contract for guides returned by current and older RPCs.
 const { API_BASE } = require('../config/env')
+const contentOrder = require('./contentOrder')
 
 const HIDDEN_STATUSES = ['草稿', '下架', '已下架', '停用', '禁用', '待审核', '待发布', 'draft', 'offline', 'disabled', 'pending']
 
@@ -57,6 +58,17 @@ function attachmentSize(size) {
   return Math.round(size / (1024 * 1024) * 10) / 10 + ' MB'
 }
 
+function guideMetric(value, fallback = 0) {
+  if (!['number', 'string'].includes(typeof value) || (typeof value === 'string' && !value.trim())) return fallback
+  const number = Number(value)
+  return Number.isFinite(number) && number >= 0 ? number : fallback
+}
+
+function guideReadCount(item) {
+  const number = guideMetric(item.readCount == null ? item.views : item.readCount)
+  return Number.isSafeInteger(number) ? number : 0
+}
+
 function normalizeGuide(item = {}) {
   if (!item) return item
   const spotIds = guideSpotIds(item)
@@ -83,6 +95,7 @@ function normalizeGuide(item = {}) {
     _id: item._id || item.id || '',
     title: item.title || item.name || '',
     description: item.description || '',
+    category: typeof item.category === 'string' ? item.category.trim() : '',
     image: mediaUrl(item.cover || item.coverUrl || item.image || '') || '/images/placeholder.png',
     cover: mediaUrl(item.cover || item.coverUrl || item.image || ''),
     spotId: firstSpotId, spotIds, spots,
@@ -93,20 +106,23 @@ function normalizeGuide(item = {}) {
     targetProductSpotId: String(item.targetProductSpotId || ''),
     bookingProduct: item.bookingProduct || null,
     isTop, pinned: isTop,
-    readCount: item.readCount || item.views || 0
+    readCount: guideReadCount(item),
+    ...(item.score == null ? {} : { score: guideMetric(item.score, '') })
   }
 }
 
-function publicGuides(list = []) {
-  return (Array.isArray(list) ? list : []).filter(isPublicGuide).map(normalizeGuide).sort((a, b) => {
-    const top = Number(b.isTop) - Number(a.isTop)
-    if (top) return top
-    const timestamp = item => {
-      const value = item.updatedAt || item.updateTime || item.createTime || item.createdAt || ''
-      return typeof value === 'number' || /^\d+$/.test(value) ? Number(value) : (Date.parse(value) || 0)
-    }
-    return timestamp(b) - timestamp(a)
+function sortGuides(list = [], sortBy = 'default') {
+  return (Array.isArray(list) ? list : []).slice().sort((a, b) => {
+    // User-selected metrics take priority even when a point's feed includes pinned articles.
+    const metric = sortBy === 'readCount' ? guideReadCount(b) - guideReadCount(a)
+      : sortBy === 'score' ? guideMetric(b.score) - guideMetric(a.score) : 0
+    if (metric) return metric
+    return contentOrder.compare('guides', a, b)
   })
+}
+
+function publicGuides(list = [], sortBy = 'default') {
+  return sortGuides((Array.isArray(list) ? list : []).filter(isPublicGuide).map(normalizeGuide), sortBy)
 }
 
 const TAG_STYLES = {
@@ -217,4 +233,4 @@ function guideContentBlocks(html = '') {
     .map((block, index) => ({ ...block, key: `guide-block-${index}` }))
 }
 
-module.exports = { isPublicGuide, guideSpotIds, matchesSpot, normalizeGuide, publicGuides, guideContentBlocks, mediaUrl, guideAttachmentUrl }
+module.exports = { isPublicGuide, guideSpotIds, matchesSpot, normalizeGuide, publicGuides, sortGuides, guideContentBlocks, mediaUrl, guideAttachmentUrl }

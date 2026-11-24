@@ -1,4 +1,5 @@
 const { filterPhotoSeries } = require('./catalog')
+const { resolvePackageSpots } = require('./packageSpots')
 
 function isValidPhone(phone = '') {
   return /^1[3-9]\d{9}$/.test(String(phone).trim())
@@ -53,6 +54,22 @@ function sumDepositDue(items = [], fallbackRatio = null) {
   return amount
 }
 
+function bookingRequiresShipping(items = [], packages = []) {
+  return items.some(item => {
+    if (!item) return false
+    const packageId = item.packageId || (String(item.productType || item.type || '').trim() === 'package' ? item.productId : '')
+    if (!packageId) return false
+    const pkg = packages.find(row => String(row._id || row.id || row.packageId || '') === String(packageId))
+    if (!pkg) return false
+    const primary = Array.isArray(pkg.includedItems) ? pkg.includedItems : []
+    const alias = Array.isArray(pkg.items) ? pkg.items : []
+    return Array.from({ length: Math.max(primary.length, alias.length) }, (_, index) => ({ ...alias[index], ...primary[index] })).some(row => {
+      const raw = String(row.type || row.productType || row.category || row.target && row.target.page || '').trim().toLowerCase()
+      return !/video|视频/.test(raw) && /peripheral|accessor|周边|相册|实物/.test(raw) && !/photo|照片/.test(raw)
+    })
+  })
+}
+
 function validateBookingForm(data = {}) {
   if (!String(data.name || '').trim()) return { valid: false, message: '请输入姓名' }
   if (!isValidPhone(data.phone)) return { valid: false, message: '手机号格式错误' }
@@ -60,6 +77,7 @@ function validateBookingForm(data = {}) {
   const items = data.items || []
   if (!items.length) return { valid: false, message: '请至少添加一个拍摄项目' }
   if (items.some(item => item.peripheralId)) return { valid: false, message: '周边仅支持咨询客服，不能加入预约' }
+  if (bookingRequiresShipping(items, data.allPackages || []) && !(data.shippingAddress && data.shippingAddress.id)) return { valid: false, message: '请选择套餐周边的收货地址' }
   if ((data.date && !data.time) || (!data.date && data.time)) return { valid: false, message: '请选择完整的拍摄日期和时间' }
   return { valid: true, message: '' }
 }
@@ -87,6 +105,8 @@ function buildBookingPayload(data = {}) {
     depositRatio: normalizeDepositRatio(data.depositRatio),
     participantCount: Number(data.participantCount || 1),
     bookingMode: 'consult',
+    ...(bookingRequiresShipping(items, data.allPackages || []) && data.shippingAddress && data.shippingAddress.id
+      ? { shippingAddressId: data.shippingAddress.id } : {}),
     // The server checks the exact notice version, so the checkbox state must
     // travel with the request instead of being kept only in page state.
     agreement: {
@@ -102,10 +122,11 @@ function buildBookingPayload(data = {}) {
   }
 }
 
-function buildPrefillItem({ series = {}, spot = {}, album = {}, pkg = {}, defaultPrice = 0 } = {}) {
+function buildPrefillItem({ series = {}, spot = {}, album = {}, pkg = {}, defaultPrice = 0, context = {} } = {}) {
   return {
     spotId: spot._id || pkg.spotId || '',
     spotName: spot.name || pkg.spotName || '',
+    applicableSpots: pkg._id || pkg.id ? resolvePackageSpots(pkg, context) : [],
     seriesId: series._id || pkg.seriesId || album.seriesId || '',
     seriesName: series.name || pkg.seriesName || album.seriesName || '',
     albumId: album._id || album.albumId || '',
@@ -130,10 +151,11 @@ function filterPackagesBySpot(packages = [], spotId = '') {
   return (packages || []).filter(item => item.spotId === spotId || (Array.isArray(item.spotIds) && item.spotIds.includes(spotId)))
 }
 
-function buildItemFromPackage({ pkg = {}, series = {}, spot = {}, album = {} } = {}) {
+function buildItemFromPackage({ pkg = {}, series = {}, spot = {}, album = {}, context = {} } = {}) {
   return {
     spotId: spot._id || pkg.spotId || '',
     spotName: spot.name || pkg.spotName || '',
+    applicableSpots: resolvePackageSpots(pkg, context),
     seriesId: series._id || pkg.seriesId || '',
     seriesName: series.name || pkg.seriesName || '',
     albumId: album._id || '',
@@ -171,6 +193,7 @@ module.exports = {
   isPastDate,
   sumItemsPrice,
   sumDepositDue,
+  bookingRequiresShipping,
   validateBookingForm,
   buildBookingPayload,
   buildPrefillItem,

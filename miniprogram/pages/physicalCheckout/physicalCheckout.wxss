@@ -1,0 +1,32 @@
+@import "../../styles/physical.wxss";
+
+.physical-page {
+  padding-bottom: calc(180rpx + env(safe-area-inset-bottom));
+}
+
+.physical-footer .physical-primary {
+  min-width: 0;
+  height: 104rpx;
+  min-height: 104rpx;
+  padding: 0 24rpx;
+  border-radius: 52rpx;
+  font-size: 30rpx;
+}
+
+.physical-product-description + .physical-product-description {
+  margin-top: 24rpx;
+  padding-top: 24rpx;
+  border-top: 1rpx solid #f1e9e2;
+}
+
+.physical-description-name {
+  display: block;
+  margin-top: 16rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+}
+
+.physical-description-content {
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -1,7 +1,7 @@
 Component({
   properties: {
     title: { type: String, value: '相关推荐' },
-    subtitle: { type: String, value: '更多视频摄像单品，可跨打卡点由后台统一配置' },
+    subtitle: { type: String, value: '' },
     badge: { type: String, value: '' },
     badgeType: { type: String, value: 'blue' }, // blue | red
     videos: { type: Array, value: [] }

@@ -1,3 +1,4 @@
+const contentOrder = require('../utils/contentOrder')
 const { callCloud } = require('./client')
 const homeApi = require('./home')
 const { normalizePackage, normalizePackageList, isVideo, filterVisibleProducts } = require('../utils/product')
@@ -44,13 +45,13 @@ function mergeByIdentity(...lists) {
 
 function normalizeCatalog(data = {}) {
   const packageRows = mergeByIdentity(data.packages, data.allPackages, data.hotPackages)
-  const packages = normalizePackageList(filterVisibleProducts(packageRows))
+  const packages = normalizePackageList(filterVisibleProducts(packageRows)).sort((a, b) => contentOrder.compare('packages', a, b))
   const videos = mergeByIdentity(
     data.videoSingles,
     data.videoProducts,
     packages.filter(isVideoSingle)
   ).filter(isVideoSingle).filter(item => filterVisibleProducts([item]).length)
-    .map(item => normalizeSearchVideoItem(item))
+    .map(item => normalizeSearchVideoItem(item)).sort((a, b) => contentOrder.compare('packages', a, b))
   return {
     spots: Array.isArray(data.spots) ? data.spots : [],
     packages: packages.filter(item => !isVideo(item)),

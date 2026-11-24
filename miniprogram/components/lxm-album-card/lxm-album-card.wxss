@@ -30,11 +30,16 @@ button {
   display: block;
 }
 
+.album-media {
+  position: relative;
+  height: 360rpx;
+}
+
 /* compact：横向滚动里用的固定尺寸卡（与首页照片单品一致） */
 .album-card.compact {
   display: inline-block;
   width: 236rpx;
-  height: 286rpx;
+  height: auto;
   min-height: 0;
   margin-right: 18rpx;
   vertical-align: top;
@@ -43,6 +48,54 @@ button {
 .album-card.compact .album-cover {
   height: 286rpx;
   min-height: 286rpx;
+}
+
+.album-card.compact .album-media {
+  height: 286rpx;
+}
+
+.album-configured-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6rpx;
+  padding: 12rpx 14rpx;
+  background: var(--lxm-c-cream);
+  white-space: normal;
+}
+
+.album-photo-description {
+  padding: 12rpx 14rpx;
+  background: var(--lxm-c-cream);
+  color: var(--lxm-c-ink);
+  font-size: var(--lxm-fz-xs);
+  line-height: 1.5;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.album-photo-description__text {
+  display: block;
+  white-space: pre-wrap;
+}
+
+.album-configured-tags--inline {
+  margin-top: 12rpx;
+  padding: 0;
+  background: transparent;
+}
+
+.album-configured-tag {
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 4rpx 10rpx;
+  border-radius: 12rpx;
+  background: var(--lxm-c-gray-250);
+  color: var(--lxm-c-red-ink);
+  font-size: var(--lxm-fz-2xs);
+  line-height: 1.5;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .album-mask {
@@ -107,15 +160,26 @@ button {
   align-items: center;
   justify-content: space-between;
   margin-top: 10rpx;
+  gap: 8rpx;
+}
+
+.album-bottom--price-only {
+  justify-content: flex-end;
 }
 
 .album-count {
+  min-width: 0;
+  flex: 1;
   color: rgba(255, 255, 255, 0.86);
   font-size: var(--lxm-fz-2xs);
   font-weight: 700;
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .album-price {
+  flex-shrink: 0;
   color: var(--lxm-c-red);
   font-size: var(--lxm-fz-md);
   font-weight: 900;
@@ -201,6 +265,9 @@ button {
   margin-top: 6rpx;
   color: var(--lxm-c-gray-700);
   font-size: var(--lxm-fz-xs);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .album-row-tail {
@@ -284,17 +351,23 @@ button {
 
 .album-stack-meta {
   display: flex;
+  flex-wrap: wrap;
   gap: 12rpx;
   margin-top: 16rpx;
 }
 
 .album-tag {
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 7rpx 14rpx;
   border-radius: 999rpx;
   font-size: var(--lxm-fz-xs);
   font-weight: 900;
   background: var(--lxm-c-gray-250);
   color: var(--lxm-c-red-ink);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 .album-tag.ghost {
@@ -335,29 +408,41 @@ button {
               0 18rpx 40rpx rgba(238, 44, 44, 0.18);
 }
 
-/* 营销角标：爆款（红）> 主推（金）> 热门（橙），覆盖在封面右上角 */
-.album-marketing-badge {
+/* 封面右侧展示后台配置标签，保序换行，避开左侧商品类型。 */
+.album-cover-tags {
   position: absolute;
   top: 12rpx;
   right: 12rpx;
   z-index: 4;
+  max-width: calc(100% - 120rpx);
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6rpx;
+  pointer-events: none;
+}
+
+.album-cover-tags--multiple {
+  top: 56rpx;
+  max-width: calc(100% - 24rpx);
+}
+
+.album-card.stack .album-cover-tags {
+  top: 12rpx;
+  max-width: calc(100% - 24rpx);
+}
+
+.album-marketing-badge {
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 4rpx 14rpx;
   border-radius: 999rpx;
   font-size: var(--lxm-fz-2xs);
   font-weight: 900;
   background: var(--lxm-c-gold);
   color: var(--lxm-c-ink);
-  pointer-events: none;
-}
-.album-marketing-badge.is-hot-sale {
-  background: var(--lxm-c-red);
-  color: var(--lxm-c-cream);
-}
-.album-marketing-badge.is-main-push {
-  background: var(--lxm-c-gold);
-  color: var(--lxm-c-ink);
-}
-.album-marketing-badge.is-hot {
-  background: var(--lxm-c-orange);
-  color: var(--lxm-c-ink);
+  white-space: normal;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+  line-height: 1.4;
 }
