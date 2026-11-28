@@ -1,5 +1,5 @@
 <view class="guide-detail-page">
-  <lxm-nav-bar showBack="{{true}}" title="旅拍灵感" />
+  <lxm-nav-bar showBack="{{true}}" title="旅拍灵感" placeholder="{{loading || error}}" theme="{{loading || error ? 'light' : 'dark'}}" />
   <lxm-privacy-modal />
   <lxm-toast id="lxmToast" />
 

@@ -4,6 +4,7 @@ const spotApi = require('../../api/spot')
 const citiesApi = require('../../api/cities')
 const spotFilter = require('../../service/spotFilter')
 const { buildUrlWithSource } = require('../../utils/query')
+const { BRAND_TITLE } = require('../../utils/share')
 const { isVideoSingle } = require('../../utils/product')
 const homeApi = require('../../api/home')
 const searchApi = require('../../api/search')
@@ -139,13 +140,10 @@ Page({
     }
   },
 
-  // 探索页专属分享：带上当前城市名，好友打开仍停留在该城市
+  // 分享标题统一使用品牌文案，好友打开仍停留在当前城市。
   onShareAppMessage() {
-    const cityOptions = this.data.cityOptions || []
-    const current = cityOptions.find(c => c.value === this.data.selectedCity)
-    const cityName = current ? current.name : (this.data.selectedCityName || '旅拍')
     return {
-      title: `麓小鸣旅拍｜${cityName}打卡点地图，来一场说走就走的城市旅拍`,
+      title: BRAND_TITLE,
       path: this.data.selectedCity ? `/pages/explore/explore?cityId=${encodeURIComponent(this.data.selectedCity)}` : '/pages/explore/explore'
     }
   },

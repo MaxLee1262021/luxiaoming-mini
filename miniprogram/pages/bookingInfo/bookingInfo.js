@@ -2,6 +2,7 @@ const app = getApp()
 const bookingApi = require('../../api/booking')
 const orderApi = require('../../api/order')
 const { buildUrlWithSource } = require('../../utils/query')
+const { BRAND_TITLE } = require('../../utils/share')
 const bookingUtils = require('../../utils/booking')
 const bookingDataService = require('../../service/bookingData')
 const bookingPicker = require('../../service/bookingPicker')
@@ -139,7 +140,7 @@ Page({
 
   // 预约页专属分享：带上当前选中项目与打卡点，方便好友直接进入同款预约
   onShareAppMessage() {
-    const { requestedSpot, prefillSpotId, prefillPackageId, prefillAlbumId, prefillSeriesId } = this.data
+    const { prefillSpotId, prefillPackageId, prefillAlbumId, prefillSeriesId } = this.data
     const query = []
     if (prefillSpotId) query.push('spotId=' + prefillSpotId)
     if (prefillPackageId) query.push('packageId=' + prefillPackageId)
@@ -147,7 +148,7 @@ Page({
     if (prefillSeriesId) query.push('seriesId=' + prefillSeriesId)
     const queryStr = query.join('&')
     return {
-      title: requestedSpot ? `麓小鸣旅拍｜${requestedSpot}约拍预约进行中` : '麓小鸣旅拍｜城市旅拍预约，欢迎来撩',
+      title: BRAND_TITLE,
       path: '/pages/bookingInfo/bookingInfo' + (queryStr ? '?' + queryStr : '')
     }
   },

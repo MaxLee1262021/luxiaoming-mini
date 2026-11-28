@@ -54,6 +54,7 @@ function decodeQueryFields(options = {}, keys = []) {
 
 module.exports = {
   parseScene,
+  buildQuery,
   buildUrl,
   buildUrlWithSource,
   decodeQueryValue,
